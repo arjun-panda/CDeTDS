@@ -18,6 +18,9 @@ installer_output/
 Thumbs.db
 desktop.ini
 
+# Legacy WinForms project
+TDSPro.UI/
+
 # SQLite databases
 *.db
 *.db-shm
