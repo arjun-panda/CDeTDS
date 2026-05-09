@@ -18,6 +18,10 @@ installer_output/
 Thumbs.db
 desktop.ini
 
+# Demo/dev files
+demo_*.html
+DEPLOYMENT_GUIDE.txt
+
 # Legacy WinForms project
 TDSPro.UI/
 
