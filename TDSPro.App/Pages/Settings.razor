@@ -374,6 +374,22 @@
                             <tr><td><b>Version</b></td><td>v@AppConstants.AppVersion</td></tr>
                             <tr><td><b>Framework</b></td><td>.NET 8 · Blazor · MudBlazor</td></tr>
                             <tr><td><b>Database</b></td><td>SQLite (WAL mode)</td></tr>
+                            <tr><td><b>FVU Utility</b></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(_localFvuVersion))
+                                    {
+                                        @if (!string.IsNullOrEmpty(_latestFvuVersion) && _fvuOutdated)
+                                        {
+                                            <span style="color:#b45309">v@_localFvuVersion ⚠ v@_latestFvuVersion available</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color:#166534">v@_localFvuVersion ✓</span>
+                                        }
+                                    }
+                                    else { <span style="color:#9ca3af">Not configured</span> }
+                                </td>
+                            </tr>
                             <tr><td><b>License</b></td><td>@AppState.CurrentLicense.TierLabel</td></tr>
                             <tr><td><b>Expires</b></td><td>@AppState.CurrentLicense.ExpiryDate.ToString("dd-MMM-yyyy") (@AppState.CurrentLicense.DaysLeft days)</td></tr>
                             <tr><td><b>Machine ID</b></td><td style="font-family:monospace;font-size:11px">@_machineId</td></tr>
@@ -413,6 +429,14 @@
                                        StartIcon="@Icons.Material.Filled.Download"
                                        OnClick="OpenDownloadPage">
                                 Download v@_latestVersion
+                            </MudButton>
+                        }
+                        @if (_fvuOutdated && !string.IsNullOrEmpty(_fvuDownloadUrl))
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Class="ml-2"
+                                       StartIcon="@Icons.Material.Filled.Update"
+                                       OnClick="OpenFvuDownloadPage">
+                                Download FVU v@_latestFvuVersion
                             </MudButton>
                         }
                     </MudCardActions>
@@ -476,6 +500,10 @@
     private string   _latestVersion      = "";
     private bool     _checkingUpdate;
     private Severity _aboutUpdateSeverity = Severity.Info;
+    private string   _localFvuVersion    = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+    private string   _latestFvuVersion   = "";
+    private string   _fvuDownloadUrl     = "";
+    private bool     _fvuOutdated        = false;
 
     async Task CheckForUpdatesAbout()
     {
@@ -486,10 +514,31 @@
         var info = await UpdateSvc.CheckAsync(forceCheck: true);
         if (info != null)
         {
-            _aboutUpdateMsg     = $"v{info.Version} is available ({info.ReleaseDate}): {info.Notes}";
-            _aboutUpdateSeverity = Severity.Warning;
-            _updateDownloadUrl  = info.DownloadUrl;
-            _latestVersion      = info.Version;
+            // App update
+            if (info.IsNewer)
+            {
+                _aboutUpdateMsg     = $"v{info.Version} is available ({info.ReleaseDate}): {info.Notes}";
+                _aboutUpdateSeverity = Severity.Warning;
+                _updateDownloadUrl  = info.DownloadUrl;
+                _latestVersion      = info.Version;
+            }
+            else
+            {
+                _aboutUpdateMsg      = $"You are on the latest version (v{AppConstants.AppVersion}).";
+                _aboutUpdateSeverity = Severity.Success;
+            }
+            // FVU version check
+            if (!string.IsNullOrEmpty(info.FvuLatestVersion))
+            {
+                _latestFvuVersion = info.FvuLatestVersion;
+                _fvuDownloadUrl   = info.FvuDownloadUrl;
+                _localFvuVersion  = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+                if (!string.IsNullOrEmpty(_localFvuVersion))
+                {
+                    try { _fvuOutdated = Version.Parse(_latestFvuVersion) > Version.Parse(_localFvuVersion); }
+                    catch { _fvuOutdated = false; }
+                }
+            }
         }
         else
         {
@@ -833,7 +882,10 @@
 
     void OpenFvuDownloadPage()
     {
-        OpenUrl("https://www.protean-tinpan.com/services/etds-etcs/fvu.html");
+        var url = !string.IsNullOrEmpty(_fvuDownloadUrl)
+            ? _fvuDownloadUrl
+            : "https://www.protean-tinpan.com/services/etds-etcs/fvu.html";
+        OpenUrl(url);
     }
 
     void OpenFolder(string path)

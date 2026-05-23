@@ -1,12 +1,14 @@
 ﻿@page "/returns"
 @using System.IO
 @using TDSPro.Common
+@using TDSPro.BLL
 @inject AppStateService AppState
 @inject ReturnService Svc
 @inject DeductorService DeductorSvc
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject CsiDownloadService CsiSvc
+@inject UpdateCheckService UpdateSvc
 
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">Returns / FVU — FY @AppState.CurrentFY</MudText>
@@ -87,6 +89,23 @@
                     <MudItem xs="6">
                         <MudTextField @bind-Value="_prevQuarterToken" Label="Previous Quarter Token" Variant="Variant.Outlined" Margin="Margin.Dense"
                                       HelperText="Provisional Receipt Number from last filed quarter" />
+                    </MudItem>
+                }
+
+                @* ── FVU version warning ── *@
+                @if (!string.IsNullOrEmpty(_fvuVersionWarn))
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            @_fvuVersionWarn
+                            @if (!string.IsNullOrEmpty(_fvuDownloadUrl))
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Warning" Class="ml-2"
+                                           OnClick="@(() => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_fvuDownloadUrl) { UseShellExecute = true }))">
+                                    Download
+                                </MudButton>
+                            }
+                        </MudAlert>
                     </MudItem>
                 }
 
@@ -517,6 +536,8 @@
     private bool   _fvuJavaOk        = false;
     private bool   _fvuJarOk         = false;
     private string _fvuNotReadyReason = "";
+    private string _fvuVersionWarn    = "";   // set when local FVU is older than latest
+    private string _fvuDownloadUrl    = "";
 
     // Quick status
     private int    _statusChallanCount = 0;
@@ -574,6 +595,31 @@
         LoadQuickStatus();
         BuildPortalCards();
         LoadFilingHistory();
+        _ = CheckFvuVersionAsync();
+    }
+
+    private async Task CheckFvuVersionAsync()
+    {
+        try
+        {
+            var info = await UpdateSvc.CheckAsync(forceCheck: false);
+            if (info != null && !string.IsNullOrEmpty(info.FvuLatestVersion))
+            {
+                var local = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+                if (!string.IsNullOrEmpty(local))
+                {
+                    var latest = Version.Parse(info.FvuLatestVersion);
+                    var localV = Version.Parse(local);
+                    if (latest > localV)
+                    {
+                        _fvuVersionWarn = $"Your FVU is v{local}. NSDL has released v{info.FvuLatestVersion} — returns filed with an older FVU may be rejected.";
+                        _fvuDownloadUrl = info.FvuDownloadUrl;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+            }
+        }
+        catch { }
     }
 
     void LoadFilingHistory()

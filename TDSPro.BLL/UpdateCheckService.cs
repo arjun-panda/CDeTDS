@@ -7,11 +7,13 @@ namespace TDSPro.BLL
 {
     public class UpdateInfo
     {
-        public string Version     { get; set; } = "";
-        public string ReleaseDate { get; set; } = "";
-        public string DownloadUrl { get; set; } = "";
-        public string Notes       { get; set; } = "";
-        public bool   IsNewer     { get; set; }
+        public string Version          { get; set; } = "";
+        public string ReleaseDate      { get; set; } = "";
+        public string DownloadUrl      { get; set; } = "";
+        public string Notes            { get; set; } = "";
+        public bool   IsNewer          { get; set; }
+        public string FvuLatestVersion { get; set; } = "";
+        public string FvuDownloadUrl   { get; set; } = "";
     }
 
     public class UpdateCheckService
@@ -41,16 +43,22 @@ namespace TDSPro.BLL
                 var root = doc.RootElement;
 
                 var latest = root.GetProperty("version").GetString() ?? "";
+                var fvuLatest = root.TryGetProperty("fvuLatestVersion", out var fv) ? fv.GetString() ?? "" : "";
                 var info   = new UpdateInfo
                 {
-                    Version     = latest,
-                    ReleaseDate = root.TryGetProperty("releaseDate", out var rd) ? rd.GetString() ?? "" : "",
-                    DownloadUrl = root.TryGetProperty("downloadUrl", out var du) ? du.GetString() ?? "" : "",
-                    Notes       = root.TryGetProperty("notes",       out var n)  ? n.GetString()  ?? "" : "",
-                    IsNewer     = IsNewerVersion(latest, AppConstants.AppVersion)
+                    Version          = latest,
+                    ReleaseDate      = root.TryGetProperty("releaseDate", out var rd) ? rd.GetString() ?? "" : "",
+                    DownloadUrl      = root.TryGetProperty("downloadUrl", out var du) ? du.GetString() ?? "" : "",
+                    Notes            = root.TryGetProperty("notes",       out var n)  ? n.GetString()  ?? "" : "",
+                    IsNewer          = IsNewerVersion(latest, AppConstants.AppVersion),
+                    FvuLatestVersion = fvuLatest,
+                    FvuDownloadUrl   = root.TryGetProperty("fvuDownloadUrl", out var fd) ? fd.GetString() ?? "" : "",
                 };
 
-                return info.IsNewer ? info : null;
+                // Return if app update available OR FVU is outdated — always useful info
+                var fvuOutdated = !string.IsNullOrEmpty(fvuLatest) &&
+                                  IsNewerFvuVersion(fvuLatest, FvuUtilityRunner.GetLocalFvuVersion());
+                return (info.IsNewer || fvuOutdated) ? info : null;
             }
             catch
             {
@@ -60,12 +68,15 @@ namespace TDSPro.BLL
 
         private static bool IsNewerVersion(string remote, string local)
         {
-            try
-            {
-                var r = Version.Parse(remote);
-                var l = Version.Parse(local);
-                return r > l;
-            }
+            try { return Version.Parse(remote) > Version.Parse(local); }
+            catch { return false; }
+        }
+
+        // FVU versions are like "9.4" or "9.5" — compare as System.Version
+        private static bool IsNewerFvuVersion(string remote, string local)
+        {
+            if (string.IsNullOrEmpty(local)) return false;
+            try { return Version.Parse(remote) > Version.Parse(local); }
             catch { return false; }
         }
     }

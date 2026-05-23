@@ -1203,6 +1203,45 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
             return _fvuFixHints.TryGetValue(code.Trim(), out var hint) ? hint : "";
         }
 
+        /// <summary>
+        /// Extracts the FVU version from the configured JAR filename.
+        /// e.g. "TDS_STANDALONE_FVU_9.4.jar" → "9.4"
+        /// Returns empty string if JAR path not set or version cannot be parsed.
+        /// </summary>
+        public static string GetLocalFvuVersion()
+        {
+            try
+            {
+                var jarPath = Database.GetSetting("FvuPath", "");
+                if (string.IsNullOrEmpty(jarPath))
+                {
+                    // Try config table fallback
+                    jarPath = new FvuUtilityRunner().LoadConfig().FvuJarPath;
+                }
+                if (string.IsNullOrEmpty(jarPath) || !File.Exists(jarPath))
+                    return "";
+
+                var name = Path.GetFileNameWithoutExtension(jarPath); // e.g. TDS_STANDALONE_FVU_9.4
+                // Pattern: last segment after underscore that looks like a version (digits.digits)
+                var match = System.Text.RegularExpressions.Regex.Match(name, @"(\d+\.\d+(?:\.\d+)?)$");
+                if (match.Success) return match.Groups[1].Value;
+
+                // Fallback: read Implementation-Version from JAR MANIFEST.MF
+                using var zip = System.IO.Compression.ZipFile.OpenRead(jarPath);
+                var manifest = zip.GetEntry("META-INF/MANIFEST.MF");
+                if (manifest != null)
+                {
+                    using var reader = new System.IO.StreamReader(manifest.Open());
+                    var content = reader.ReadToEnd();
+                    var mvMatch = System.Text.RegularExpressions.Regex.Match(content,
+                        @"Implementation-Version:\s*(\S+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (mvMatch.Success) return mvMatch.Groups[1].Value;
+                }
+            }
+            catch { }
+            return "";
+        }
+
         /// <summary>Returns a friendly explanation for a T-FV-xxxx error code, or the code itself if unknown.</summary>
         public static string GetFvuErrorDescription(string code)
         {
