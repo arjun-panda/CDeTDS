@@ -50,3 +50,7 @@ MicrosoftEdgeWebview2Setup.exe
 
 # IDE cache files
 *.lscache
+
+# Installer build artifacts (large binaries — run build_installer.ps1 to regenerate)
+installer/AppFiles/
+installer/Output/
