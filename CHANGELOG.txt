@@ -1,6 +1,28 @@
 TDS Pro — Changelog
 ===================
 
+v3.2.0 (May 2026) — 27EQ TCS Support + Market Readiness
+────────────────────────────────────────────────────────
+27EQ / TCS
+  + Form 27D (TCS Certificate) generator — mirrors Form 16A for 206C sections
+  + Form 27D tab in Form 16/27D page with Preview / Print / Save HTML
+  + 27EQ FVU generation already supported (Build27EQ via standard FVU pipeline)
+  + FVU validates 27EQ entries must use 206C-family sections (W026 error)
+
+SETTINGS / ABOUT
+  + What's New panel in Settings → About (reads latest block from CHANGELOG.txt)
+  + CHANGELOG.txt copied to output directory at build
+
+BUG FIXES
+  + Returns: CheckFvuVersionAsync uses forceCheck:true — FVU banner no longer
+    suppressed by daily rate-limit when MainLayout already checked today
+  + Returns: Version.TryParse guards on remote FVU version string
+  + ExcelEngine: FindHeaderRow now recognises BSR/challan keywords —
+    challan import no longer fails header detection
+  + Settings: _localFvuVersion loaded in OnInitialized, not at field init time
+  + Settings: About "else" branch shows FVU update message when FVU outdated
+    but app itself is current (was always showing "up to date" incorrectly)
+
 v3.1.0 (May 2026) — Product Hardening Release
 ─────────────────────────────────────────────
 TEST INFRASTRUCTURE

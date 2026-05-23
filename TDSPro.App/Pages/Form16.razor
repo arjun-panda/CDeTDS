@@ -65,6 +65,35 @@
             </MudGrid>
         </MudTabPanel>
 
+        @* ── Form 27D (TCS) ── *@
+        <MudTabPanel Text="Form 27D — TCS">
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                <b>Form 27D</b> is the TCS Certificate issued to collectees under Section 206C / Rule 37D.
+                Enter the collectee's PAN to generate the certificate for FY @AppState.CurrentFY.
+            </MudAlert>
+            <MudGrid Class="mt-2">
+                <MudItem xs="4">
+                    <PanField Value="@_collecteePan" Label="Collectee PAN*" ShowType="true"
+                              ValueChanged="@((v) => _collecteePan = v)" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudSelect @bind-Value="_quarter27D" Label="Quarter" Variant="Variant.Outlined" ShrinkLabel="true">
+                        <MudSelectItem Value='""'>Full Year</MudSelectItem>
+                        @foreach (var q in AppConstants.QuarterCodes)
+                        { <MudSelectItem Value="@q">@q</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-end gap-2 flex-wrap">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview27D"
+                               Disabled="_generating">Preview</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print27D"
+                               StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download27D"
+                               StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
         @* ── Bulk Generation ── *@
         <MudTabPanel Text="Bulk Generate">
             <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
@@ -109,6 +138,8 @@
     private int    _activeTab    = 0;
     private string _deducteePan = "";
     private string _quarter16A  = "";
+    private string _collecteePan = "";
+    private string _quarter27D  = "";
     private int    _employeeId  = 0;
     private string _html        = "";
     private bool   _generating;
@@ -279,6 +310,50 @@
         }
         catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _generating = false;
+    }
+
+    async Task Preview27D()
+    {
+        if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_collecteePan)) { Snackbar.Add("Collectee PAN is required.", Severity.Warning); return; }
+        _generating = true; _html = ""; StateHasChanged();
+        try
+        {
+            _html = await Task.Run(() =>
+            {
+                var data = Form16Generator.BuildForm27D(
+                    AppState.CurrentDeductorId, _collecteePan.Trim().ToUpper(), AppState.CurrentFY,
+                    string.IsNullOrWhiteSpace(_quarter27D) ? null : _quarter27D);
+                if (data.Transactions.Count == 0)
+                    return "<div style='padding:24px;font-family:sans-serif;color:#b45309'>No TCS entries (206C sections) found for this PAN in FY " + AppState.CurrentFY + ".</div>";
+                return Form16Generator.RenderForm27D(data);
+            });
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _generating = false;
+    }
+
+    async Task Print27D()
+    {
+        if (string.IsNullOrEmpty(_html)) await Preview27D();
+        if (!string.IsNullOrEmpty(_html))
+            await JS.InvokeVoidAsync("tdspro.printElement", "form16-preview");
+    }
+
+    async Task Download27D()
+    {
+        if (string.IsNullOrEmpty(_html)) await Preview27D();
+        if (string.IsNullOrEmpty(_html)) return;
+        try
+        {
+            var folder = FolderManager.Form16AForFyFolder(AppState.CurrentFY);
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, $"Form27D_{_collecteePan}_{_quarter27D}_{AppState.CurrentFY.Replace("/","-")}.html");
+            File.WriteAllText(path, _html, System.Text.Encoding.UTF8);
+            FolderManager.OpenFolder(folder);
+            Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
     async Task BulkGenerate16()

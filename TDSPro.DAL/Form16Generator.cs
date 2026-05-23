@@ -280,6 +280,180 @@ namespace TDSPro.DAL
 
 
         // ════════════════════════════════════════════════════════════════════════
+        // FORM 27D — TCS CERTIFICATE (Tax Collected at Source)
+        // Issued by Collector to Collectee under Section 206C / Rule 37D
+        // Structurally mirrors Form 16A but uses TCS terminology.
+        // ════════════════════════════════════════════════════════════════════════
+
+        public static Form16AData BuildForm27D(
+            int deductorId, string collecteePan, string fy, string? quarter = null)
+        {
+            // Reuse Form16A data structure — semantics: Deductor→Collector, Deductee→Collectee
+            var data = BuildForm16A(deductorId, collecteePan, fy, quarter);
+
+            // Filter to 206C sections only
+            data.Transactions = data.Transactions
+                .Where(t => t.Section.StartsWith("206C", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // Recalculate totals after filter
+            data.TotalAmountPaid   = data.Transactions.Sum(t => t.AmountPaid);
+            data.TotalTdsDeducted  = data.Transactions.Sum(t => t.TdsDeducted);
+            data.TotalTdsDeposited = data.Transactions.Sum(t => t.TotalTds);
+
+            return data;
+        }
+
+        public static string RenderForm27D(Form16AData d)
+        {
+            var sb       = new System.Text.StringBuilder();
+            var fyParts  = d.FinancialYear.Split('-');
+            var ayStart  = fyParts.Length > 0 ? (int.Parse(fyParts[0]) + 1).ToString() : "";
+            var ayEnd    = fyParts.Length > 1 ? fyParts[1] : "";
+            var ay       = $"{ayStart}-{ayEnd}";
+            var generated = d.GeneratedDate.ToString("dd-MMM-yyyy");
+
+            sb.Append($@"<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>Form 27D — {d.DeducteeName} — FY {d.FinancialYear}</title>
+<style>
+  body{{font-family:'Times New Roman',serif;margin:0;padding:0;background:#f5f5f5}}
+  .page{{width:210mm;min-height:297mm;margin:8mm auto;background:#fff;padding:15mm;border:1px solid #ccc}}
+  .cert-title{{text-align:center;font-size:18pt;font-weight:bold;border:2pt solid #000;padding:8px;margin-bottom:12px}}
+  .cert-sub{{text-align:center;font-size:11pt;margin-bottom:4px}}
+  .section-hdr{{background:#1B4D2E;color:#fff;padding:5px 10px;font-size:11pt;font-weight:bold;margin:12px 0 6px}}
+  table{{width:100%;border-collapse:collapse;font-size:10pt}}
+  th{{background:#D5E8D4;padding:5px 8px;text-align:left;border:1px solid #999;font-size:9pt}}
+  td{{padding:4px 8px;border:1px solid #ccc;font-size:10pt}}
+  .label{{color:#555;font-size:9pt;font-weight:bold}}
+  .value{{font-size:10pt}}
+  .row2{{display:flex;gap:20px;margin-bottom:8px}}
+  .col{{flex:1}}
+  .field{{margin-bottom:6px}}
+  .total-row td{{background:#D5E8D4;font-weight:bold}}
+  .sign-box{{border:1px solid #000;height:60px;margin-top:8px;padding:8px;font-size:9pt;color:#555}}
+  .footer{{font-size:8pt;color:#888;text-align:center;margin-top:10px;border-top:1px solid #ccc;padding-top:6px}}
+  .box{{border:1px solid #999;padding:8px;margin-bottom:8px}}
+  @media print{{body{{background:#fff}}.page{{box-shadow:none;margin:0;border:none}}}}
+</style></head><body><div class='page'>
+
+<div class='cert-title'>FORM NO. 27D</div>
+<div class='cert-sub'>[See Rule 37D]</div>
+<div class='cert-sub' style='font-size:10pt;margin-bottom:8px'>
+  Certificate of Tax Collected at Source u/s 206C of Income Tax Act, 1961
+</div>
+<div class='cert-sub' style='font-size:9pt;color:#555;margin-bottom:12px'>
+  Financial Year: <b>{d.FinancialYear}</b> &nbsp;|&nbsp; Assessment Year: <b>{ay}</b> &nbsp;|&nbsp; Generated: <b>{generated}</b>
+</div>
+
+<div class='section-hdr'>Part A — Collector Details</div>
+<div class='row2'>
+  <div class='col box'>
+    <div class='field'><div class='label'>Name of Collector</div><div class='value'>{Esc(d.DeductorName)}</div></div>
+    <div class='field'><div class='label'>TAN</div><div class='value' style='font-family:monospace;font-weight:bold'>{d.DeductorTan}</div></div>
+    <div class='field'><div class='label'>PAN</div><div class='value' style='font-family:monospace'>{d.DeductorPan}</div></div>
+    <div class='field'><div class='label'>Address</div><div class='value'>{Esc(d.DeductorAddress)}, {Esc(d.DeductorCity)} — {d.DeductorPin}</div></div>
+  </div>
+  <div class='col box'>
+    <div class='field'><div class='label'>Name of Collectee</div><div class='value'><b>{Esc(d.DeducteeName)}</b></div></div>
+    <div class='field'><div class='label'>PAN of Collectee</div><div class='value' style='font-family:monospace;font-weight:bold;font-size:12pt'>{d.DeducteePan}</div></div>
+    <div class='field'><div class='label'>Address</div><div class='value'>{Esc(d.DeducteeAddress)}</div></div>
+  </div>
+</div>
+
+<div class='section-hdr'>Part B — Details of Tax Collected and Deposited</div>
+<table>
+  <tr>
+    <th style='width:35px'>Sl.</th>
+    <th>Date of Payment/Receipt</th>
+    <th>Section</th>
+    <th>Amount Received (Rs)</th>
+    <th>TCS Collected (Rs)</th>
+    <th>Surcharge (Rs)</th>
+    <th>Cess (Rs)</th>
+    <th>Total TCS (Rs)</th>
+    <th>Challan No.</th>
+    <th>Quarter</th>
+  </tr>");
+
+            foreach (var t in d.Transactions)
+            {
+                sb.Append($@"
+  <tr>
+    <td style='text-align:center'>{t.SlNo}</td>
+    <td>{t.EntryDate:dd-MM-yyyy}</td>
+    <td style='font-family:monospace;font-weight:bold'>{t.Section}</td>
+    <td style='text-align:right'>Rs {t.AmountPaid:N2}</td>
+    <td style='text-align:right'>Rs {t.TdsDeducted:N2}</td>
+    <td style='text-align:right'>Rs {t.Surcharge:N2}</td>
+    <td style='text-align:right'>Rs {t.Cess:N2}</td>
+    <td style='text-align:right;font-weight:bold'>Rs {t.TotalTds:N2}</td>
+    <td style='font-family:monospace'>{t.ChallanNo}</td>
+    <td>{t.Quarter}</td>
+  </tr>");
+            }
+
+            sb.Append($@"
+  <tr class='total-row'>
+    <td colspan='3' style='text-align:right;font-weight:bold'>TOTAL</td>
+    <td style='text-align:right'>Rs {d.TotalAmountPaid:N2}</td>
+    <td style='text-align:right'>Rs {d.TotalTdsDeducted:N2}</td>
+    <td style='text-align:right'>Rs {d.Transactions.Sum(t => t.Surcharge):N2}</td>
+    <td style='text-align:right'>Rs {d.Transactions.Sum(t => t.Cess):N2}</td>
+    <td style='text-align:right'>Rs {d.TotalTdsDeposited:N2}</td>
+    <td colspan='2'></td>
+  </tr>
+</table>
+
+<div class='section-hdr'>Part C — Verification</div>
+<div class='box' style='font-size:10pt;line-height:1.8'>
+  I, <u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</u>,
+  son/daughter of <u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</u>,
+  working as <u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</u>
+  (designation) do hereby certify that a sum of
+  <b>Rs {d.TotalTdsDeposited:N2}</b>
+  [Rupees <u>{AmountInWords(d.TotalTdsDeposited)}</u>]
+  has been collected at source and deposited to the credit of the Central Government.
+  I further certify that the information given above is true, complete and correct and is based on
+  the books of accounts, documents, TCS statements, TCS deposited and other available records.
+</div>
+
+<div style='display:flex;gap:20px;margin-top:10px'>
+  <div style='flex:1'>
+    <div class='sign-box'>
+      <div>Place: ___________________</div>
+      <div style='margin-top:8px'>Date:  ___________________</div>
+    </div>
+  </div>
+  <div style='flex:1;text-align:center'>
+    <div class='sign-box'>
+      <div style='margin-top:16px'>Signature of person responsible for collection of tax</div>
+      <div style='margin-top:4px;font-size:9pt'>Name: {Esc(d.DeductorName)}</div>
+      <div style='font-size:9pt'>Designation: _______________________</div>
+    </div>
+  </div>
+</div>
+
+<div class='footer'>
+  Generated by TDS Pro v3.1 &nbsp;|&nbsp; Income-tax Act 2025 &nbsp;|&nbsp; {generated} &nbsp;|&nbsp;
+  TAN: {d.DeductorTan} &nbsp;|&nbsp; PAN of Collectee: {d.DeducteePan}
+  <br>
+  <i>This is a computer-generated certificate. Verify at TRACES portal before submission.</i>
+</div>
+</div></body></html>");
+
+            return sb.ToString();
+        }
+
+        public static string SaveForm27D(Form16AData data, string outputDir)
+        {
+            Directory.CreateDirectory(outputDir);
+            var fileName = $"Form27D_{data.DeducteePan}_{data.FinancialYear.Replace("-","_")}_{DateTime.Today:yyyyMMdd}.html";
+            var path     = Path.Combine(outputDir, fileName);
+            File.WriteAllText(path, RenderForm27D(data), System.Text.Encoding.UTF8);
+            return path;
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // FORM 16 / FORM 130 — SALARY TDS CERTIFICATE GENERATION
         // ════════════════════════════════════════════════════════════════════════
 

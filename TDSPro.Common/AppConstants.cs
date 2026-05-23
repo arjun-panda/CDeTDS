@@ -8,7 +8,7 @@ namespace TDSPro.Common
     public static class AppConstants
     {
         public const string AppName    = "TDS Pro";
-        public const string AppVersion = "3.1.0";
+        public const string AppVersion = "3.2.0";
         public const string VersionCheckUrl = "https://tdspro.in/version.json";
         public const string DbFileName = "tds_pro.db";
 
