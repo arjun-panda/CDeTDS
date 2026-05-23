@@ -1,7 +1,7 @@
 {
-  "version"        : "3.1.0",
+  "version"        : "3.2.0",
   "releaseDate"    : "2026-05-23",
-  "downloadUrl"    : "https://tdspro.in/download/TDSPro_Setup_v3.1.0.exe",
+  "downloadUrl"    : "https://capitaldesk.co.in/download/TDSPro_Setup_v3.2.0.exe",
   "notes"          : "Correction returns C1/C2/C3 with PRN chain. NIL return fixed. Filing history panel. Help section updated. Bundled JRE support. Crash logging.",
   "fvuLatestVersion" : "9.4",
   "fvuDownloadUrl"   : "https://www.tin-nsdl.com/services/etds-etcs/etds-rpu-fvu.html"

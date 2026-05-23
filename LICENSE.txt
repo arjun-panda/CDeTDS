@@ -26,5 +26,5 @@ This software is provided "as is" without warranty of any kind.
 TDS Pro Software shall not be liable for any direct, indirect,
 incidental, or consequential damages arising from its use.
 
-For licensing: license@tdspro.in
-For support  : support@tdspro.in
+For licensing: license@capitaldesk.co.in
+For support  : support@capitaldesk.co.in

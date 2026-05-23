@@ -37,5 +37,5 @@ F5      Refresh
 
 SUPPORT
 ───────
-Email   : support@tdspro.in
-Website : https://tdspro.in
+Email   : support@capitaldesk.co.in
+Website : https://capitaldesk.co.in

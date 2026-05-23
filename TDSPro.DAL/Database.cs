@@ -964,7 +964,7 @@ namespace TDSPro.DAL
 
             using var ins = conn.CreateCommand();
             ins.CommandText = @"INSERT INTO users (username,password,full_name,role,email,status)
-                VALUES('admin',@pw,'Administrator','Super Admin','admin@tdspro.in','Active')";
+                VALUES('admin',@pw,'Administrator','Super Admin','admin@capitaldesk.co.in','Active')";
             ins.Parameters.AddWithValue("@pw", HashPassword("admin@123"));
             ins.ExecuteNonQuery();
         }

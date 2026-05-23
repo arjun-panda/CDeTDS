@@ -9,7 +9,7 @@ namespace TDSPro.Common
     {
         public const string AppName    = "TDS Pro";
         public const string AppVersion = "3.2.0";
-        public const string VersionCheckUrl = "https://tdspro.in/version.json";
+        public const string VersionCheckUrl = "https://capitaldesk.co.in/version.json";
         public const string DbFileName = "tds_pro.db";
 
         // ── Known section codes (for UI dropdowns only) ───────────────────────

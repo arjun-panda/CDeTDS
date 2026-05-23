@@ -1,7 +1,7 @@
 #define AppName      "TDS Pro"
 #define AppVersion   "3.1.0"
 #define AppPublisher "TDS Pro Software"
-#define AppURL       "https://tdspro.in"
+#define AppURL       "https://capitaldesk.co.in"
 #define AppExeName   "TDSPro.exe"
 #define AppDesc      "TDS Compliance Software - Income-tax Act 2025"
 #define SourceDir    "publish\win-x64"

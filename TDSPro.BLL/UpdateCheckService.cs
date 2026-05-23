@@ -21,7 +21,7 @@ namespace TDSPro.BLL
         private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };
 
         /// <summary>
-        /// Checks tdspro.in/version.json. Returns null if offline or already up-to-date.
+        /// Checks capitaldesk.co.in/version.json. Returns null if offline or already up-to-date.
         /// Only checks once per day (cached in app_settings).
         /// </summary>
         public async Task<UpdateInfo?> CheckAsync(bool forceCheck = false)

@@ -98,7 +98,7 @@ echo ============================================================
 echo.
 echo Next steps:
 echo  1. Test the installer on a clean machine
-echo  2. Upload installer to: https://tdspro.in/download/
+echo  2. Upload installer to: https://capitaldesk.co.in/download/
 echo  3. Update version.json on the server
 echo  4. Announce release to users
 echo ============================================================

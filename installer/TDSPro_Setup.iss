@@ -5,7 +5,7 @@
 #define AppName        "TDS Pro"
 #define AppVersion     "3.2.0"
 #define AppPublisher   "Arjun Panda"
-#define AppURL         "https://tdspro.in"
+#define AppURL         "https://capitaldesk.co.in"
 #define AppExeName     "TDSPro.exe"
 #define AppId          "{{A3F7B2E1-4C8D-4F5A-9B6E-1D2C3E4F5A6B}"
 #define PublishDir     "AppFiles"
