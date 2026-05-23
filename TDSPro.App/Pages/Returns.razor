@@ -602,14 +602,14 @@
     {
         try
         {
-            var info = await UpdateSvc.CheckAsync(forceCheck: false);
+            var info = await UpdateSvc.CheckAsync(forceCheck: true);
             if (info != null && !string.IsNullOrEmpty(info.FvuLatestVersion))
             {
                 var local = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
                 if (!string.IsNullOrEmpty(local))
                 {
-                    var latest = Version.Parse(info.FvuLatestVersion);
-                    var localV = Version.Parse(local);
+                    if (!Version.TryParse(info.FvuLatestVersion, out var latest)) return;
+                    if (!Version.TryParse(local, out var localV)) return;
                     if (latest > localV)
                     {
                         _fvuVersionWarn = $"Your FVU is v{local}. NSDL has released v{info.FvuLatestVersion} — returns filed with an older FVU may be rejected.";

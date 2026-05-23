@@ -500,7 +500,7 @@
     private string   _latestVersion      = "";
     private bool     _checkingUpdate;
     private Severity _aboutUpdateSeverity = Severity.Info;
-    private string   _localFvuVersion    = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+    private string   _localFvuVersion    = "";
     private string   _latestFvuVersion   = "";
     private string   _fvuDownloadUrl     = "";
     private bool     _fvuOutdated        = false;
@@ -537,6 +537,11 @@
                 {
                     try { _fvuOutdated = Version.Parse(_latestFvuVersion) > Version.Parse(_localFvuVersion); }
                     catch { _fvuOutdated = false; }
+                }
+                if (_fvuOutdated && !info.IsNewer)
+                {
+                    _aboutUpdateMsg      = $"FVU update available: v{_latestFvuVersion}. App is up to date (v{AppConstants.AppVersion}).";
+                    _aboutUpdateSeverity = Severity.Warning;
                 }
             }
         }
@@ -645,6 +650,7 @@
         _basePath     = FolderManager.BasePath;
         _fvuPath      = Database.GetSetting("FvuPath", "");
         _javaPath     = Database.GetSetting("JavaPath", "");
+        _localFvuVersion = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
         _tracesUserId     = Database.GetSetting("TracesUserId", "");
         _itPortalUserId   = Database.GetSetting("ItPortalUserId", "");
         _itPortalPassword = Database.GetSetting("ItPortalPassword", "");

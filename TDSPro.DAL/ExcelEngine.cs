@@ -1432,7 +1432,8 @@ namespace TDSPro.DAL
             {
                 var cell = ws.Cell(row, 1).GetString().ToLower();
                 if (cell.Contains("date") || cell.Contains("entry") ||
-                    cell.Contains("name") || cell.Contains("tan") || cell.Contains("pan"))
+                    cell.Contains("name") || cell.Contains("tan") || cell.Contains("pan") ||
+                    cell.Contains("bsr") || cell.Contains("challan"))
                     return row;
             }
             return 1;
