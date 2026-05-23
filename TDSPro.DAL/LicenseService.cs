@@ -41,9 +41,9 @@ namespace TDSPro.DAL
                 IsValid      = true,
                 ExpiryDate   = expiry,
                 MaxDeductors = 1,
-                MaxEntries   = 25,
+                MaxEntries   = 100,
                 MaxUsers     = 1,
-                Message      = $"Trial — {Math.Max(0, (expiry - DateTime.Today).Days)} days remaining",
+                Message      = $"Trial — {Math.Max(0, (expiry - DateTime.Today).Days)} days remaining. Activate Pro to remove limits.",
             };
         }
 

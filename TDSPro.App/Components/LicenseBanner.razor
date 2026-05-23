@@ -13,9 +13,9 @@
         <MudLink Href="/activate" Style="color:white;font-weight:700;margin-left:8px">Activate Pro →</MudLink>
     </MudAlert>
 }
-else if (lic.IsTrial || lic.IsWarningSoon)
+else if (lic.IsTrial && lic.DaysLeft <= 14)
 {
-    <MudAlert Severity="@(lic.IsWarningSoon ? Severity.Warning : Severity.Info)"
+    <MudAlert Severity="@(lic.DaysLeft <= 7 ? Severity.Warning : Severity.Info)"
               Dense="true" Class="mb-0" Style="border-radius:0;cursor:pointer"
               @onclick='() => Nav.NavigateTo("/activate")'>
         @lic.Message
