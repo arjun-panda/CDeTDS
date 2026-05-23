@@ -442,6 +442,25 @@
                     </MudCardActions>
                 </MudCard>
 
+                <MudCard Elevation="1" Class="mb-3">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.subtitle1"><b>What's New in v@AppConstants.AppVersion</b></MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudIconButton Icon="@(_showChangelog ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                           Size="Size.Small" OnClick="() => _showChangelog = !_showChangelog" />
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    @if (_showChangelog)
+                    {
+                        <MudCardContent>
+                            <pre style="font-size:11px;line-height:1.6;white-space:pre-wrap;max-height:260px;overflow-y:auto;
+                                        background:#f8f9fa;border-radius:4px;padding:10px;margin:0;font-family:monospace">@_changelogText</pre>
+                        </MudCardContent>
+                    }
+                </MudCard>
+
                 <MudCard Elevation="1">
                     <MudCardHeader>
                         <CardHeaderContent><MudText Typo="Typo.subtitle1"><b>Support &amp; Diagnostics</b></MudText></CardHeaderContent>
@@ -493,6 +512,8 @@
 @code {
     // About tab
     private string   _machineId          = TDSPro.DAL.LicenseService.GetMachineId();
+    private string   _changelogText      = "";
+    private bool     _showChangelog      = true;
     private string   _logFolder          = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TDSPro", "Logs");
     private string   _aboutUpdateMsg     = "";
     private string   _logSentMsg         = "";
@@ -557,6 +578,31 @@
     {
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_updateDownloadUrl) { UseShellExecute = true }); }
         catch { }
+    }
+
+    static string LoadLatestChangelog()
+    {
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "CHANGELOG.txt");
+            if (!File.Exists(path)) return "Changelog not found.";
+            var lines = File.ReadAllLines(path);
+            // Collect lines from the first version header up to (but not including) the second
+            var result = new System.Text.StringBuilder();
+            bool started = false;
+            foreach (var line in lines)
+            {
+                bool isVersionHeader = line.StartsWith("v") && line.Length > 4 && line[1] >= '0' && line[1] <= '9';
+                if (isVersionHeader)
+                {
+                    if (started) break;   // second version block — stop
+                    started = true;
+                }
+                if (started) result.AppendLine(line);
+            }
+            return result.Length > 0 ? result.ToString().TrimEnd() : "No changelog entries found.";
+        }
+        catch { return "Could not read changelog."; }
     }
 
     void OpenLogFolder()
@@ -647,6 +693,7 @@
 
     protected override void OnInitialized()
     {
+        _changelogText = LoadLatestChangelog();
         _basePath     = FolderManager.BasePath;
         _fvuPath      = Database.GetSetting("FvuPath", "");
         _javaPath     = Database.GetSetting("JavaPath", "");

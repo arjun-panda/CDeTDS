@@ -41,4 +41,8 @@
     <ProjectReference Include="..\TDSPro.DAL\TDSPro.DAL.csproj" />
     <ProjectReference Include="..\TDSPro.Common\TDSPro.Common.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="..\CHANGELOG.txt" CopyToOutputDirectory="PreserveNewest" Link="CHANGELOG.txt" />
+  </ItemGroup>
 </Project>
