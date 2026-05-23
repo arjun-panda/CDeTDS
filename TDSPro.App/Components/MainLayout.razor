@@ -72,6 +72,9 @@ else
                 @_clock
             </MudText>
 
+            <MudIconButton Icon="@Icons.Material.Filled.Feedback" Color="Color.Inherit"
+                           Class="ml-1" OnClick="SendFeedback" title="Send Feedback / Report Bug" />
+
             <MudIconButton Icon="@Icons.Material.Filled.HelpOutline" Color="Color.Inherit"
                            Class="ml-1" OnClick="ToggleHelp" title="Help & Support" />
 
@@ -433,6 +436,20 @@ else
     void ToggleHelp() => _helpOpen = !_helpOpen;
     void ToggleFaq(string q) => _openFaq = _openFaq == q ? "" : q;
     void RecoverError() => _errorBoundary?.Recover();
+
+    void SendFeedback()
+    {
+        var machineId = TDSPro.DAL.LicenseService.GetMachineId();
+        var subject   = Uri.EscapeDataString($"TDS Pro v{AppConstants.AppVersion} — Feedback / Bug Report");
+        var body      = Uri.EscapeDataString(
+            $"TDS Pro v{AppConstants.AppVersion}\n" +
+            $"Machine ID: {machineId}\n" +
+            $"FY: {AppState.CurrentFY}\n\n" +
+            "--- Describe your feedback or bug ---\n\n");
+        var uri = $"mailto:admin@capitaldesk.co.in?subject={subject}&body={body}";
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri) { UseShellExecute = true }); }
+        catch { Snackbar.Add("Please email feedback to: admin@capitaldesk.co.in", Severity.Info); }
+    }
 
     async Task CheckForUpdates()
     {

@@ -4,6 +4,7 @@
 @inject IDialogService DialogSvc
 @implements IDisposable
 @inject AppStateService AppState
+@using TDSPro.BLL
 
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">TDS Rules</MudText>
@@ -230,6 +231,87 @@
         </MudSimpleTable>
     </MudTabPanel>
 
+    @* ── Tab 4: Finance Act / Rules Status ── *@
+    <MudTabPanel Text="Rules Status" Icon="@Icons.Material.Filled.Update">
+        <MudGrid Spacing="3" Justify="Justify.Center">
+            <MudItem xs="12" md="7">
+                <MudPaper Class="pa-5" Elevation="1" Style="border-radius:12px">
+                    <MudText Typo="Typo.h6" Class="mb-1">Finance Act — TDS Rules Status</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                        TDS rates and thresholds are compiled into the app and auto-seeded to the database on startup.
+                        Every April 1 (Finance Act), a new app version is released with updated rules.
+                        Use this panel to check the current rules version and manually re-apply if needed.
+                    </MudText>
+
+                    <MudSimpleTable Dense="true" Class="mb-4" Style="width:100%">
+                        <tbody>
+                            <tr>
+                                <td style="width:160px"><b>Compiled Rules</b></td>
+                                <td style="font-family:monospace">v@RulesUpdateService.AppVersion</td>
+                            </tr>
+                            <tr>
+                                <td><b>Applied to DB</b></td>
+                                <td style="font-family:monospace">
+                                    @if (_rulesDbVersion == RulesUpdateService.AppVersion)
+                                    {
+                                        <span style="color:#166534">@_rulesDbVersion ✓ up to date</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#b45309">@_rulesDbVersion ⚠ out of date</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>Total Rules</b></td>
+                                <td>@_ruleCount standard + custom rules in database</td>
+                            </tr>
+                            <tr>
+                                <td><b>Effective From</b></td>
+                                <td>1 April 2026 (FY 2026-27)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Act Reference</b></td>
+                                <td>Income Tax Act 2025 · Finance Act 2026 · CBDT Circulars</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+
+                    @if (!string.IsNullOrEmpty(_rulesUpdateMsg))
+                    {
+                        <MudAlert Severity="@_rulesUpdateSeverity" Dense="true" Class="mb-3">@_rulesUpdateMsg</MudAlert>
+                    }
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Sync"
+                               Disabled="_updatingRules" OnClick="ApplyBuiltInRules">
+                        @if (_updatingRules) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Re-apply Built-in Rules
+                    </MudButton>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
+                        Safe to run anytime — only updates standard sections, never overwrites custom rules or user notes.
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-5" Elevation="1" Style="border-radius:12px;background:#f0fdf4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3"><b>April 1 Update Checklist</b></MudText>
+                    <ol style="font-size:13px;line-height:2;color:#1e293b;padding-left:18px">
+                        <li>Download new Finance Act notification from incometax.gov.in</li>
+                        <li>Update <code>BuiltInTdsRules.CurrentVersion</code> to new FY string</li>
+                        <li>Update rates in <code>BuiltInTdsRules.Rules</code> list</li>
+                        <li>Update tax slabs in <code>TaxRules.cs</code> (New + Old regime)</li>
+                        <li>Update <code>AppConstants.AppVersion</code> and <code>version.json</code></li>
+                        <li>Run all tests: <code>dotnet test TDSPro.Tests</code></li>
+                        <li>Publish new installer — <code>build_installer.bat</code></li>
+                        <li>Upload <code>version.json</code> to tdspro.in — all users get update notification</li>
+                    </ol>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
 </MudTabs>
 
 @* ── Add/Edit Rule Dialog ── *@
@@ -329,6 +411,13 @@
     private DateTime? _ruleEffTo;
     private string   _ruleSaveError = "";
 
+    // Rules status tab
+    private string   _rulesDbVersion   = "";
+    private int      _ruleCount        = 0;
+    private bool     _updatingRules    = false;
+    private string   _rulesUpdateMsg   = "";
+    private Severity _rulesUpdateSeverity = Severity.Info;
+
     private IEnumerable<TdsRule> FilteredRules => _allRules.Where(r =>
         (_showInactive || r.IsActive) &&
         (string.IsNullOrEmpty(_rulesSearch) ||
@@ -340,12 +429,36 @@
     {
         AppState.OnChange += Reload;
         LoadRules();
+        LoadRulesStatus();
     }
 
     void LoadRules()
     {
         try { _allRules = RulesSvc.GetAllRules(activeOnly: false); }
         catch (Exception ex) { Snackbar.Add("Failed to load rules: " + ex.Message, Severity.Error); }
+    }
+
+    void LoadRulesStatus()
+    {
+        try
+        {
+            _rulesDbVersion = TDSPro.DAL.Database.GetSetting("RULES_VERSION", "Not applied");
+            _ruleCount      = _allRules.Count;
+        }
+        catch { }
+    }
+
+    async Task ApplyBuiltInRules()
+    {
+        _updatingRules   = true;
+        _rulesUpdateMsg  = "";
+        StateHasChanged();
+        var msg = await Task.Run(() => new RulesUpdateService().AutoUpdateIfNeeded());
+        _rulesUpdateMsg      = msg;
+        _rulesUpdateSeverity = msg.StartsWith("✓") || msg.Contains("up to date") ? Severity.Success : Severity.Warning;
+        LoadRules();
+        LoadRulesStatus();
+        _updatingRules = false;
     }
 
     void Reload() { LoadRules(); StateHasChanged(); }
