@@ -43,6 +43,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="..\CHANGELOG.txt" CopyToOutputDirectory="PreserveNewest" Link="CHANGELOG.txt" />
+    <None Include="..\CHANGELOG.txt" CopyToOutputDirectory="PreserveNewest" Link="CHANGELOG.txt" />
   </ItemGroup>
 </Project>

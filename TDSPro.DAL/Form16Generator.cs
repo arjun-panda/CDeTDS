@@ -291,9 +291,10 @@ namespace TDSPro.DAL
             // Reuse Form16A data structure — semantics: Deductor→Collector, Deductee→Collectee
             var data = BuildForm16A(deductorId, collecteePan, fy, quarter);
 
-            // Filter to 206C sections only
+            // Filter to 206C sections only and renumber
             data.Transactions = data.Transactions
                 .Where(t => t.Section.StartsWith("206C", StringComparison.OrdinalIgnoreCase))
+                .Select((t, i) => { t.SlNo = i + 1; return t; })
                 .ToList();
 
             // Recalculate totals after filter

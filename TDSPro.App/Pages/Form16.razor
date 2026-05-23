@@ -346,7 +346,7 @@
         if (string.IsNullOrEmpty(_html)) return;
         try
         {
-            var folder = FolderManager.Form16AForFyFolder(AppState.CurrentFY);
+            var folder = FolderManager.Form27DForFyFolder(AppState.CurrentFY);
             Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, $"Form27D_{_collecteePan}_{_quarter27D}_{AppState.CurrentFY.Replace("/","-")}.html");
             File.WriteAllText(path, _html, System.Text.Encoding.UTF8);

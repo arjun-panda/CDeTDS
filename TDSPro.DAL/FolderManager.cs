@@ -78,6 +78,7 @@ namespace TDSPro.DAL
         public static string Form16Folder                   => Path.Combine(CompanyFolder, "Form16");
         public static string Form16ForFyFolder(string fy)  => Path.Combine(Form16Folder, fy);
         public static string Form16AForFyFolder(string fy) => Path.Combine(Form16Folder, "16A", fy);
+        public static string Form27DForFyFolder(string fy) => Path.Combine(Form16Folder, "27D", fy);
         public static string ExportsFolder                  => Path.Combine(CompanyFolder, "Exports");
         public static string TemplatesFolder                => Path.Combine(CompanyFolder, "Templates");
 
