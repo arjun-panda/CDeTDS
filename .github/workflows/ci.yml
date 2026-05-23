@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore TDSPro.sln
+
+      - name: Build (Release)
+        run: dotnet build TDSPro.sln --configuration Release --no-restore --nologo
+
+      - name: Test
+        run: dotnet test TDSPro.Tests/TDSPro.Tests.csproj --configuration Release --no-build --nologo --logger "console;verbosity=normal"

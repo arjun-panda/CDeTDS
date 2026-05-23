@@ -1,4 +1,4 @@
-@page "/reports"
+﻿@page "/reports"
 @inject AppStateService AppState
 @inject ReportsService Svc
 @inject TdsEntryService EntrySvc
@@ -7,17 +7,62 @@
 @inject NavigationManager Nav
 @implements IDisposable
 @using TDSPro.Common
+@using System.IO
 
-<div class="d-flex align-center gap-3 mb-4">
-    <MudText Typo="Typo.h5">Reports — FY @AppState.CurrentFY</MudText>
+@* ── Toolbar ── *@
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2" Style="flex-shrink:0">
+    <MudText Typo="Typo.subtitle1" Style="font-weight:700;white-space:nowrap">Reports — FY @AppState.CurrentFY</MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="white-space:nowrap">@AppState.CurrentDeductorName</MudText>
     <MudSpacer />
-    <MudText Typo="Typo.caption" Color="Color.Secondary">@AppState.CurrentDeductorName</MudText>
-</div>
+    @if (_activeTab == 0 && _quarterSummary != null)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadQuarterExcel">Excel</MudButton>
+    }
+    @if (_activeTab == 1 && _deducteeReport != null)
+    {
+        <MudSelect T="string" Value="_deducteeQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                   ValueChanged="@((string v) => { _deducteeQuarter = v; _ = LoadDeducteeReport(); })">
+            <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+            @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+        </MudSelect>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadDeducteeExcel">Excel</MudButton>
+    }
+    @if (_activeTab == 2 && _sectionReport != null)
+    {
+        <MudSelect T="string" Value="_sectionQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                   ValueChanged="@((string v) => { _sectionQuarter = v; _ = LoadSectionReport(); })">
+            <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+            @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+        </MudSelect>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadSectionExcel">Excel</MudButton>
+    }
+    @if (_activeTab == 3 && _recon != null)
+    {
+        <MudSelect T="string" Value="_reconQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                   ValueChanged="@((string v) => { _reconQuarter = v; _ = LoadChallanRecon(); })">
+            <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+            @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+        </MudSelect>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadReconExcel">Excel</MudButton>
+    }
+    @if (_activeTab == 4 && _yearSummary != null)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadPayrollExcel">Excel</MudButton>
+    }
+</MudStack>
 
 <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4"
          ActivePanelIndexChanged="OnTabChanged">
 
-    @* ── 1. Quarter Summary ── *@
+    @* â”€â”€ 1. Quarter Summary â”€â”€ *@
     <MudTabPanel Text="Quarter Summary" Icon="@Icons.Material.Filled.BarChart">
         @if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" /> }
         @if (_quarterSummary != null)
@@ -76,12 +121,12 @@
                         <th style="padding:10px 8px"></th>
                         <th style="padding:10px 12px;text-align:center">Quarter</th>
                         <th style="padding:10px 12px;text-align:center">Entries</th>
-                        <th style="padding:10px 12px;text-align:center">Gross Amount (₹)</th>
-                        <th style="padding:10px 12px;text-align:center">TDS (₹)</th>
-                        <th style="padding:10px 12px;text-align:center">Surcharge (₹)</th>
-                        <th style="padding:10px 12px;text-align:center">Cess (₹)</th>
-                        <th style="padding:10px 12px;text-align:center">Interest (₹)</th>
-                        <th style="padding:10px 12px;text-align:center">Total TDS (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Gross Amount (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">TDS (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Surcharge (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Cess (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Interest (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Total TDS (₹)</th>
                         <th style="padding:10px 12px;text-align:center">Paid</th>
                         <th style="padding:10px 12px;text-align:center">Pending</th>
                     </tr>
@@ -103,12 +148,12 @@
                             </td>
                             <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1565C0;font-size:14px">@q.Quarter</td>
                             <td style="padding:10px 12px;text-align:center;color:#555">@q.Entries</td>
-                            <td style="padding:10px 12px;text-align:center;color:#2e7d32;font-weight:600">@q.GrossAmount.ToString("N2")</td>
-                            <td style="padding:10px 12px;text-align:center">@q.TdsAmount.ToString("N2")</td>
-                            <td style="padding:10px 12px;text-align:center;color:#888">@q.Surcharge.ToString("N2")</td>
-                            <td style="padding:10px 12px;text-align:center;color:#888">@q.Cess.ToString("N2")</td>
-                            <td style="padding:10px 12px;text-align:center;color:#888">@q.Interest.ToString("N2")</td>
-                            <td style="padding:10px 12px;text-align:center;font-weight:700;color:#e65100">@q.TotalTds.ToString("N2")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#2e7d32;font-weight:600">@q.GrossAmount.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right">@q.TdsAmount.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#888">@q.Surcharge.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#888">@q.Cess.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#888">@q.Interest.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;font-weight:700;color:#e65100">@q.TotalTds.ToString("N0")</td>
                             <td style="padding:10px 12px;text-align:center">
                                 <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:600;
                                              padding:2px 8px;border-radius:12px">@q.PaidCount</span>
@@ -177,9 +222,9 @@
                                                             <td style="padding:6px 10px;color:#555">@e.EntryDate.ToString("dd-MMM-yyyy")</td>
                                                             <td style="padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@e.DeducteeName</td>
                                                             <td style="padding:6px 10px;font-weight:600;color:#455a64">@e.Section</td>
-                                                            <td style="padding:6px 10px;text-align:right;color:#2e7d32">@e.Amount.ToString("N2")</td>
-                                                            <td style="padding:6px 10px;text-align:right">@e.TdsAmount.ToString("N2")</td>
-                                                            <td style="padding:6px 10px;text-align:right;font-weight:700;color:#e65100">@e.TotalTds.ToString("N2")</td>
+                                                            <td style="padding:6px 10px;text-align:right;color:#2e7d32">@e.Amount.ToString("N0")</td>
+                                                            <td style="padding:6px 10px;text-align:right">@e.TdsAmount.ToString("N0")</td>
+                                                            <td style="padding:6px 10px;text-align:right;font-weight:700;color:#e65100">@e.TotalTds.ToString("N0")</td>
                                                             <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#1565C0">
                                                                 @(string.IsNullOrEmpty(e.ChallanNo) ? "—" : e.ChallanNo)
                                                             </td>
@@ -198,9 +243,9 @@
                                                         <td colspan="4" style="padding:7px 10px;color:#1565C0">
                                                             Total — @_expandedEntries.Count entries
                                                         </td>
-                                                        <td style="padding:7px 10px;text-align:right;color:#2e7d32">@_expandedEntries.Sum(e=>e.Amount).ToString("N2")</td>
-                                                        <td style="padding:7px 10px;text-align:right">@_expandedEntries.Sum(e=>e.TdsAmount).ToString("N2")</td>
-                                                        <td style="padding:7px 10px;text-align:right;color:#e65100">@_expandedEntries.Sum(e=>e.TotalTds).ToString("N2")</td>
+                                                        <td style="padding:7px 10px;text-align:right;color:#2e7d32">@_expandedEntries.Sum(e=>e.Amount).ToString("N0")</td>
+                                                        <td style="padding:7px 10px;text-align:right">@_expandedEntries.Sum(e=>e.TdsAmount).ToString("N0")</td>
+                                                        <td style="padding:7px 10px;text-align:right;color:#e65100">@_expandedEntries.Sum(e=>e.TotalTds).ToString("N0")</td>
                                                         <td colspan="2"></td>
                                                     </tr>
                                                 </tfoot>
@@ -218,12 +263,12 @@
                         <td style="padding:10px 8px"></td>
                         <td style="padding:10px 12px">TOTAL</td>
                         <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Entries)</td>
-                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.GrossAmount).ToString("N2")</td>
-                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.TdsAmount).ToString("N2")</td>
-                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Surcharge).ToString("N2")</td>
-                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Cess).ToString("N2")</td>
-                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Interest).ToString("N2")</td>
-                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.TotalTds).ToString("N2")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.GrossAmount).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.TdsAmount).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Surcharge).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Cess).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Interest).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.TotalTds).ToString("N0")</td>
                         <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.PaidCount)</td>
                         <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.PendingCount)</td>
                     </tr>
@@ -233,18 +278,8 @@
         }
     </MudTabPanel>
 
-    @* ── 2. Deductee Report ── *@
-    <MudTabPanel Text="Deductee-wise" Icon="@Icons.Material.Filled.People">
-        <div class="d-flex gap-3 align-end mb-3 flex-wrap">
-            <MudSelect Value="_deducteeQuarter" Label="Quarter" Variant="Variant.Outlined" ShrinkLabel="true"
-                       Style="min-width:150px" AnchorOrigin="Origin.BottomCenter"
-                       ValueChanged="@((string v) => { _deducteeQuarter = v; _ = LoadDeducteeReport(); })">
-                <MudSelectItem Value='""'>All Quarters</MudSelectItem>
-                @foreach (var q in AppConstants.QuarterCodes)
-                { <MudSelectItem Value="@q">@q</MudSelectItem> }
-            </MudSelect>
-        </div>
-
+    @* -- 2. Deductee Report -- *@
+    <MudTabPanel Text='Deductee-wise' Icon=@Icons.Material.Filled.People>
         @if (_deducteeReport != null)
         {
             @if (!_deducteeReport.Any())
@@ -278,10 +313,10 @@
                                 <td>@r.DeducteeType</td>
                                 <td>@r.Section</td>
                                 <td style="text-align:right">@r.Entries</td>
-                                <td style="text-align:right">@r.GrossAmount.ToString("N2")</td>
-                                <td style="text-align:right">@r.TdsAmount.ToString("N2")</td>
-                                <td style="text-align:right">@r.Interest.ToString("N2")</td>
-                                <td style="text-align:right"><b>@r.TotalTds.ToString("N2")</b></td>
+                                <td style="text-align:right">@r.GrossAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.TdsAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.Interest.ToString("N0")</td>
+                                <td style="text-align:right"><b>@r.TotalTds.ToString("N0")</b></td>
                                 <td style="text-align:right;color:#2e7d32">@r.PaidCount</td>
                                 <td style="text-align:right;color:#c62828">@r.PendingCount</td>
                             </tr>
@@ -291,10 +326,10 @@
                         <tr style="background:#e3f2fd;font-weight:bold">
                             <td colspan="4">TOTAL (@_deducteeReport.Count deductees)</td>
                             <td style="text-align:right">@_deducteeReport.Sum(r=>r.Entries)</td>
-                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.GrossAmount).ToString("N2")</td>
-                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.TdsAmount).ToString("N2")</td>
-                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.Interest).ToString("N2")</td>
-                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.TotalTds).ToString("N2")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.GrossAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.TdsAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.Interest).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.TotalTds).ToString("N0")</td>
                             <td style="text-align:right">@_deducteeReport.Sum(r=>r.PaidCount)</td>
                             <td style="text-align:right">@_deducteeReport.Sum(r=>r.PendingCount)</td>
                         </tr>
@@ -304,18 +339,8 @@
         }
     </MudTabPanel>
 
-    @* ── 3. Section Report ── *@
-    <MudTabPanel Text="Section-wise" Icon="@Icons.Material.Filled.Category">
-        <div class="d-flex gap-3 align-end mb-3 flex-wrap">
-            <MudSelect Value="_sectionQuarter" Label="Quarter" Variant="Variant.Outlined" ShrinkLabel="true"
-                       Style="min-width:150px" AnchorOrigin="Origin.BottomCenter"
-                       ValueChanged="@((string v) => { _sectionQuarter = v; _ = LoadSectionReport(); })">
-                <MudSelectItem Value='""'>All Quarters</MudSelectItem>
-                @foreach (var q in AppConstants.QuarterCodes)
-                { <MudSelectItem Value="@q">@q</MudSelectItem> }
-            </MudSelect>
-        </div>
-
+    @* -- 3. Section Report -- *@
+    <MudTabPanel Text='Section-wise' Icon=@Icons.Material.Filled.Category>
         @if (_sectionReport != null)
         {
             @if (!_sectionReport.Any())
@@ -345,12 +370,12 @@
                                 <td><b>@r.Section</b></td>
                                 <td>@r.Description</td>
                                 <td style="text-align:right">@r.Entries</td>
-                                <td style="text-align:right">@r.GrossAmount.ToString("N2")</td>
-                                <td style="text-align:right">@r.TdsAmount.ToString("N2")</td>
-                                <td style="text-align:right">@r.Surcharge.ToString("N2")</td>
-                                <td style="text-align:right">@r.Cess.ToString("N2")</td>
-                                <td style="text-align:right">@r.Interest.ToString("N2")</td>
-                                <td style="text-align:right"><b>@r.TotalTds.ToString("N2")</b></td>
+                                <td style="text-align:right">@r.GrossAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.TdsAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.Surcharge.ToString("N0")</td>
+                                <td style="text-align:right">@r.Cess.ToString("N0")</td>
+                                <td style="text-align:right">@r.Interest.ToString("N0")</td>
+                                <td style="text-align:right"><b>@r.TotalTds.ToString("N0")</b></td>
                             </tr>
                         }
                     </tbody>
@@ -358,12 +383,12 @@
                         <tr style="background:#e3f2fd;font-weight:bold">
                             <td colspan="2">TOTAL</td>
                             <td style="text-align:right">@_sectionReport.Sum(r=>r.Entries)</td>
-                            <td style="text-align:right">@_sectionReport.Sum(r=>r.GrossAmount).ToString("N2")</td>
-                            <td style="text-align:right">@_sectionReport.Sum(r=>r.TdsAmount).ToString("N2")</td>
-                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Surcharge).ToString("N2")</td>
-                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Cess).ToString("N2")</td>
-                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Interest).ToString("N2")</td>
-                            <td style="text-align:right">@_sectionReport.Sum(r=>r.TotalTds).ToString("N2")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.GrossAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.TdsAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Surcharge).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Cess).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Interest).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.TotalTds).ToString("N0")</td>
                         </tr>
                     </tfoot>
                 </MudSimpleTable>
@@ -371,18 +396,8 @@
         }
     </MudTabPanel>
 
-    @* ── 4. Challan Reconciliation ── *@
-    <MudTabPanel Text="Challan Recon" Icon="@Icons.Material.Filled.CompareArrows">
-        <div class="d-flex gap-3 align-end mb-3 flex-wrap">
-            <MudSelect Value="_reconQuarter" Label="Quarter" Variant="Variant.Outlined" ShrinkLabel="true"
-                       Style="min-width:150px" AnchorOrigin="Origin.BottomCenter"
-                       ValueChanged="@((string v) => { _reconQuarter = v; _ = LoadChallanRecon(); })">
-                <MudSelectItem Value='""'>All Quarters</MudSelectItem>
-                @foreach (var q in AppConstants.QuarterCodes)
-                { <MudSelectItem Value="@q">@q</MudSelectItem> }
-            </MudSelect>
-        </div>
-
+    @* -- 4. Challan Reconciliation -- *@
+    <MudTabPanel Text='Challan Recon' Icon=@Icons.Material.Filled.CompareArrows>
         @if (_recon != null)
         {
             @* Reconciliation banner *@
@@ -391,16 +406,16 @@
                 <MudGrid>
                     <MudItem xs="12" sm="3">
                         <div style="font-size:11px;color:#666">TDS Payable (Entries)</div>
-                        <div style="font-size:22px;font-weight:700;color:#1565C0">₹@_recon.TdsPayable.ToString("N2")</div>
+                        <div style="font-size:22px;font-weight:700;color:#1565C0">₹@_recon.TdsPayable.ToString("N0")</div>
                     </MudItem>
                     <MudItem xs="12" sm="3">
                         <div style="font-size:11px;color:#666">Challan Deposited</div>
-                        <div style="font-size:22px;font-weight:700;color:#2e7d32">₹@_recon.ChallanDeposited.ToString("N2")</div>
+                        <div style="font-size:22px;font-weight:700;color:#2e7d32">₹@_recon.ChallanDeposited.ToString("N0")</div>
                     </MudItem>
                     <MudItem xs="12" sm="3">
                         <div style="font-size:11px;color:#666">Difference</div>
                         <div style="font-size:22px;font-weight:700;color:@(_recon.IsReconciled?"#4CAF50":"#FF9800")">
-                            ₹@_recon.Difference.ToString("N2")
+                            ₹@_recon.Difference.ToString("N0")
                         </div>
                     </MudItem>
                     <MudItem xs="12" sm="3" Class="d-flex align-center">
@@ -447,9 +462,9 @@
                             <td>@c.Section</td>
                             <td>@c.Quarter</td>
                             <td>@c.BankName</td>
-                            <td style="text-align:right">@c.TdsAmount.ToString("N2")</td>
-                            <td style="text-align:right">@c.Interest.ToString("N2")</td>
-                            <td style="text-align:right"><b>@c.TotalAmount.ToString("N2")</b></td>
+                            <td style="text-align:right">@c.TdsAmount.ToString("N0")</td>
+                            <td style="text-align:right">@c.Interest.ToString("N0")</td>
+                            <td style="text-align:right"><b>@c.TotalAmount.ToString("N0")</b></td>
                             <td>
                                 <MudChip T="string" Size="Size.Small"
                                          Color="@(c.Status=="Paid"?Color.Success:Color.Warning)">@c.Status</MudChip>
@@ -460,9 +475,9 @@
                 <tfoot>
                     <tr style="background:#e3f2fd;font-weight:bold">
                         <td colspan="6">TOTAL</td>
-                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.TdsAmount).ToString("N2")</td>
-                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.Interest).ToString("N2")</td>
-                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.TotalAmount).ToString("N2")</td>
+                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.TdsAmount).ToString("N0")</td>
+                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.Interest).ToString("N0")</td>
+                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.TotalAmount).ToString("N0")</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -470,7 +485,7 @@
         }
     </MudTabPanel>
 
-    @* ── 5. Payroll Year Summary ── *@
+    @* -- 5. Payroll Year Summary -- *@
     <MudTabPanel Text="Payroll Summary" Icon="@Icons.Material.Filled.People">
 
         @if (_yearSummary != null)
@@ -509,7 +524,7 @@
                     </MudItem>
                 </MudGrid>
 
-                @* Employee × Month table *@
+                @* Employee Ã— Month table *@
                 <div style="overflow-x:auto">
                     <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="min-width:900px">
                         <thead>
@@ -567,7 +582,7 @@
         }
         else
         {
-            <MudAlert Severity="Severity.Info">Click Load to generate the Payroll Year Summary (employee × month grid).</MudAlert>
+            <MudAlert Severity="Severity.Info">Click Load to generate the Payroll Year Summary (employee Ã— month grid).</MudAlert>
         }
     </MudTabPanel>
 
@@ -591,6 +606,7 @@
     private List<EmployeeYearSummary>? _yearSummary;
 
     private bool _loading;
+    private int  _activeTab;
 
     // FY month helpers
     private static readonly int[]    _fyMonthNumbers = new[] {4,5,6,7,8,9,10,11,12,1,2,3};
@@ -611,41 +627,105 @@
         await LoadPayrollSummary();
     }
 
-    void OnTabChanged(int idx) { }
+    void OnTabChanged(int idx) { _activeTab = idx; StateHasChanged(); }
 
-    void Refresh() { _ = LoadAllAsync(); }
+    void Refresh() { _ = InvokeAsync(LoadAllAsync); }
 
-    async Task LoadQuarterSummary() => await LoadQuarterSummaryAsync();
+    // ── Excel Downloads ──────────────────────────────────────────────────────
+    static string DownloadsFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+
+    static void OpenFile(string path)
+        => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+
+    void DownloadQuarterExcel()
+    {
+        try
+        {
+            var path = Path.Combine(DownloadsFolder, $"QuarterSummary_{AppState.CurrentFY.Replace("-","_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            TDSPro.DAL.ExcelEngine.ExportQuarterSummary(_quarterSummary!, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadDeducteeExcel()
+    {
+        try
+        {
+            var qLabel = string.IsNullOrEmpty(_deducteeQuarter) ? "AllQ" : _deducteeQuarter;
+            var path   = Path.Combine(DownloadsFolder, $"DeducteeReport_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            TDSPro.DAL.ExcelEngine.ExportDeducteeReport(_deducteeReport!, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadSectionExcel()
+    {
+        try
+        {
+            var qLabel = string.IsNullOrEmpty(_sectionQuarter) ? "AllQ" : _sectionQuarter;
+            var path   = Path.Combine(DownloadsFolder, $"SectionReport_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            TDSPro.DAL.ExcelEngine.ExportSectionReport(_sectionReport!, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadReconExcel()
+    {
+        try
+        {
+            var challans = _recon?.Challans ?? new();
+            var qLabel   = string.IsNullOrEmpty(_reconQuarter) ? "AllQ" : _reconQuarter;
+            var path     = Path.Combine(DownloadsFolder, $"ChallanRecon_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            TDSPro.DAL.ExcelEngine.ExportChallans(challans, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadPayrollExcel()
+    {
+        try
+        {
+            var path = Path.Combine(DownloadsFolder, $"PayrollSummary_{AppState.CurrentFY.Replace("-","_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            TDSPro.DAL.ExcelEngine.ExportYearSummary(_yearSummary!, AppState.CurrentFY, _fyMonthLabels, _fyMonthNumbers, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
 
     async Task LoadQuarterSummaryAsync()
     {
         _loading = true; StateHasChanged();
-        try { _quarterSummary = await Task.Run(() => Svc.GetQuarterSummary(AppState.CurrentFY)); }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        try { _quarterSummary = await Task.Run(() => Svc.GetQuarterSummary(AppState.CurrentFY, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _loading = false; StateHasChanged();
     }
 
     async Task LoadDeducteeReport()
     {
         _loading = true; StateHasChanged();
-        try { _deducteeReport = await Task.Run(() => Svc.GetDeducteeReport(AppState.CurrentFY, string.IsNullOrEmpty(_deducteeQuarter) ? null : _deducteeQuarter)); }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        try { _deducteeReport = await Task.Run(() => Svc.GetDeducteeReport(AppState.CurrentFY, string.IsNullOrEmpty(_deducteeQuarter) ? null : _deducteeQuarter, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _loading = false; StateHasChanged();
     }
 
     async Task LoadSectionReport()
     {
         _loading = true; StateHasChanged();
-        try { _sectionReport = await Task.Run(() => Svc.GetSectionReport(AppState.CurrentFY, string.IsNullOrEmpty(_sectionQuarter) ? null : _sectionQuarter)); }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        try { _sectionReport = await Task.Run(() => Svc.GetSectionReport(AppState.CurrentFY, string.IsNullOrEmpty(_sectionQuarter) ? null : _sectionQuarter, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _loading = false; StateHasChanged();
     }
 
     async Task LoadChallanRecon()
     {
         _loading = true; StateHasChanged();
-        try { _recon = await Task.Run(() => Svc.GetChallanRecon(AppState.CurrentFY, string.IsNullOrEmpty(_reconQuarter) ? null : _reconQuarter)); }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        try { _recon = await Task.Run(() => Svc.GetChallanRecon(AppState.CurrentFY, string.IsNullOrEmpty(_reconQuarter) ? null : _reconQuarter, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _loading = false; StateHasChanged();
     }
 
@@ -653,7 +733,7 @@
     {
         _loading = true; StateHasChanged();
         try { _yearSummary = await Task.Run(() => PayrollSvc.GetYearSummary(AppState.CurrentFY, AppState.CurrentDeductorId)); }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _loading = false; StateHasChanged();
     }
 

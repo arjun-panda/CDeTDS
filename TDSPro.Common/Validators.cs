@@ -6,9 +6,45 @@ namespace TDSPro.Common
     {
         private static readonly Regex PanRegex = new(@"^[A-Z]{5}[0-9]{4}[A-Z]$");
         private static readonly Regex TanRegex = new(@"^[A-Z]{4}[0-9]{5}[A-Z]$");
+        private static readonly Regex AadhaarRegex = new(@"^[2-9]\d{11}$");
+        private static readonly Regex IfscRegex    = new(@"^[A-Z]{4}0[A-Z0-9]{6}$");
+        private static readonly Regex PinRegex     = new(@"^[1-9]\d{5}$");
+        private static readonly Regex MobileRegex  = new(@"^[6-9]\d{9}$");
+        private static readonly Regex EmailRegex   = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+        // ── Additional ID validators (added for B3 validation layer) ─────────
+        public static bool IsValidAadhaar(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            var digits = new string(s.Where(char.IsDigit).ToArray());
+            return AadhaarRegex.IsMatch(digits);
+        }
+        public static bool IsValidIfsc(string? s) => !string.IsNullOrWhiteSpace(s) && IfscRegex.IsMatch(s.Trim().ToUpper());
+        public static bool IsValidPin(string? s)  => !string.IsNullOrWhiteSpace(s) && PinRegex.IsMatch(s.Trim());
+        public static bool IsValidMobile(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            var digits = new string(s.Where(char.IsDigit).ToArray());
+            // Strip +91 / 91 / 0 prefixes so "+91 98765 43210", "0987654321" all normalise
+            if (digits.Length == 12 && digits.StartsWith("91")) digits = digits.Substring(2);
+            else if (digits.Length == 11 && digits.StartsWith("0")) digits = digits.Substring(1);
+            return MobileRegex.IsMatch(digits);
+        }
+        public static bool IsValidEmail(string? s) => !string.IsNullOrWhiteSpace(s) && EmailRegex.IsMatch(s.Trim());
+
+        /// <summary>Parses dates accepted by the app (dd-MMM-yyyy preferred but flexible).</summary>
+        public static bool TryParseAppDate(string? s, out DateTime dt)
+        {
+            dt = default;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            return DateTime.TryParseExact(s.Trim(), "dd-MMM-yyyy",
+                       System.Globalization.CultureInfo.InvariantCulture,
+                       System.Globalization.DateTimeStyles.None, out dt)
+                || DateTime.TryParse(s.Trim(), out dt);
+        }
 
         // ── PAN ───────────────────────────────────────────────────────────────
-        public static bool IsValidPan(string pan)
+        public static bool IsValidPan(string? pan)
         {
             if (string.IsNullOrWhiteSpace(pan)) return false;
             return PanRegex.IsMatch(pan.Trim().ToUpper());
@@ -119,7 +155,7 @@ namespace TDSPro.Common
 
         // ── TDS Calculations (called AFTER rules engine returns rate) ─────────
         public static double CalculateTds(double amount, double rate)
-            => Math.Round(amount * rate / 100, 2);
+            => Math.Round(amount * rate / 100, 0);
 
         public static double CalculateCess(double tds, double cessRate = 4.0)
             => Math.Round(tds * cessRate / 100, 2);

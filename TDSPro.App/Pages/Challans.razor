@@ -8,126 +8,216 @@
 @inject NavigationManager Nav
 @implements IDisposable
 
-<div class="d-flex align-center gap-3 mb-4">
-    <MudText Typo="Typo.h5">Challans — FY @AppState.CurrentFY</MudText>
-    <MudSpacer />
+@* ── Toolbar ── *@
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-shrink:0">
+    <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Challans — FY @AppState.CurrentFY</span>
+    @if (_items.Count > 0)
+    {
+        <div style="display:flex;align-items:stretch;gap:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-left:4px">
+            <div class="ch-kpi"><span class="ch-kpi-lbl">Challans</span><span class="ch-kpi-val" style="color:#1565C0">@_items.Count</span></div>
+            <div class="ch-kpi-sep"></div>
+            <div class="ch-kpi"><span class="ch-kpi-lbl">TDS</span><span class="ch-kpi-val" style="color:#2e7d32">₹@_items.Sum(x=>x.TdsAmount).ToString("N0")</span></div>
+            <div class="ch-kpi-sep"></div>
+            <div class="ch-kpi"><span class="ch-kpi-lbl">Surcharge</span><span class="ch-kpi-val">₹@_items.Sum(x=>x.Surcharge).ToString("N0")</span></div>
+            <div class="ch-kpi-sep"></div>
+            <div class="ch-kpi"><span class="ch-kpi-lbl">Total Paid</span><span class="ch-kpi-val" style="color:#6a1b9a">₹@_items.Sum(x=>x.TotalAmount).ToString("N0")</span></div>
+        </div>
+    }
+    <div style="flex:1"></div>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               Disabled="@AppState.IsReadOnlyFY" Size="Size.Small"
                OnClick="OpenAdd">Add Challan</MudButton>
 </div>
 
-@* ── KPI Summary ── *@
-@if (_items.Count > 0)
+@if (_items.Count == 0)
 {
-    <MudGrid Spacing="2" Class="mb-3">
-        <MudItem xs="3">
-            <MudPaper Class="pa-3 text-center" Elevation="1" Style="border-left:4px solid #1565C0;border-radius:8px">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Challans</MudText>
-                <MudText Typo="Typo.h6"><b>@_items.Count</b></MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="3">
-            <MudPaper Class="pa-3 text-center" Elevation="1" Style="border-left:4px solid #2e7d32;border-radius:8px">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Total TDS</MudText>
-                <MudText Typo="Typo.h6" Color="Color.Success"><b>₹@_items.Sum(x=>x.TdsAmount).ToString("N0")</b></MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="3">
-            <MudPaper Class="pa-3 text-center" Elevation="1" Style="border-left:4px solid #e65100;border-radius:8px">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Surcharge</MudText>
-                <MudText Typo="Typo.h6"><b>₹@_items.Sum(x=>x.Surcharge).ToString("N0")</b></MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="3">
-            <MudPaper Class="pa-3 text-center" Elevation="1" Style="border-left:4px solid #6a1b9a;border-radius:8px">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Paid (incl. Sur/Cess)</MudText>
-                <MudText Typo="Typo.h6"><b>₹@_items.Sum(x=>x.TotalAmount).ToString("N0")</b></MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <EmptyState Icon="@Icons.Material.Filled.AccountBalance"
+                Title="No challans yet"
+                Subtitle="Challan 281 records TDS deposited to the bank. Add a challan after you pay TDS, then link your TDS entries to it."
+                HelpText="Tip: Pay TDS at the bank → enter challan number/BSR/date here → link entries → file 24Q/26Q." />
 }
-
-<div style="height:calc(100vh - 260px);overflow:hidden">
-<MudDataGrid T="Challan" Items="_items" Hover="true" Striped="true" Dense="true" QuickFilter="_filter"
-             FixedHeader="true" Height="calc(100vh - 260px)">
-    <ToolBarContent>
-        <MudTextField @bind-Value="_search" Placeholder="Search challan no, BSR, bank..."
+else
+{
+    @* ── Search + count bar ── *@
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-shrink:0">
+        <MudTextField @bind-Value="_search" Placeholder="Search challan no, BSR, bank, section..."
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      Immediate="true" Class="mt-0" />
-    </ToolBarContent>
-    <Columns>
-        <PropertyColumn Property="x => x.ChallanNo"   Title="Challan No" />
-        <PropertyColumn Property="x => x.ChallanDate" Title="Date" Format="dd-MMM-yyyy" />
-        <PropertyColumn Property="x => x.BsrCode"     Title="BSR Code" />
-        <PropertyColumn Property="x => x.Section"     Title="Section" />
-        <PropertyColumn Property="x => x.TdsAmount"   Title="TDS (₹)" Format="N2" />
-        <PropertyColumn Property="x => x.TotalAmount" Title="Total (₹)" Format="N2" />
-        <TemplateColumn Title="Actions" Sortable="false">
-            <CellTemplate>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit"   Size="Size.Small" OnClick="() => OpenEdit(context.Item)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Print"  Size="Size.Small" Color="Color.Primary"
-                               OnClick="() => NavigateToPrint(context.Item.Id)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteItem(context.Item)" />
-            </CellTemplate>
-        </TemplateColumn>
-    </Columns>
-</MudDataGrid>
-</div>
+                      Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Style="max-width:300px" Class="mt-0"
+                      @bind-Value:after="RebuildView" />
+        <span style="font-size:11px;color:#94a3b8">@_filteredItems.Count challan(s) · @_groups.Count section(s)</span>
+    </div>
+
+    @* ── Grouped table ── *@
+    <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
+        <table class="ch-tbl">
+            <colgroup>
+                <col style="width:28px"/>   @* expand toggle *@
+                <col style="width:110px"/>  @* challan no *@
+                <col style="width:100px"/>  @* date *@
+                <col style="width:100px"/>  @* BSR *@
+                <col style="width:80px"/>   @* quarter *@
+                <col/>                       @* bank *@
+                <col style="width:100px"/>  @* TDS *@
+                <col style="width:100px"/>  @* total *@
+                <col style="width:96px"/>   @* actions *@
+            </colgroup>
+            <thead>
+                <tr class="ch-thead-row">
+                    <th class="ch-th"></th>
+                    <th class="ch-th">Challan No</th>
+                    <th class="ch-th">Date</th>
+                    <th class="ch-th">BSR Code</th>
+                    <th class="ch-th">Quarter</th>
+                    <th class="ch-th">Bank</th>
+                    <th class="ch-th" style="text-align:right">TDS (₹)</th>
+                    <th class="ch-th" style="text-align:right">Total (₹)</th>
+                    <th class="ch-th"></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var grp in _groups)
+            {
+                var sec      = grp.Key;
+                var rows     = grp.Value;
+                var expanded = _expandedSections.Contains(sec);
+                var grpTds   = rows.Sum(x => x.TdsAmount);
+                var grpTotal = rows.Sum(x => x.TotalAmount);
+
+                @* ── Section header row ── *@
+                <tr class="ch-sec-row" @onclick="() => ToggleSection(sec)">
+                    <td class="ch-sec-td" colspan="9">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:13px;color:#94a3b8;transition:transform .15s;display:inline-block;transform:rotate(@(expanded?"90deg":"0deg"))">▶</span>
+                            <span class="ch-sec-badge">@(string.IsNullOrEmpty(sec) ? "No Section" : sec)</span>
+                            <span style="font-size:11px;color:#64748b">@rows.Count challan@(rows.Count==1?"":"s")</span>
+                            <div style="flex:1"></div>
+                            <span style="font-size:12px;color:#374151;font-weight:600">TDS ₹@grpTds.ToString("N0")</span>
+                            <span style="color:#cbd5e1;font-size:11px">|</span>
+                            <span style="font-size:12px;color:#1e40af;font-weight:700">Total ₹@grpTotal.ToString("N0")</span>
+                        </div>
+                    </td>
+                </tr>
+
+                @* ── Challan rows (visible only when expanded) ── *@
+                @if (expanded)
+                {
+                    @foreach (var c in rows)
+                    {
+                        <tr class="ch-row" @key="c.Id">
+                            <td class="ch-td"></td>
+                            <td class="ch-td" style="font-family:monospace;font-weight:600;color:#1e40af">@c.ChallanNo</td>
+                            <td class="ch-td" style="color:#475569">@c.ChallanDate.ToString("dd-MMM-yyyy")</td>
+                            <td class="ch-td" style="font-family:monospace;font-size:11px;color:#64748b">@c.BsrCode</td>
+                            <td class="ch-td"><span class="ch-qtr-badge">@c.Quarter</span></td>
+                            <td class="ch-td" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151">@c.BankName</td>
+                            <td class="ch-td" style="text-align:right;font-weight:600;color:#1e293b">₹@c.TdsAmount.ToString("N0")</td>
+                            <td class="ch-td" style="text-align:right;font-weight:700;color:#1e293b">₹@c.TotalAmount.ToString("N0")</td>
+                            <td class="ch-td" style="white-space:nowrap">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"   Size="Size.Small"
+                                               Disabled="@AppState.IsReadOnlyFY" OnClick="() => OpenEdit(c)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Print"  Size="Size.Small" Color="Color.Primary"
+                                               OnClick="() => NavigateToPrint(c.Id)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               Disabled="@AppState.IsReadOnlyFY" OnClick="() => DeleteItem(c)" />
+                            </td>
+                        </tr>
+                    }
+                    @* ── Section subtotal row ── *@
+                    <tr class="ch-subtotal-row">
+                        <td class="ch-subtotal-td" colspan="6" style="text-align:right;font-size:11px;color:#64748b;font-style:italic">
+                            Subtotal — @rows.Count challan@(rows.Count==1?"":"s")
+                        </td>
+                        <td class="ch-subtotal-td" style="text-align:right;font-weight:700;color:#1e293b">₹@grpTds.ToString("N0")</td>
+                        <td class="ch-subtotal-td" style="text-align:right;font-weight:700;color:#1e40af">₹@grpTotal.ToString("N0")</td>
+                        <td class="ch-subtotal-td"></td>
+                    </tr>
+                }
+            }
+            @* ── Grand total ── *@
+            <tr class="ch-grand-row">
+                <td class="ch-grand-td" colspan="6" style="text-align:right;font-size:12px;font-weight:700;color:#1e293b">Grand Total</td>
+                <td class="ch-grand-td" style="text-align:right;font-weight:700;color:#1e293b">₹@_filteredItems.Sum(x=>x.TdsAmount).ToString("N0")</td>
+                <td class="ch-grand-td" style="text-align:right;font-weight:800;color:#1e40af">₹@_filteredItems.Sum(x=>x.TotalAmount).ToString("N0")</td>
+                <td class="ch-grand-td"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+}
 
 <MudDialog @bind-Visible="_dialogOpen" Options="_dialogOptions">
     <TitleContent>@(_editing?.Id == 0 ? "Add" : "Edit") Challan</TitleContent>
     <DialogContent>
         @if (_editing != null)
         {
-            <MudGrid Spacing="2">
-                @* Row 1 — Challan No, BSR, Date, Section *@
-                <MudItem xs="3"><MudTextField @bind-Value="_editing.ChallanNo" Label="Challan No*" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="3"><MudTextField @bind-Value="_editing.BsrCode"   Label="BSR Code*"   Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="3"><DateField Value="_challanDate" ValueChanged="d => _challanDate = d" Label="Date*" Variant="Variant.Outlined" Margin="Margin.Dense" Class="date-field" /></MudItem>
-                <MudItem xs="3">
-                    <MudSelect @bind-Value="_editing.Section" Label="Section" Variant="Variant.Outlined" Margin="Margin.Dense">
-                        @foreach (var s in AppConstants.KnownSections)
-                        { <MudSelectItem Value="@s">@s</MudSelectItem> }
-                    </MudSelect>
-                </MudItem>
+            @* ── Row 1: 4 fields ── *@
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px">
+                <MudTextField @bind-Value="_editing.ChallanNo" Label="Challan No*" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField @bind-Value="_editing.BsrCode"   Label="BSR Code*"   Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <DateField Value="_challanDate" ValueChanged="d => _challanDate = d" Label="Date*" Variant="Variant.Outlined" Margin="Margin.Dense" Class="date-field" />
+                <MudSelect Value="_editing.Section" Label="Section" Variant="Variant.Outlined" Margin="Margin.Dense"
+                           ValueChanged="@((string s) => { _editing.Section = s; LoadLinkableEntries(_editing.Quarter, _editing.ChallanNo); })">
+                    @foreach (var s in AppConstants.KnownSections)
+                    { <MudSelectItem Value="@s">@s</MudSelectItem> }
+                </MudSelect>
+            </div>
 
-                @* Row 2 — Minor Head Code *@
-                <MudItem xs="12">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">Minor Head Code (OLTAS)</MudText>
-                    <MudRadioGroup @bind-Value="_editing.MinorHeadCode">
-                        <MudRadio Value="@("200")" Color="Color.Primary">200 — TDS Payable by Taxpayer (regular payment)</MudRadio>
-                        <MudRadio Value="@("400")" Color="Color.Warning">400 — TDS on Regular Assessment (AO demand)</MudRadio>
-                    </MudRadioGroup>
-                </MudItem>
+            @* ── Row 2: Minor Head + radio inline ── *@
+            <div style="display:flex;align-items:center;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 12px;margin-bottom:6px">
+                <span style="font-size:11px;font-weight:600;color:#64748b;white-space:nowrap">Minor Head (OLTAS)</span>
+                <MudRadioGroup @bind-Value="_editing.MinorHeadCode" Style="display:flex;gap:16px">
+                    <MudRadio Value="@("200")" Color="Color.Primary" Size="Size.Small"><span style="font-size:12px">200 — Regular Payment</span></MudRadio>
+                    <MudRadio Value="@("400")" Color="Color.Warning" Size="Size.Small"><span style="font-size:12px">400 — AO Demand</span></MudRadio>
+                </MudRadioGroup>
+            </div>
 
-                @* Row 3 — Amounts *@
-                <MudItem xs="2"><MudNumericField @bind-Value="_editing.TdsAmount" Label="TDS (₹)"         Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" Class="amount-field" /></MudItem>
-                <MudItem xs="2"><MudNumericField @bind-Value="_editing.Surcharge" Label="Surcharge"       Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" Class="amount-field" /></MudItem>
-                <MudItem xs="2"><MudNumericField @bind-Value="_editing.Cess"      Label="Cess"            Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" Class="amount-field" /></MudItem>
-                <MudItem xs="2"><MudNumericField @bind-Value="_editing.Interest"  Label="Interest"        Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" Class="amount-field" /></MudItem>
-                <MudItem xs="2"><MudNumericField @bind-Value="_editing.LateFee"   Label="Late Fee"        Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" Class="amount-field" /></MudItem>
-                <MudItem xs="2"><MudNumericField @bind-Value="_editing.Amount"    Label="Other Charges"   Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" Class="amount-field" /></MudItem>
+            @* ── Row 3: 6 amount fields ── *@
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:6px">
+                <MudNumericField @bind-Value="_editing.TdsAmount" Label="TDS (₹)"       Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0" HideSpinButtons="true" Class="amount-field" />
+                <MudNumericField @bind-Value="_editing.Surcharge" Label="Surcharge"     Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0" HideSpinButtons="true" Class="amount-field" />
+                <MudNumericField @bind-Value="_editing.Cess"      Label="Cess"          Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0" HideSpinButtons="true" Class="amount-field" />
+                <MudNumericField @bind-Value="_editing.Interest"  Label="Interest"      Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0" HideSpinButtons="true" Class="amount-field" />
+                <MudNumericField @bind-Value="_editing.LateFee"   Label="Late Fee"      Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0" HideSpinButtons="true" Class="amount-field" />
+                <MudNumericField @bind-Value="_editing.Amount"    Label="Other Charges" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0" HideSpinButtons="true" Class="amount-field" />
+            </div>
 
-                @* Row 3 — Quarter, Bank *@
-                <MudItem xs="2">
-                    <MudSelect Value="_editing.Quarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense" ShrinkLabel="true"
-                               ValueChanged="@((string q) => OnQuarterChanged(q))">
-                        @foreach (var q in AppConstants.QuarterCodes)
-                        { <MudSelectItem Value="@q">@q</MudSelectItem> }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="10"><MudTextField @bind-Value="_editing.BankName" Label="Bank" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-
-                @* Row 4 — Remarks *@
-                <MudItem xs="12"><MudTextField @bind-Value="_editing.Remarks" Label="Remarks" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-            </MudGrid>
+            @* ── Row 4: Quarter + Bank + Remarks inline ── *@
+            <div style="display:grid;grid-template-columns:100px 1fr 1fr;gap:8px;margin-bottom:6px">
+                <MudSelect Value="_editing.Quarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense" ShrinkLabel="true"
+                           ValueChanged="@((string q) => OnQuarterChanged(q))">
+                    @foreach (var q in AppConstants.QuarterCodes)
+                    { <MudSelectItem Value="@q">@q</MudSelectItem> }
+                </MudSelect>
+                <MudTextField @bind-Value="_editing.BankName" Label="Bank"    Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField @bind-Value="_editing.Remarks"  Label="Remarks" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </div>
 
             @* ── Link TDS Entries ── *@
             @if (!string.IsNullOrEmpty(_editing.Quarter))
             {
-                <MudDivider Class="my-3" />
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                    <span style="font-weight:600;font-size:14px;color:#1565C0">Link TDS Entries — @_editing.Quarter</span>
-                    <span style="font-size:11px;color:#888">✓ = linked &nbsp;·&nbsp; uncheck to unlink &nbsp;·&nbsp; Save to apply</span>
+                @* ── section header + balance bar on one line ── *@
+                <div style="display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;margin-bottom:6px">
+                    <span style="font-weight:700;font-size:12px;color:#1d4ed8;white-space:nowrap">Link TDS Entries — @_editing.Quarter</span>
+                    <div style="flex:1"></div>
+                    @if (_linkableEntries.Count > 0)
+                    {
+                        <span style="font-size:11px;color:#1565C0;font-weight:600;white-space:nowrap">Challan ₹@ChallanAmt.ToString("N0")</span>
+                        <span style="color:#cbd5e1">|</span>
+                        <span style="font-size:11px;color:#2e7d32;font-weight:600;white-space:nowrap">Selected ₹@SelectedTds.ToString("N0")</span>
+                        <span style="color:#cbd5e1">|</span>
+                        <span style="font-size:11px;font-weight:700;color:@(IsBalanced?"#16a34a":"#dc2626");white-space:nowrap">
+                            @(IsBalanced ? "✅ Balanced" : $"⚠ ₹{Math.Abs(ChallanAmt-SelectedTds):N0} {(ChallanAmt>SelectedTds?"under":"over")}")
+                        </span>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="AutoMatch"
+                                   Style="font-size:11px;padding:2px 10px;min-width:0;white-space:nowrap">Auto-Match</MudButton>
+                        @if (!string.IsNullOrEmpty(_autoMatchMsg))
+                        {
+                            <span style="font-size:10px;color:@(_autoMatchOk?"#16a34a":"#e65100");font-weight:600">@_autoMatchMsg</span>
+                        }
+                    }
+                    <span style="font-size:10px;color:#94a3b8;white-space:nowrap">✓ = linked · uncheck to unlink</span>
                 </div>
 
                 @if (_linkableEntries.Count == 0)
@@ -136,86 +226,56 @@
                 }
                 else
                 {
-                    @* ── Balance Bar ── *@
-                    <div style="display:flex;align-items:center;gap:16px;background:#f8fafc;border:1px solid #e3e8f0;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:13px">
-                        <div style="flex:1">
-                            <div style="font-size:10px;color:#888;margin-bottom:2px">Challan Amount</div>
-                            <div style="font-weight:700;color:#1565C0;font-size:15px">₹@ChallanAmt.ToString("N2")</div>
-                        </div>
-                        <div style="flex:1">
-                            <div style="font-size:10px;color:#888;margin-bottom:2px">Selected TDS</div>
-                            <div style="font-weight:700;color:#2e7d32;font-size:15px">₹@SelectedTds.ToString("N2")</div>
-                        </div>
-                        <div style="flex:1">
-                            <div style="font-size:10px;color:#888;margin-bottom:2px">Difference</div>
-                            <div style="font-weight:700;font-size:15px;color:@(IsBalanced ? "#2e7d32" : "#e53935")">
-                                @(IsBalanced ? "✅ Balanced" : $"₹{Math.Abs(ChallanAmt - SelectedTds):N2} {(ChallanAmt > SelectedTds ? "under" : "over")}")
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.AutoFixHigh"
-                                       OnClick="AutoMatch"
-                                       Style="font-size:11px;font-weight:700;letter-spacing:.4px;white-space:nowrap">
-                                Auto-Match
-                            </MudButton>
-                            @if (!string.IsNullOrEmpty(_autoMatchMsg))
-                            {
-                                <div style="font-size:10px;color:@(_autoMatchOk?"#2e7d32":"#e65100");font-weight:600;text-align:right">
-                                    @_autoMatchMsg
-                                </div>
-                            }
-                        </div>
-                    </div>
-
                     @* ── Entries Table ── *@
-                    <div style="max-height:220px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px">
-                        <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <div style="overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;max-height:340px">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+                            <colgroup>
+                                <col style="width:36px"/>
+                                <col style="width:100px"/>
+                                <col style="width:90px"/>
+                                <col/>
+                                <col style="width:62px"/>
+                                <col style="width:100px"/>
+                                <col style="width:56px"/>
+                            </colgroup>
                             <thead>
-                                <tr style="background:#1565C0;color:#fff;position:sticky;top:0">
-                                    <th style="padding:6px 10px;width:36px">
+                                <tr style="background:#1e40af;color:#fff;position:sticky;top:0;z-index:1">
+                                    <th style="padding:6px 8px;width:36px">
                                         <MudCheckBox T="bool" Value="@(_selectedEntryIds.Count == _linkableEntries.Count)"
                                                      ValueChanged="ToggleAll" Color="Color.Default" Size="Size.Small" />
                                     </th>
-                                    <th style="padding:6px 10px;text-align:left">Entry No</th>
-                                    <th style="padding:6px 10px;text-align:left">Date</th>
-                                    <th style="padding:6px 10px;text-align:left">Deductee</th>
-                                    <th style="padding:6px 10px;text-align:left">Section</th>
-                                    <th style="padding:6px 10px;text-align:right">Total TDS (₹)</th>
-                                    <th style="padding:6px 10px;text-align:center">Linked</th>
+                                    <th style="padding:6px 8px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.3px">Entry No</th>
+                                    <th style="padding:6px 8px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.3px">Date</th>
+                                    <th style="padding:6px 8px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.3px">Deductee</th>
+                                    <th style="padding:6px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.3px">Sec</th>
+                                    <th style="padding:6px 8px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.3px">Total TDS (₹)</th>
+                                    <th style="padding:6px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.3px">Linked</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var e in _linkableEntries)
                                 {
-                                    var isChecked = _selectedEntryIds.Contains(e.Id);
                                     var isAutoMatched = _autoMatchedIds.Contains(e.Id);
-                                    <tr style="border-bottom:1px solid #f0f0f0;
-                                               background:@(isChecked ? (isAutoMatched ? "#e8f5e9" : "#e3f2fd") : "white")">
-                                        <td style="padding:5px 10px">
-                                            <MudCheckBox T="bool" Value="isChecked" Size="Size.Small"
+                                    var isSelected    = _selectedEntryIds.Contains(e.Id);
+                                    <tr @key="@($"{e.Id}_{isSelected}")"
+                                        style="border-bottom:1px solid #f1f5f9;background:@(isSelected ? (isAutoMatched ? "#f0fdf4" : "#eff6ff") : "#fff")">
+                                        <td style="padding:3px 8px">
+                                            <MudCheckBox T="bool" Value="@isSelected" Size="Size.Small"
                                                          ValueChanged="@((bool v) => ToggleEntry(e.Id, v))" />
                                         </td>
-                                        <td style="padding:5px 10px;font-family:monospace">
+                                        <td style="padding:3px 8px;font-family:monospace;font-size:11px;color:#64748b">
                                             @e.EntryNo
-                                            @if (isAutoMatched)
-                                            {
-                                                <span style="font-size:9px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 4px;margin-left:4px;font-weight:700">AUTO</span>
-                                            }
+                                            @if (isAutoMatched) { <span style="font-size:9px;background:#dcfce7;color:#15803d;border-radius:3px;padding:1px 4px;margin-left:3px;font-weight:700">AUTO</span> }
                                         </td>
-                                        <td style="padding:5px 10px">@e.EntryDate.ToString("dd-MMM-yyyy")</td>
-                                        <td style="padding:5px 10px">@e.DeducteeName</td>
-                                        <td style="padding:5px 10px">@e.Section</td>
-                                        <td style="padding:5px 10px;text-align:right;font-weight:600">@e.TotalTds.ToString("N2")</td>
-                                        <td style="padding:5px 10px;text-align:center">
-                                            @if (isChecked)
-                                            {
-                                                <span style="color:#2e7d32;font-size:16px">✓</span>
-                                            }
-                                            else
-                                            {
-                                                <span style="color:#bbb;font-size:14px">—</span>
-                                            }
+                                        <td style="padding:3px 8px;white-space:nowrap;color:#475569">@e.EntryDate.ToString("dd-MMM-yy")</td>
+                                        <td style="padding:3px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">@e.DeducteeName</td>
+                                        <td style="padding:3px 8px;text-align:center">
+                                            <span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700">@(string.IsNullOrEmpty(e.Section) ? "—" : e.Section)</span>
+                                        </td>
+                                        <td style="padding:3px 8px;text-align:right;font-weight:700;color:#1e293b">₹@e.TotalTds.ToString("N0")</td>
+                                        <td style="padding:3px 8px;text-align:center">
+                                            @if (isSelected) { <span style="color:#16a34a;font-weight:700">✓</span> }
+                                            else { <span style="color:#cbd5e1">—</span> }
                                         </td>
                                     </tr>
                                 }
@@ -230,19 +290,40 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save"
+                   Disabled="@AppState.IsReadOnlyFY">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     private List<Challan> _items = new();
     private string _search = "";
-    private Func<Challan, bool> _filter => c =>
-        string.IsNullOrEmpty(_search) ||
-        c.ChallanNo.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-        c.BsrCode.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-        c.BankName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-        c.Section.Contains(_search, StringComparison.OrdinalIgnoreCase);
+    private HashSet<string> _expandedSections = new();
+
+    private List<Challan> _filteredItems = new();
+    private Dictionary<string, List<Challan>> _groups = new();
+
+    void RebuildView()
+    {
+        _filteredItems = string.IsNullOrWhiteSpace(_search)
+            ? _items
+            : _items.Where(c =>
+                c.ChallanNo.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                c.BsrCode.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                c.BankName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                c.Section.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
+        _groups = _filteredItems
+            .GroupBy(c => string.IsNullOrEmpty(c.Section) ? "" : c.Section)
+            .OrderBy(g => string.IsNullOrEmpty(g.Key) ? "ZZZ" : g.Key)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    void ToggleSection(string sec)
+    {
+        if (_expandedSections.Contains(sec)) _expandedSections.Remove(sec);
+        else _expandedSections.Add(sec);
+    }
+
     private bool _dialogOpen;
     private Challan? _editing;
     private DateTime? _challanDate;
@@ -258,12 +339,19 @@
     private bool _autoMatchOk = false;
 
     private double SelectedTds => _linkableEntries.Where(e => _selectedEntryIds.Contains(e.Id)).Sum(e => e.TotalTds);
-    private double ChallanAmt  => _editing == null ? 0 : _editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee;
+    private double ChallanAmt  => _editing == null ? 0 : _editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee + _editing.Amount;
     private bool   IsBalanced  => Math.Abs(ChallanAmt - SelectedTds) < 1;
 
     protected override void OnInitialized() { AppState.OnChange += Reload; Load(); }
 
-    void Load() => _items = Svc.GetAll(AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null, AppState.CurrentFY);
+    void Load()
+    {
+        _items = Svc.GetAll(AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null, AppState.CurrentFY);
+        // expand new sections; preserve existing collapse state
+        foreach (var sec in _items.Select(c => string.IsNullOrEmpty(c.Section) ? "" : c.Section).Distinct())
+            _expandedSections.Add(sec);
+        RebuildView();
+    }
 
     void Reload() { Load(); StateHasChanged(); }
 
@@ -280,6 +368,7 @@
         };
         _challanDate = DateTime.Today; _saveError = "";
         _linkableEntries = new(); _selectedEntryIds = new(); _previouslyLinkedIds = new();
+        _autoMatchedIds = new(); _autoMatchMsg = ""; _autoMatchOk = false;
         _dialogOpen = true;
     }
 
@@ -295,6 +384,7 @@
             MinorHeadCode = c.MinorHeadCode
         };
         _challanDate = c.ChallanDate; _saveError = "";
+        _autoMatchedIds = new(); _autoMatchMsg = ""; _autoMatchOk = false;
         LoadLinkableEntries(c.Quarter, c.ChallanNo);
         _dialogOpen = true;
     }
@@ -302,9 +392,12 @@
     void LoadLinkableEntries(string quarter, string existingChallanNo = "")
     {
         if (string.IsNullOrEmpty(quarter)) { _linkableEntries = new(); return; }
+        var challanSection = _editing?.Section ?? "";
         _linkableEntries = EntrySvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY)
             .Where(e => e.Quarter == quarter &&
-                        (string.IsNullOrEmpty(e.ChallanNo) || e.ChallanNo == existingChallanNo))
+                        e.Status != "Adjusted" &&
+                        (string.IsNullOrEmpty(e.ChallanNo) || e.ChallanNo == existingChallanNo) &&
+                        (string.IsNullOrEmpty(challanSection) || e.Section == challanSection))
             .OrderBy(e => e.EntryNo)
             .ToList();
         _previouslyLinkedIds = _linkableEntries.Where(e => e.ChallanNo == existingChallanNo && !string.IsNullOrEmpty(existingChallanNo))
@@ -350,7 +443,7 @@
         {
             _selectedEntryIds = picked;
             _autoMatchedIds   = new HashSet<int>(picked);
-            _autoMatchMsg = $"✔ Matched {picked.Count} entries — ₹{running:N2}";
+            _autoMatchMsg = $"✔ Matched {picked.Count} entries — ₹{running:N0}";
             _autoMatchOk  = true;
         }
         else if (picked.Count > 0)
@@ -358,7 +451,7 @@
             // Best-effort partial match
             _selectedEntryIds = picked;
             _autoMatchedIds   = new HashSet<int>(picked);
-            _autoMatchMsg = $"⚠ Best fit: {picked.Count} entries (₹{running:N2}) — review difference";
+            _autoMatchMsg = $"⚠ Best fit: {picked.Count} entries (₹{running:N0}) — review difference";
             _autoMatchOk  = false;
         }
         else
@@ -390,6 +483,11 @@
     void Save()
     {
         if (_editing == null) return;
+        if (AppState.IsReadOnlyFY)
+        {
+            Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year).", Severity.Warning);
+            return;
+        }
 
         // Validations
         if (string.IsNullOrWhiteSpace(_editing.ChallanNo))
@@ -410,7 +508,7 @@
         // Auto-calculate total
         _editing.TotalAmount = Math.Round(
             _editing.TdsAmount + _editing.Surcharge + _editing.Cess +
-            _editing.Interest + _editing.LateFee + _editing.Amount, 2);
+            _editing.Interest + _editing.LateFee + _editing.Amount, 0);
 
         var (ok, msg) = Svc.Save(_editing);
         if (!ok) { _saveError = msg; return; }
@@ -429,6 +527,11 @@
 
     async Task DeleteItem(Challan c)
     {
+        if (AppState.IsReadOnlyFY)
+        {
+            Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year).", Severity.Warning);
+            return;
+        }
         var confirmed = await DialogSvc.ShowMessageBox(
             "Delete Challan?",
             $"Delete challan '{c.ChallanNo}' — ₹{c.TotalAmount:N0}?",

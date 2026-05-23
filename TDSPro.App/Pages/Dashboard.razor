@@ -4,10 +4,17 @@
 @inject DueDateService DueSvc
 @inject ReportsService RptSvc
 @inject PayrollService PayrollSvc
+@inject DeductorService DeductorSvc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IDisposable
 @using TDSPro.Common
+
+@* First-run wizard — shown only when no deductors exist *@
+@if (_showWizard)
+{
+    <FirstRunWizard OnFinished="OnWizardFinished" />
+}
 
 @* ── Welcome Banner ── *@
 <div style="background:linear-gradient(135deg,#1565C0 0%,#1976D2 60%,#42A5F5 100%);
@@ -113,17 +120,23 @@ else
                 <MudText Typo="Typo.subtitle2" Class="mb-3">Quarterly TDS (₹)</MudText>
                 @if (_quarterData.Any())
                 {
-                    <div style="display:flex;align-items:flex-end;gap:16px;height:180px;padding-bottom:20px">
-                        @{ double maxTds = _quarterData.Max(q => q.TdsAmount) == 0 ? 1 : _quarterData.Max(q => q.TdsAmount); }
+                    var _maxTds = _quarterData.Max(q => q.TdsAmount) == 0 ? 1.0 : _quarterData.Max(q => q.TdsAmount);
+                    <div style="display:flex;align-items:flex-end;gap:12px;height:160px;border-bottom:2px solid #e0e0e0;margin-bottom:6px">
                         @foreach (var q in _quarterData)
                         {
-                            double pct = q.TdsAmount / maxTds * 100;
-                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-                                <div style="font-size:10px;color:#555">₹@((q.TdsAmount/1000).ToString("N0"))K</div>
-                                <div style="width:100%;background:#1976D2;border-radius:4px 4px 0 0;
-                                            height:@(pct.ToString("F0"))%;min-height:4px;transition:height .3s"></div>
-                                <div style="font-size:11px;font-weight:600;color:#333">@q.Quarter</div>
+                            int barH = (int)(q.TdsAmount / _maxTds * 130);
+                            if (barH < 4 && q.TdsAmount > 0) barH = 4;
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%">
+                                <div style="font-size:10px;color:#555;font-weight:600">₹@((q.TdsAmount/1000).ToString("N0"))K</div>
+                                <div style="width:70%;background:linear-gradient(180deg,#42A5F5,#1565C0);
+                                            border-radius:4px 4px 0 0;height:@(barH)px;transition:height .4s"></div>
                             </div>
+                        }
+                    </div>
+                    <div style="display:flex;gap:12px">
+                        @foreach (var q in _quarterData)
+                        {
+                            <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#1565C0">@q.Quarter</div>
                         }
                     </div>
                 }
@@ -231,20 +244,39 @@ else
     private List<TdsEntry> _recentEntries = new();
     private PayrollDashStats? _payrollStats;
     private string _payrollMonthLabel = "";
+    private bool   _showWizard;
 
     record PayrollDashStats(int Processed, double TotalGross, double MonthTds, double YtdTds);
 
-    protected override void OnInitialized() => AppState.OnChange += OnContextChanged;
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += OnContextChanged;
+        // Show first-run wizard once when no deductors exist + user hasn't dismissed it
+        var skipped = TDSPro.DAL.Database.GetSetting("FirstRunWizard_Skipped", "");
+        var hasDeductors = DeductorSvc.GetAll().Any();
+        if (!hasDeductors && skipped != "1") _showWizard = true;
+    }
+
     protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    void OnWizardFinished()
+    {
+        _showWizard = false;
+        // Mark dismissed so it doesn't reappear if user skipped before adding a deductor
+        TDSPro.DAL.Database.SetSetting("FirstRunWizard_Skipped", "1");
+        _ = LoadAsync();
+        StateHasChanged();
+    }
 
     void OnContextChanged() { _ = LoadAsync(); InvokeAsync(StateHasChanged); }
 
     async Task LoadAsync()
     {
-        _stats = await Task.Run(() => DashSvc.GetStats(AppState.CurrentFY));
+        var did = AppState.CurrentDeductorId > 0 ? (int?)AppState.CurrentDeductorId : null;
+        _stats = await Task.Run(() => DashSvc.GetStats(AppState.CurrentFY, did));
 
         // Quarter chart data
-        try { _quarterData = await Task.Run(() => RptSvc.GetQuarterSummary(AppState.CurrentFY)); }
+        try { _quarterData = await Task.Run(() => RptSvc.GetQuarterSummary(AppState.CurrentFY, did)); }
         catch { _quarterData = new(); }
 
         // Recent 10 entries
@@ -277,12 +309,14 @@ else
         }
         catch { _payrollStats = null; }
 
-        // Due date alerts
+        // Due date alerts — current FY overdue + upcoming 30 days only
         try
         {
             _alerts = await Task.Run(() =>
-                DueSvc.GetAlerts(lookAheadDays: 30)
-                      .Where(a => a.IsOverdue || a.IsDueSoon).ToList());
+                DueSvc.GetAlerts(lookAheadDays: 45)
+                      .Where(a => a.IsDueSoon)
+                      .OrderBy(a => a.DueDateValue)
+                      .ToList());
         }
         catch { _alerts = new(); }
 

@@ -2,8 +2,12 @@
 @inject AppStateService AppState
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IDialogService DialogSvc
+@inject ISnackbar Snackbar
+@inject UpdateCheckService UpdateSvc
 @implements IDisposable
 @using TDSPro.Common
+@using TDSPro.BLL
 
 @if (!AppState.IsLoggedIn)
 {
@@ -23,26 +27,46 @@ else
 
             @if (AppState.CurrentDeductorId > 0)
             {
-                <MudButton StartIcon="@Icons.Material.Filled.Business" Color="Color.Inherit"
-                           Variant="Variant.Outlined" Style="border-color:rgba(255,255,255,0.6);max-width:220px"
-                           OnClick="GoToDeductors">
-                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@AppState.CurrentDeductorName</span>
-                </MudButton>
+                <div @onclick="OpenCompanySelector" title="Switch / manage company" style="display:flex;align-items:center;gap:10px;cursor:pointer;
+                     border:1.5px solid rgba(255,255,255,0.6);border-radius:6px;padding:7px 18px;
+                     white-space:nowrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Style="color:white;font-size:22px;flex-shrink:0" />
+                    <span style="color:white;font-size:15px;font-weight:600;letter-spacing:.2px">@AppState.CurrentDeductorName</span>
+                </div>
             }
 
-            <MudSelect T="string" Value="AppState.CurrentFY" ValueChanged="OnFYChanged"
-                       Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense"
-                       Style="width:130px;color:white" Class="ml-2"
-                       AdornmentColor="Color.Inherit">
-                @foreach (var fy in AppConstants.FinancialYears)
-                {
-                    <MudSelectItem Value="@fy">FY @fy</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudText Typo="Typo.caption" Class="ml-2" Style="opacity:.8;white-space:nowrap">
-                AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY)
-            </MudText>
+            <MudMenu Class="ml-2" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
+                <ActivatorContent>
+                    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;
+                                background:linear-gradient(135deg,#FFD600,#FFA000);
+                                border-radius:8px;padding:5px 14px;
+                                box-shadow:0 2px 8px rgba(0,0,0,0.25)">
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
+                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">FY</span>
+                            <span style="font-size:16px;font-weight:900;color:#1a1a1a;letter-spacing:.3px">@AppState.CurrentFY</span>
+                        </div>
+                        <div style="width:1px;height:28px;background:rgba(0,0,0,0.2)"></div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
+                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">AY</span>
+                            <span style="font-size:13px;font-weight:800;color:#1a1a1a">@TaxRules.AssessmentYearLabel(AppState.CurrentFY)</span>
+                        </div>
+                    </div>
+                </ActivatorContent>
+                <ChildContent>
+                    @foreach (var fy in AppConstants.FinancialYears)
+                    {
+                        var isSession = fy == AppState.SessionFY;
+                        <MudMenuItem OnClick="@(() => OnFYChanged(fy))">
+                            <div style="display:flex;flex-direction:column;line-height:1.3">
+                                <span style="font-weight:@(fy == AppState.CurrentFY ? "700" : "400");font-size:14px">
+                                    FY @fy@(isSession ? "  · Editable" : "  · Read-only")
+                                </span>
+                                <span style="font-size:11px;color:#888">AY @TaxRules.AssessmentYearLabel(fy)</span>
+                            </div>
+                        </MudMenuItem>
+                    }
+                </ChildContent>
+            </MudMenu>
 
             <MudText Typo="Typo.caption" Class="ml-3" Style="opacity:.75;font-family:monospace;white-space:nowrap">
                 @_clock
@@ -66,7 +90,6 @@ else
             </MudDrawerHeader>
             <MudNavMenu>
                 <MudNavLink Href="/dashboard"  Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-                <MudNavLink Href="/deductors"  Icon="@Icons.Material.Filled.Business">Deductors</MudNavLink>
                 <MudNavLink Href="/deductees"  Icon="@Icons.Material.Filled.People">Deductees</MudNavLink>
                 <MudNavLink Href="/entries"    Icon="@Icons.Material.Filled.Receipt">TDS Entries</MudNavLink>
                 <MudNavLink Href="/challans"   Icon="@Icons.Material.Filled.AccountBalance">Challans</MudNavLink>
@@ -161,11 +184,11 @@ else
                     <div style="margin-bottom:6px">Current Version: <strong>v@(AppConstants.AppVersion)</strong></div>
                     <div style="font-size:11px;color:#64748b;margin-bottom:10px">
                         TDS Pro is updated regularly for new Budget rules, FVU versions and feature improvements.
-                        To check for updates, contact support or send us your version info.
+                        Click below to check if a newer version is available.
                     </div>
                     <button @onclick="CheckForUpdates"
                             style="width:100%;background:#1565C0;color:white;border:none;border-radius:6px;padding:8px;font-size:13px;font-weight:600;cursor:pointer">
-                        📬 Request Update Check
+                        Check for Updates
                     </button>
                     @if (_updateMsg != "")
                     {
@@ -189,19 +212,35 @@ else
         </MudDrawer>
 
         <!-- Main Content -->
-        <MudMainContent Style="height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;display:block">
+        <MudMainContent Style="height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column">
             <LicenseBanner />
-            <div class="page-content" style="position:relative">
-                <ErrorBoundary>
+            @if (AppState.IsReadOnlyFY)
+            {
+                <div style="background:linear-gradient(90deg,#fff3e0,#ffe0b2);border-bottom:1px solid #ffb74d;
+                            padding:6px 16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#6d4c00;flex-shrink:0">
+                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Style="font-size:18px;color:#e65100" />
+                    <span><b>Viewing FY @AppState.CurrentFY for reference (read-only).</b> You are logged in to FY @AppState.SessionFY — switch back to make changes, or log out and log in again to edit a different year.</span>
+                </div>
+            }
+            <div class="page-content" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column">
+                <ErrorBoundary @ref="_errorBoundary">
                     <ChildContent>@Body</ChildContent>
                     <ErrorContent Context="ex">
                         <div style="padding:40px;text-align:center">
                             <div style="font-size:48px">⚠️</div>
                             <div style="font-size:20px;font-weight:700;color:#e53935;margin:12px 0 8px">Something went wrong</div>
-                            <div style="color:#64748b;margin-bottom:20px">@ex.Message</div>
-                            <a href="/dashboard" style="background:#1565C0;color:white;padding:10px 28px;border-radius:8px;text-decoration:none;font-weight:600">
-                                Go to Dashboard
-                            </a>
+                            <div style="color:#64748b;margin-bottom:8px;max-width:600px;margin-left:auto;margin-right:auto">@ex.Message</div>
+                            <div style="color:#94a3b8;font-size:12px;margin-bottom:24px;max-width:600px;margin-left:auto;margin-right:auto;font-family:monospace">@ex.GetType().Name</div>
+                            <div style="display:flex;gap:12px;justify-content:center">
+                                <button @onclick="RecoverError"
+                                        style="background:#1565C0;color:white;padding:10px 28px;border-radius:8px;border:none;font-weight:600;cursor:pointer;font-size:14px">
+                                    Try Again
+                                </button>
+                                <a href="/dashboard"
+                                   style="background:#546e7a;color:white;padding:10px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;line-height:1.5">
+                                    Go to Dashboard
+                                </a>
+                            </div>
                         </div>
                     </ErrorContent>
                 </ErrorBoundary>
@@ -224,6 +263,7 @@ else
 }
 
 @code {
+    private ErrorBoundary? _errorBoundary;
     private bool _drawerOpen = true;
     private bool _helpOpen   = false;
     private string _clock    = "";
@@ -234,80 +274,206 @@ else
     private static readonly (string Category, string Q, string A)[] _faqs =
     [
         // Deductor
-        ("Deductor", "How do I add a new deductor?",              "Go to Deductors → click Add. Enter company name, TAN, PAN, address and contact details. Click Save. You can manage multiple deductors (companies) from this screen."),
-        ("Deductor", "Can I manage multiple companies?",          "Yes. TDS Pro supports multiple deductors. Use the company selector in the top bar to switch between companies. Each company has its own separate data."),
-        ("Deductor", "Where do I enter TRACES credentials?",      "Go to Portals → TRACES card. Enter your TAN-based User ID and password. These are used for TRACES downloads and portal access."),
+        ("Deductor", "How do I add a new deductor?",              "Click the company name in the top bar → company selector dialog opens. Use Create to add a new deductor. Enter TAN, PAN, address, responsible person details and GSTIN."),
+        ("Deductor", "Can I manage multiple companies?",          "Yes. TDS Pro supports unlimited deductors. Each company has its own separate challans, entries, payroll and return files. Use the company selector in the top bar to switch."),
+        ("Deductor", "Where do I enter TRACES / portal credentials?", "Go to Portals page. Each portal card (IT Portal, TRACES, TIN-NSDL) has a credential button. Credentials are AES-encrypted and stored locally."),
+        ("Deductor", "Where are company files saved?",            "Each company gets its own folder: Documents\\TDSPro\\Companies\\{TAN}_{Name}\\. FVU files go into {FY}\\Returns\\{FormType}\\{Quarter}\\."),
 
         // Deductee
-        ("Deductee", "How do I add a deductee?",                  "Go to Deductees → click Add. Enter name, PAN, deductee type (Company/Individual), applicable TDS section and rate. The system auto-fills the default rate based on the section."),
-        ("Deductee", "What is a Lower Deduction Certificate (LDC)?", "If a deductee has obtained a lower TDS rate certificate from the IT Dept, enter the certificate number, rate and validity in the LDC tab of the deductee form. TDS Pro will apply the lower rate automatically."),
-        ("Deductee", "What happens if PAN is not available?",     "If PAN is not provided, TDS is deducted at 20% as per Section 206AA. TDS Pro will automatically warn you and apply the higher rate."),
-        ("Deductee", "What is Section 206AB?",                    "Section 206AB requires higher TDS (twice the normal rate or 5%, whichever is higher) for deductees who have not filed ITR for 2 consecutive years with TDS above ₹50,000. TDS Pro alerts you when this applies."),
+        ("Deductee", "How do I add a deductee?",                  "Go to Deductees → click Add. Enter name, PAN, type (Company/Individual), default TDS section and rate. The system auto-fills the default rate from the TDS Rules table."),
+        ("Deductee", "What is a Lower Deduction Certificate (LDC)?", "If the deductee holds an IT Dept certificate for a lower TDS rate, enter the cert number, concessional rate and validity date in the deductee form. TDS Pro applies the lower rate automatically."),
+        ("Deductee", "What happens if PAN is not available?",     "TDS is deducted at 20% under Section 206AA when PAN is unavailable. TDS Pro warns you and flags the entry. Use 'PANNOTAVBL' as the PAN placeholder."),
+        ("Deductee", "What is Section 206AB?",                    "Higher TDS (2× normal rate or 5%, whichever is higher) applies to deductees who have not filed ITR for 2 consecutive prior years with aggregate TDS > ₹50,000. TDS Pro alerts when this may apply."),
 
         // TDS Entries
-        ("TDS Entries", "How do I record a TDS transaction?",     "Go to TDS Entries → click Add. Select deductee, section, enter gross amount. TDS is auto-calculated based on the applicable rate. Enter the deduction date and quarter."),
-        ("TDS Entries", "How is the quarter auto-detected?",      "TDS Pro automatically sets the quarter (Q1–Q4) based on the entry date. Q1: Apr–Jun, Q2: Jul–Sep, Q3: Oct–Dec, Q4: Jan–Mar."),
-        ("TDS Entries", "How do I link an entry to a challan?",   "In the TDS Entry form, select the challan from the Challan Link dropdown. This links your payment to the transaction for FVU generation and reconciliation."),
+        ("TDS Entries", "How do I record a TDS transaction?",     "Go to TDS Entries → Add. Select the deductee, TDS section, enter gross payment amount. TDS is auto-calculated. Set the payment date — the quarter is auto-detected from the date."),
+        ("TDS Entries", "How is the quarter auto-detected?",      "Quarter is set from the payment date: Q1 = Apr–Jun, Q2 = Jul–Sep, Q3 = Oct–Dec, Q4 = Jan–Mar. You can override it manually if needed."),
+        ("TDS Entries", "How do I link an entry to a challan?",   "In the TDS Entry form, select the challan from the Challan dropdown. This links the deduction to your bank payment — required for FVU generation. All entries must be linked before generating the return."),
+        ("TDS Entries", "What does status 'Paid' mean?",          "'Paid' means the TDS has been deducted and the challan has been paid. Only Paid entries are included in the FVU return. Set status to Paid after remitting TDS to the bank."),
 
         // Challans
-        ("Challans", "How do I add a challan?",                   "Go to Challans → click Add. Enter challan number, BSR code, date, TDS amount, surcharge, cess and section. The challan represents your actual tax payment made to the bank."),
-        ("Challans", "What is a BSR Code?",                       "BSR (Basic Statistical Return) code is a 7-digit code assigned to the bank branch where TDS was deposited. It is printed on your challan receipt and required for TDS return filing."),
-        ("Challans", "How do I print Challan 281?",               "Go to Challans → select a challan → click Print. Or go to Challan 281 Print from the sidebar. This generates the official ITNS 281 format for your records."),
+        ("Challans", "How do I add a challan?",                   "Go to Challans → Add. Enter BSR code (7 digits), challan number, date, section (192 for salary, leave blank for mixed), TDS amount, surcharge, cess, interest and late fee."),
+        ("Challans", "What is a BSR Code?",                       "BSR (Basic Statistical Return) code is the 7-digit code of the bank branch where you paid TDS. It appears on your Challan 281 receipt and is mandatory for FVU validation."),
+        ("Challans", "How do I print Challan 281?",               "Go to Challan 281 Print in the sidebar. Select the challan → Preview → Print or Save PDF. This generates the official ITNS 281 layout."),
+        ("Challans", "Why does the return show 'No challans found'?", "Ensure challans for the correct FY, quarter and form type are entered and their status is 'Paid'. For 26Q, challan section must be blank or non-salary (not 192). For 24Q, section must be 192 or blank."),
 
         // Payroll
-        ("Payroll", "How does the payroll module work?",          "Go to Payroll → Employee Master to add employees with salary structure. Each month, go to Monthly Run → select month → click Compute. TDS Pro calculates salary, HRA exemption, deductions and TDS under both old and new tax regimes."),
-        ("Payroll", "How is TDS on salary calculated?",           "TDS Pro computes annual projected tax under both Old and New Regime (IT Act 2025) and recommends the beneficial regime. Monthly TDS = Annual Tax ÷ 12. It accounts for HRA, Section 80C, 80D and other deductions."),
-        ("Payroll", "What is pro-rata salary?",                   "If an employee joins or leaves mid-month, use the Days Worked column in Monthly Run to enter actual days. TDS Pro calculates salary proportionally (days worked ÷ total days × gross)."),
-        ("Payroll", "How do I push payroll data to TDS return?",  "After running monthly payroll, TDS entries for Section 192 (salary TDS) are automatically available in TDS Entries. These feed into the 24Q return for FVU generation."),
-        ("Payroll", "How do I generate salary slips?",            "Go to Payroll → Salary Data tab → select employee and month → click Export. Salary slips can be exported as Excel or printed."),
-        ("Payroll", "What is Tax Declaration?",                   "Employees declare their investments (HRA, 80C, 80D etc.) at the start of the year. Go to Payroll → Tax Declaration → select employee → enter declarations. This reduces their TDS throughout the year."),
+        ("Payroll", "How does the payroll module work?",          "Go to Payroll → Employee Master to add employees with salary structure. Each month, go to Monthly Run → select month → Compute. TDS Pro calculates salary, HRA, deductions and TDS under the new IT Act 2025 regime."),
+        ("Payroll", "How is salary TDS calculated?",              "Annual projected tax is computed, then spread monthly (Annual Tax ÷ remaining months). Accounts for HRA exemption, standard deduction ₹75,000, Section 80C/D, Chapter VI-A and Rebate u/s 87A."),
+        ("Payroll", "What is pro-rata salary?",                   "For employees joining or leaving mid-month, enter Days Worked in Monthly Run. TDS Pro calculates salary as (Days Worked ÷ Total Days) × Gross."),
+        ("Payroll", "How do I generate salary slips?",            "Go to Payroll → select an employee and month → click Export / Print Slip. Salary slips can be saved as Excel or printed."),
+        ("Payroll", "What is a Tax Declaration?",                 "Employees submit investment proofs (HRA receipts, 80C, 80D, etc.) at the start of the year. Go to Payroll → Tax Declaration → enter declared amounts per employee to reduce monthly TDS."),
+        ("Payroll", "How does payroll feed into the TDS return?", "Monthly payroll automatically creates TDS entries under Section 192 for each employee. These appear in TDS Entries and are included in the 24Q FVU return. Link them to salary challans before generating."),
 
         // Returns & FVU
-        ("Returns & FVU", "How do I generate a FVU file?",        "Go to Returns / FVU → select form type (24Q for salary, 26Q for non-salary) → select quarter → enter responsible person details → click Generate FVU. Java must be installed on your system."),
-        ("Returns & FVU", "What is a NIL return?",                "If you have no TDS transactions for a quarter, you still need to file a NIL return. Go to Returns / FVU → click NIL Return. TDS Pro generates the required file automatically."),
-        ("Returns & FVU", "What is a correction return?",         "If you need to correct a previously filed return, check 'Correction Return' and enter the Previous PRN (Provisional Receipt Number) from your original filing. TDS Pro generates the correction FVU."),
-        ("Returns & FVU", "What is CSI file and where to get it?","CSI (Challan Status Inquiry) file confirms your challan payments are registered with the IT Department. Download it from eportal.incometax.gov.in → e-Pay Tax → Payment History. Required for FVU validation with RPU."),
+        ("Returns & FVU", "How do I generate a FVU file?",        "Returns / FVU → select Form Type (26Q for non-salary, 24Q for salary) → select Quarter → click Generate .txt. Then click Generate & Validate (FVU) to run the NSDL validator. Java and FVU .jar must be configured in Settings."),
+        ("Returns & FVU", "What is the difference between 24Q and 26Q?", "24Q covers salary TDS (Section 192). 26Q covers all non-salary TDS (194C, 194I, 194J, etc.). File both if you have salary AND non-salary payments in the same quarter."),
+        ("Returns & FVU", "What is a NIL return?",                "Even when no TDS was deducted in a quarter, a NIL return must be filed (penalty u/s 272A otherwise). Click NIL Return, enter the responsible person name and PAN, and generate the file."),
+        ("Returns & FVU", "How do I file a correction return (C1/C2/C3)?", "Check 'Correction Return', select the type (C1 = first correction, C2 = second, C3 = third), enter the Previous PRN from the IT Portal. For C2/C3 also enter the Original Return PRN. TDS Pro auto-fills these from the Filing History panel if you filed the original from TDS Pro."),
+        ("Returns & FVU", "What does C1 correction fix?",               "C1 corrects deductee-level data only — wrong PAN, name, payment amount, TDS amount, section code, or payment date. It does NOT touch challan data. This is the most common correction. PRN needed: only the original filing PRN. Example: vendor PAN was entered incorrectly."),
+        ("Returns & FVU", "What does C2 correction fix?",               "C2 corrects challan-level data — wrong BSR code, challan date, challan serial number, or challan amount. You can also fix deductee data in the same C2 filing. PRN needed: Original PRN + Previous PRN (both are the same PRN if this is the first correction). Example: BSR code was entered wrong."),
+        ("Returns & FVU", "What does C3 correction fix?",               "C3 adds or deletes an entire challan or deductee record — use it when a challan was completely missed or needs to be removed. This is the most impactful correction as it changes the structure of the return. PRN needed: Original PRN + Previous PRN. Example: one challan was not included in the original filing."),
+        ("Returns & FVU", "How does the PRN chain work across corrections?",
+            "OrigPRN never changes — it is always the very first (original) filing PRN. PrevPRN always points to the immediately preceding accepted filing. Example chain: Original → PRN1. C1 on original → PRN2 (PrevPRN=PRN1, OrigPRN=PRN1). C2 on C1 → PRN3 (PrevPRN=PRN2, OrigPRN=PRN1). C3 on C2 → PRN4 (PrevPRN=PRN3, OrigPRN=PRN1). Always wait for each correction to be accepted on the portal before filing the next one."),
+        ("Returns & FVU", "What is a PRN?",                       "PRN (Provisional Receipt Number) is a 15-digit token issued by the IT Portal after successful upload of a return. You must enter this in TDS Pro's Filing History (click the pencil icon) to enable future corrections."),
+        ("Returns & FVU", "What is the Filing History panel?",    "The Filing History panel on the Returns page shows all returns filed for the selected form/quarter. It tracks the filing date, PRN, and correction type. Use the pencil icon to enter the PRN after uploading to the portal."),
+        ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
+        ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
+        ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates an HTML printout of your TDS return data. Use it for internal records or to review data before FVU validation. Click Paper Return and it opens in your browser — use Ctrl+P to save as PDF."),
 
         // Form 16
-        ("Form 16", "How do I generate Form 16?",                 "Go to Form 16 → Form 16 (Salary) tab → select employee → click Preview. Review and click Print or Save HTML. For bulk generation, use the Bulk Generate tab to generate for all employees at once."),
-        ("Form 16", "What is the difference between Form 16 and Form 16A?", "Form 16 is for salary TDS (Section 192) issued to employees. Form 16A is for non-salary TDS (Sections 194C, 194I, 194J etc.) issued to vendors and contractors."),
+        ("Form 16", "How do I generate Form 16 for employees?",   "Go to Form 16 → Form 16 (Salary) tab → select FY → select employee → Preview. Review and click Print or Export. For all employees at once, use Bulk Generate."),
+        ("Form 16", "How do I generate Form 16A for vendors?",    "Go to Form 16 → Form 16A tab → select deductee → select FY and quarter → Generate. Form 16A is issued to vendors/contractors for non-salary TDS deductions."),
+        ("Form 16", "When should I issue Form 16 and 16A?",       "Form 16 (salary): by 15th June of the assessment year. Form 16A (non-salary): within 15 days of the due date for filing the TDS return for that quarter."),
 
         // Reports
-        ("Reports", "What reports are available?",                "TDS Pro provides: Quarter Summary, Deductee-wise Report, Section-wise Report, Challan Reconciliation and Payroll Year Summary. Go to Reports and select the tab you need."),
-        ("Reports", "What is Challan Reconciliation?",            "This report compares your TDS entries with challans to ensure all deductions are covered by payments. Any mismatch is highlighted so you can correct before filing."),
+        ("Reports", "What reports are available?",                "5 reports: Quarter Summary (TDS by quarter), Deductee-wise (TDS per party), Section-wise (TDS by section code), Challan Reconciliation (entries vs payments), and Payroll Year Summary. All exportable to Excel."),
+        ("Reports", "How do I download a report to Excel?",       "Each report tab has a Download Excel button (top-right). The file is saved to your Downloads folder and opens automatically in Excel."),
+        ("Reports", "What is Challan Reconciliation?",            "Compares total TDS in entries vs total amount in challans. If they differ by more than ₹1, it shows a mismatch — fix it before filing to avoid FVU error T-FV-3169."),
+
+        // Settings
+        ("Settings", "Where do I configure Java and FVU?",        "Go to Settings → FVU / Java tab. Browse to your java.exe path (usually C:\\Program Files\\Java\\jreX\\bin\\java.exe) and the FVU .jar file downloaded from Protean (NSDL). Save and test."),
+        ("Settings", "How do I change the base data folder?",     "Go to Settings → General tab → Base Folder. Change the folder where TDS Pro stores all company data and FVU files. Default is Documents\\TDSPro\\."),
+        ("Settings", "How do I backup and restore data?",         "Settings → Backup & Restore. Click Backup Now to create an instant backup. To restore, click Restore and select a backup file. Always backup before major changes or upgrades."),
+
+        // TDS Filing Issues
+        ("TDS Filing Issues", "Deductee PAN is wrong or missing — FVU rejects it",
+            "FVU throws E-series errors for invalid PANs. Fix: verify PAN from the deductee's PAN card or TRACES. Use 'PANNOTAVBL' only when PAN is genuinely unavailable — TDS will be deducted at 20% u/s 206AA. Update PAN in Deductees before regenerating the return."),
+        ("TDS Filing Issues", "Challan BSR code / date / serial does not match OLTAS",
+            "FVU error T-FV-3169 or challan mismatch. Fix: log in to eportal.incometax.gov.in → e-Pay Tax → Payment History → verify exact BSR code, date and challan serial number. Update the challan in TDS Pro to match exactly. Download fresh CSI file after correction."),
+        ("TDS Filing Issues", "Wrong TDS section code used (e.g. 194C instead of 194J)",
+            "FVU may pass but IT dept can raise a demand later. Fix: check the nature of payment — 194C for contractors, 194J for professional/technical services, 194I for rent, etc. Correct the section in TDS Entries. If return already filed, file a C1 correction return."),
+        ("TDS Filing Issues", "Java not installed or wrong version — FVU utility won't run",
+            "FVU requires Java 8 or later (64-bit). Fix: download Java from java.com and install. Then go to Settings → FVU/Java and browse to java.exe (e.g. C:\\Program Files\\Java\\jre1.8.0_xxx\\bin\\java.exe). Click Test to verify. FVU .jar file path must also be set."),
+        ("TDS Filing Issues", "CSI file not downloaded — FVU fails challan validation",
+            "FVU needs the CSI file to confirm challans are registered with IT Dept. Fix: download from eportal.incometax.gov.in → e-Pay Tax → Payment History → Download CSI. Save the .csi file to the CSI folder shown on the Returns page. Wait 3–4 days after challan payment before downloading."),
+        ("TDS Filing Issues", "FVU .jar version is outdated — utility rejects the file",
+            "NSDL updates the FVU tool quarterly. Using an old version causes immediate rejection. Fix: download the latest FVU utility from Protean eGov Technologies (tin.tin.nsdl.com → FVU). Update the .jar path in Settings → FVU/Java."),
+        ("TDS Filing Issues", "Wrong correction type selected (C1 / C2 / C3)",
+            "Selecting C2 when you mean C1 (or vice versa) causes portal rejection. Fix: C1 = corrects deductee/entry data only. C2 = corrects challan data (BSR, date, serial, amount). C3 = adds or deletes a challan or deductee record. Each correction requires the PRN of the immediately preceding filing. Check Filing History panel to confirm which correction number you are on. Never file the next correction before the previous one is accepted on the portal."),
+        ("TDS Filing Issues", "PRN of original filing lost — cannot file correction",
+            "PRN is needed for C2/C3 correction. Fix: log in to IT Portal → e-File → Income Tax Forms → View Filed Returns — the PRN is shown there. Alternatively check your email for the NSDL acknowledgement. Enter the PRN in TDS Pro's Filing History (pencil icon) so it is saved for future."),
+        ("TDS Filing Issues", "IT Portal or TRACES is down near deadline",
+            "Portal outages near July 31 (Q1) or May 31 (Q4) are common. Fix: file at least 2–3 days before deadline. If portal is down on the deadline, keep a screenshot and note the error — CBDT sometimes extends deadlines in such cases. Check cbic.gov.in or incometax.gov.in for notifications."),
+        ("TDS Filing Issues", "TAN not registered for the form type being filed",
+            "Portal rejects upload if TAN is not activated for 26Q or 24Q. Fix: log in to tin-nsdl.com or IT Portal, verify TAN registration, and if needed submit Form 49B to activate. Allow 3–5 working days for activation."),
+        ("TDS Filing Issues", "Late filing fee u/s 234E accumulating",
+            "₹200 per day penalty from due date until filing date (max = TDS amount). Due dates: Q1 July 31, Q2 Oct 31, Q3 Jan 31, Q4 May 31 (company) / May 15 (non-company). Fix: file as early as possible. The fee is auto-calculated by the portal and must be paid before the return is accepted. Enter paid late fee in the Challan (Late Fee field)."),
+        ("TDS Filing Issues", "NIL return not filed — penalty u/s 272A",
+            "Even if no TDS was deducted, a NIL return is mandatory every quarter. Penalty: ₹100 per day (max ₹1 lakh). Fix: use the NIL Return button on the Returns page → generate and upload to portal even if there are no transactions."),
+        ("TDS Filing Issues", "Form 16 / 16A not matching because return was corrected",
+            "Form 16/16A is generated from the last accepted return data. Fix: always regenerate Form 16/16A after a correction return is accepted on TRACES. Go to Form 16 page → regenerate. Old certificates issued to employees/vendors should be cancelled and reissued."),
+
+        // Calculator
+        ("Calculator", "What is the TDS Interest & Late Fee Calculator?",
+            "Go to the Calculator page (accessible from the sidebar). Enter TDS amount, date of deduction, date of deposit to government, return due date and actual filing date. Click Calculate to get the exact interest u/s 234A, 234B and late filing fee u/s 234E."),
+        ("Calculator", "What is Section 234A interest?",
+            "234A: 1% per month (or part thereof) on TDS amount for delay in deduction from the deductee. Runs from the date deduction was due to the date it was actually deducted."),
+        ("Calculator", "What is Section 234B interest?",
+            "234B: 1.5% per month (or part thereof) on TDS amount for delay in depositing TDS to the government. Runs from the due date of deposit (7th of next month, or March TDS by 30 April) to actual deposit date. Part of a month counts as a full month."),
+        ("Calculator", "What is Section 234E late fee?",
+            "234E: ₹200 per day from the return due date to actual filing date. Maximum capped at the total TDS amount. Due dates: Q1=July 31, Q2=Oct 31, Q3=Jan 31, Q4=May 31 (companies) or May 15 (others). This must be paid before the return will be accepted by the portal."),
+
+        // TDS Rules
+        ("TDS Rules", "What is the TDS Rules page?",
+            "Go to TDS Rules in the sidebar. It shows a Live Calculator (enter section, amount, deductee type → get TDS instantly), a full Rate Table for all sections under the current FY, and a Due Dates reference. Useful for quick lookups without leaving the app."),
+        ("TDS Rules", "How do I calculate TDS for a specific section quickly?",
+            "Go to TDS Rules → Live Calculator tab. Select section, enter amount, select deductee type (Individual / Company / etc.), tick PAN Available if applicable. TDS Pro shows TDS amount, effective rate and applicable rule instantly."),
+        ("TDS Rules", "What happened to Section 206AB from FY 2025-26?",
+            "Section 206AB (higher TDS for ITR non-filers) was removed by Finance Act 2025 with effect from 1-Apr-2025. From FY 2025-26 onwards, the higher-rate provision no longer applies. The checkbox in TDS Rules is shown but disabled to reflect this."),
+
+        // Audit Log
+        ("Audit Log", "What is the Audit Log?",
+            "Every action in TDS Pro (login, add/edit/delete deductee, generate FVU, settings change, etc.) is logged with username, timestamp and details. Go to Audit Log in the sidebar to review. You can filter by user, module, date range and search keywords."),
+        ("Audit Log", "How do I export the Audit Log?",
+            "Go to Audit Log → click Export CSV (top-right). The full filtered log is saved as a CSV file. Useful for compliance reviews or sharing with auditors."),
+
+        // Portals
+        ("Portals", "What does the Portals page do?",
+            "Go to Portals in the sidebar. It stores your TRACES, IT Portal and TIN-NSDL login credentials (AES-encrypted). Use the Open button on each card to launch the portal in your browser. Credentials are never sent to any server — they are stored only on your machine."),
+        ("Portals", "How do I open TRACES or IT Portal quickly?",
+            "Go to Portals → click the browser icon on the TRACES or IT Portal card. It opens the portal URL in your default browser. Your saved credentials are shown so you can copy-paste them."),
+        ("Portals", "What is the TRACES Downloads folder?",
+            "The TRACES Downloads folder is where TDS Pro looks for Conso files, Form 16A text files, and other downloads from TRACES. Click 'Downloads Folder' on the TRACES card to open it directly. Save all TRACES exports here for easy import."),
+
+        // Excel Import / Export
+        ("Excel Import", "What can I import from Excel?",
+            "Go to Excel Import/Export → Import Data tab. You can bulk-import: TDS Entries, Deductee Master, Challans (ITNS 281), Employee Master (for 24Q payroll), and TRACES Conso File. Download the sample template first, fill it, then upload."),
+        ("Excel Import", "How do I export data to Excel or Tally?",
+            "Go to Excel Import/Export → Export Data tab. Export TDS Entries, Deductees, Challans, Employees, or Tally-format CSV. Each section has a Download button. Files are saved to the Export Folder shown at the bottom (can be changed)."),
+        ("Excel Import", "What is Year-End Transfer?",
+            "Go to Excel Import/Export → Year-End Transfer tab. At the end of a financial year, use this to carry forward deductee and employee master data to the new FY, while archiving entries and challans of the old FY. Run this once after all Q4 returns are filed."),
+        ("Excel Import", "How do I import a TRACES Conso file?",
+            "Go to Excel Import/Export → Import Data → TRACES Conso File. Select the .tds ZIP file downloaded from TRACES and enter the password (format: TAN_RequestNumber). TDS Pro imports all challans and deductee entries for correction purposes."),
+
+        // Dashboard
+        ("Dashboard", "What does the Dashboard show?",
+            "The Dashboard shows: TDS summary for the current FY (total deducted, paid, pending), payroll summary for the current month, quarterly TDS chart, filing status per quarter (pending/filed), and recent TDS entries. Switch FY from the top bar to view a different year."),
+        ("Dashboard", "What is Filing Status on the Dashboard?",
+            "The Filing Status panel shows Q1–Q4 for both 26Q and 24Q — whether each quarter is Pending, .txt Generated, FVU Generated, or Filed (PRN saved). It gives a quick compliance health check without going to the Returns page."),
+
+        // Settings (additional)
+        ("Settings", "What is the Due Dates tab in Settings?",
+            "Settings → Due Dates tab shows upcoming TDS return due dates and payment due dates for all quarters. You can enable desktop reminders so TDS Pro alerts you before a deadline."),
+        ("Settings", "What does the About tab show?",
+            "Settings → About shows the TDS Pro version, license tier, machine ID, and a Check for Updates button. Use the machine ID when contacting support or requesting a license transfer."),
 
         // General
-        ("General", "How do I backup my data?",                   "Go to Settings → Backup & Restore → click Backup Now. Your database is saved with a timestamp. Always backup before filing returns or upgrading."),
-        ("General", "How do I change my password?",               "Go to Settings → General tab → Change Password section. Enter your current password, new password and confirm. Minimum 6 characters required."),
-        ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. Please change your password immediately after first login from Settings → General."),
-        ("General", "How do I add more users?",                   "Go to Users → click Add User. Assign a role (Admin or User). Admin users have full access; User role has limited access."),
-        ("General", "Where is my data stored?",                   "All data is stored locally on your computer at: C:\\Users\\[YourName]\\AppData\\Roaming\\TDSPro\\tdspro.db. No data is sent to any server — your data stays with you."),
+        ("General", "How do I backup my data?",                   "Settings → Backup & Restore → Backup Now. The database is saved with a timestamp to Documents\\TDSPro\\Backup\\. TDS Pro also takes an automatic daily backup (keeps last 30)."),
+        ("General", "How do I change my password?",               "Settings → General → Change Password. Enter current password, new password and confirm. Minimum 6 characters."),
+        ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. Change your password immediately after first login from Settings → General."),
+        ("General", "How do I add more users?",                   "Go to Users → Add User. Assign role (Admin = full access, User = restricted). Each user gets their own login and all actions are logged in the Audit Log."),
+        ("General", "Where is my data stored?",                   "All data is stored locally: C:\\Users\\[Name]\\AppData\\Roaming\\TDSPro\\tdspro.db. Company files are in Documents\\TDSPro\\Companies\\. No data is sent to any server."),
+        ("General", "How do I import data from Excel?",           "Go to Excel Import/Export. Download the sample template, fill it in, then upload. Supports bulk import of deductees, TDS entries and challans."),
+        ("General", "How do I import a TRACES conso file?",       "Go to Settings → Import Conso File. Select the .tds ZIP file from TRACES and enter the password (TAN_RequestNumber). TDS Pro imports all challans and entries for correction purposes."),
     ];
 
-    private string _faqCategory = "Quick Start";
+    private string _faqCategory = "Returns & FVU";
 
     void ToggleHelp() => _helpOpen = !_helpOpen;
     void ToggleFaq(string q) => _openFaq = _openFaq == q ? "" : q;
+    void RecoverError() => _errorBoundary?.Recover();
 
-    void CheckForUpdates()
+    async Task CheckForUpdates()
     {
-        var mid     = TDSPro.DAL.LicenseService.GetMachineId();
-        var subject = Uri.EscapeDataString($"TDS Pro Update Check — v{AppConstants.AppVersion}");
-        var body    = Uri.EscapeDataString(
-            $"Hello,\n\nPlease check if an update is available for my TDS Pro installation.\n\n" +
-            $"Current Version : {AppConstants.AppVersion}\n" +
-            $"Machine ID      : {mid}\n" +
-            $"User            : {AppState.CurrentUser}\n" +
-            $"Date            : {DateTime.Today:dd-MMM-yyyy}\n\n" +
-            $"Regards");
-        try
+        _updateMsg = "Checking...";
+        StateHasChanged();
+        var info = await UpdateSvc.CheckAsync(forceCheck: true);
+        if (info != null)
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                $"mailto:admin@capitaldesk.co.in?subject={subject}&body={body}")
-                { UseShellExecute = true });
-            _updateMsg = "✅ Email drafted! Send it to receive your update.";
+            _updateMsg = $"v{info.Version} available — {info.ReleaseDate}";
+            ShowUpdateSnackbar(info);
         }
-        catch { _updateMsg = "Please email admin@capitaldesk.co.in for updates."; }
+        else
+        {
+            _updateMsg = $"✅ You are on the latest version (v{AppConstants.AppVersion}).";
+        }
+        StateHasChanged();
+    }
+
+    void ShowUpdateSnackbar(UpdateInfo info)
+    {
+        Snackbar.Add(
+            $"TDS Pro v{info.Version} is available! {info.Notes}",
+            Severity.Info,
+            cfg =>
+            {
+                cfg.ActionColor      = Color.Warning;
+                cfg.Action           = "Download";
+                cfg.ActionVariant    = Variant.Filled;
+                cfg.Onclick          = _ =>
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(
+                            new System.Diagnostics.ProcessStartInfo(info.DownloadUrl)
+                            { UseShellExecute = true });
+                    }
+                    catch { }
+                    return Task.CompletedTask;
+                };
+                cfg.VisibleStateDuration = 12000;
+            });
     }
 
     protected override void OnInitialized()
@@ -324,6 +490,14 @@ else
             _clock = DateTime.Now.ToString("ddd dd-MMM HH:mm");
             InvokeAsync(StateHasChanged);
         }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !AppState.IsLoggedIn) return;
+        // Background update check — shows snackbar if newer version found
+        var info = await UpdateSvc.CheckAsync();
+        if (info != null) ShowUpdateSnackbar(info);
     }
 
     void OnStateChanged() { EnforceExpiry(); StateHasChanged(); }
@@ -344,7 +518,12 @@ else
 
     void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     void OnFYChanged(string fy) => AppState.SetFY(fy);
-    void GoToDeductors() => Nav.NavigateTo("/deductors");
+
+    async Task OpenCompanySelector()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        await DialogSvc.ShowAsync<CompanySelector>("", options);
+    }
 
     void Logout()
     {

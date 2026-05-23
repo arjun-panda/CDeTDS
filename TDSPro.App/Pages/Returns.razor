@@ -6,6 +6,7 @@
 @inject DeductorService DeductorSvc
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject CsiDownloadService CsiSvc
 
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">Returns / FVU — FY @AppState.CurrentFY</MudText>
@@ -33,39 +34,61 @@
 
             <MudGrid Spacing="2">
                 <MudItem xs="6">
-                    <MudSelect @bind-Value="_formType" Label="Form Type" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelect T="string" Value="_formType" Label="Form Type" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               ValueChanged="@((string v) => { _formType = v; OnFormOrQuarterChanged(); })">
                         @foreach (var f in AppConstants.ReturnFormTypes)
                         { <MudSelectItem Value="@f">@f</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="6">
-                    <MudSelect @bind-Value="_quarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelect T="string" Value="_quarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               ValueChanged="@((string v) => { _quarter = v; OnFormOrQuarterChanged(); })">
                         @foreach (var q in AppConstants.QuarterCodes)
                         { <MudSelectItem Value="@q">@q</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
+                @if (_formType == "27EQ")
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            <b>27EQ — TCS Return</b>: For Tax Collected at Source under Section 206C.
+                            Enter TCS collections as TDS Entries using sections 206C, 206C(1F), 206C(1G), 206C(1H) etc.
+                            Collectee = the buyer/payer from whom tax is collected.
+                        </MudAlert>
+                    </MudItem>
+                }
                 <MudItem xs="12">
-                    <MudCheckBox @bind-Value="_isCorrection" Label="Correction Return (C1/C2/C3)" Dense="true" />
+                    <MudCheckBox T="bool" Value="_isCorrection" Label="Correction Return (C1/C2/C3)" Dense="true"
+                                 ValueChanged="@((bool v) => { _isCorrection = v; OnFormOrQuarterChanged(); })" />
                 </MudItem>
                 @if (_isCorrection)
                 {
-                    <MudItem xs="12">
+                    <MudItem xs="4">
+                        <MudSelect @bind-Value="_correctionType" Label="Correction Type" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="@("C1")">C1 — First correction</MudSelectItem>
+                            <MudSelectItem Value="@("C2")">C2 — Second correction</MudSelectItem>
+                            <MudSelectItem Value="@("C3")">C3 — Third correction</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="8">
                         <MudTextField @bind-Value="_prevPrn" Label="Previous PRN*" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      HelperText="Provisional Receipt Number from the original return" />
+                                      HelperText="PRN of the immediately preceding filing (original or last correction)" />
+                    </MudItem>
+                    @if (_correctionType != "C1")
+                    {
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_originalPrn" Label="Original Return PRN" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="PRN of the very first original return (required for C2/C3)" />
+                        </MudItem>
+                    }
+                }
+                @if (_quarter != "Q1" && !_isCorrection)
+                {
+                    <MudItem xs="6">
+                        <MudTextField @bind-Value="_prevQuarterToken" Label="Previous Quarter Token" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      HelperText="Provisional Receipt Number from last filed quarter" />
                     </MudItem>
                 }
-                <MudItem xs="12"><MudDivider Class="my-1" /></MudItem>
-                <MudItem xs="5">
-                    <MudTextField @bind-Value="_responsibleName" Label="Responsible Person*" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                  HelperText="As appearing on PAN card" />
-                </MudItem>
-                <MudItem xs="4">
-                    <PanField Value="@_responsiblePan" Label="PAN of Responsible*" ShowType="false"
-                              ValueChanged="@((v) => _responsiblePan = v)" />
-                </MudItem>
-                <MudItem xs="3">
-                    <MudTextField @bind-Value="_designation" Label="Designation" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
 
                 @* ── Action Buttons ── *@
                 <MudItem xs="12" Class="d-flex gap-2 flex-wrap">
@@ -122,7 +145,12 @@
             @if (!string.IsNullOrEmpty(_result))
             {
                 <MudAlert Severity="@_resultSeverity" Class="mt-3" Style="white-space:pre-line">@_result</MudAlert>
-                <div class="d-flex gap-2 mt-2 flex-wrap">
+                <div class="d-flex gap-2 mt-2 flex-wrap align-center">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.Folder"
+                               OnClick="() => FolderManager.OpenFolder(TDSPro.DAL.FolderManager.CsiFolder)">
+                        Open CSI Folder
+                    </MudButton>
                     @if (!string.IsNullOrEmpty(_lastTxtPath))
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small"
@@ -134,18 +162,6 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.CheckCircle"
                                    OnClick="() => OpenFolder(_lastFvuPath)">Open .fvu File Folder</MudButton>
-                    }
-                    @if (!string.IsNullOrEmpty(_lastZipPath))
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Tertiary" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.FolderZip"
-                                   OnClick="() => OpenFolder(_lastZipPath)">Open Zip (Upload This)</MudButton>
-                    }
-                    @if (!string.IsNullOrEmpty(_errorHtmlPath))
-                    {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.BugReport"
-                                   OnClick="OpenErrorReport">View Error Report</MudButton>
                     }
                 </div>
             }
@@ -186,6 +202,51 @@
             }
         </MudPaper>
 
+        @* ── Filing History ── *@
+        @if (_filingHistory.Count > 0)
+        {
+            <MudPaper Class="pa-3 mt-4" Elevation="0" Style="border-radius:10px;border:1px solid #e0e0e0">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Filing History — @_formType @_quarter @AppState.CurrentFY</MudText>
+                <MudSimpleTable Dense="true" Bordered="false" Style="font-size:12px">
+                    <thead>
+                        <tr style="background:#f5f5f5">
+                            <th>Type</th>
+                            <th>Filed On</th>
+                            <th>PRN</th>
+                            <th style="width:80px">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var h in _filingHistory)
+                        {
+                            <tr>
+                                <td>
+                                    @if (h.IsCorrection)
+                                    { <MudChip T="string" Size="Size.Small" Style="background:#fff3e0;color:#e65100;font-size:10px;height:18px">@h.CorrectionType</MudChip> }
+                                    else
+                                    { <MudChip T="string" Size="Size.Small" Style="background:#e3f2fd;color:#1565C0;font-size:10px;height:18px">Original</MudChip> }
+                                </td>
+                                <td>@(h.FiledAt.Length >= 10 ? h.FiledAt[..10] : h.FiledAt)</td>
+                                <td style="font-family:monospace;color:@(string.IsNullOrEmpty(h.Prn)?"#bbb":"#1565C0")">
+                                    @(string.IsNullOrEmpty(h.Prn) ? "— pending" : h.Prn)
+                                    @if (!string.IsNullOrEmpty(h.Prn))
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                                                       Style="padding:0;height:16px;width:16px;margin-left:4px"
+                                                       OnClick="@(() => CopyText(h.Prn))" />
+                                    }
+                                </td>
+                                <td>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                   OnClick="@(() => OpenPrnDialog(h))" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        }
+
         @* ── Portal & Download Cards ── *@
         <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Downloads &amp; Portals</MudText>
         <MudGrid Spacing="2">
@@ -199,6 +260,25 @@
                     </MudPaper>
                 </MudItem>
             }
+            @* ── Download CSI button ── *@
+            <MudItem xs="6" sm="4">
+                <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.CloudDownload"
+                           FullWidth="true"
+                           Style="height:100%;min-height:58px;border-radius:8px;font-size:12px;font-weight:600"
+                           Disabled="@_csiDownloading"
+                           OnClick="DownloadCsi">
+                    @if (_csiDownloading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                        <span style="font-size:11px">@_csiStatus</span>
+                    }
+                    else
+                    {
+                        <span>Download CSI</span>
+                    }
+                </MudButton>
+            </MudItem>
         </MudGrid>
     </MudItem>
 
@@ -224,30 +304,63 @@
         </MudPaper>
 
         @* ── Quick Status ── *@
-        <MudPaper Class="pa-3 mt-3" Elevation="1" Style="border-radius:10px">
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Filing Status — @_quarter @AppState.CurrentFY</MudText>
-            <div class="d-flex flex-column gap-1" style="font-size:12px">
-                <div class="d-flex justify-space-between">
-                    <span style="color:#555">Challans (Paid)</span>
-                    <b>@_statusChallanCount</b>
+        @{
+            bool allLinked  = _statusLinkedCount == _statusEntryCount && _statusEntryCount > 0;
+            bool fvuReady   = _fvuJavaOk && _fvuJarOk;
+            bool readyToFVU = allLinked && fvuReady && _statusChallanCount > 0;
+        }
+        <MudPaper Class="pa-3 mt-3" Elevation="1"
+                  Style="@($"border-radius:10px;border-left:4px solid {(readyToFVU ? "#2e7d32" : "#e65100")}")">
+            <div class="d-flex align-center justify-space-between mb-2">
+                <MudText Typo="Typo.subtitle2">Filing Status</MudText>
+                <MudChip T="string" Size="Size.Small"
+                         Style="@($"background:{(readyToFVU?"#e8f5e9":"#fff3e0")};color:{(readyToFVU?"#2e7d32":"#e65100")};font-size:10px;font-weight:700;height:20px")">
+                    @(readyToFVU ? "Ready to Validate" : "Action Needed")
+                </MudChip>
+            </div>
+            <div style="font-size:11px;color:#888;margin-bottom:8px">@_quarter &nbsp;·&nbsp; @AppState.CurrentFY</div>
+
+            @* Challans *@
+            <div class="d-flex align-center gap-2 mb-2" style="background:#f5f5f5;border-radius:6px;padding:6px 10px">
+                <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" Style="color:#1565C0;font-size:16px" />
+                <span style="font-size:12px;color:#333;flex:1">Challans paid</span>
+                <b style="font-size:14px;color:#1565C0">@_statusChallanCount</b>
+            </div>
+
+            @* Entries *@
+            <div class="d-flex align-center gap-2 mb-2" style="background:#f5f5f5;border-radius:6px;padding:6px 10px">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Style="color:#1565C0;font-size:16px" />
+                <span style="font-size:12px;color:#333;flex:1">Entries paid</span>
+                <b style="font-size:14px;color:#1565C0">@_statusEntryCount</b>
+            </div>
+
+            @* Total TDS *@
+            <div class="d-flex align-center gap-2 mb-2" style="background:#e8f5e9;border-radius:6px;padding:6px 10px">
+                <MudIcon Icon="@Icons.Material.Filled.CurrencyRupee" Size="Size.Small" Style="color:#2e7d32;font-size:16px" />
+                <span style="font-size:12px;color:#333;flex:1">Total TDS</span>
+                <b style="font-size:14px;color:#2e7d32">₹@_statusTotalTds.ToString("N0")</b>
+            </div>
+
+            @* Linked progress bar *@
+            <div style="background:#f5f5f5;border-radius:6px;padding:6px 10px;margin-bottom:8px">
+                <div class="d-flex justify-space-between mb-1">
+                    <span style="font-size:11px;color:#555">Linked to challan</span>
+                    <b style="font-size:12px;color:@(allLinked?"#2e7d32":"#e65100")">@_statusLinkedCount / @_statusEntryCount</b>
                 </div>
-                <div class="d-flex justify-space-between">
-                    <span style="color:#555">Entries (Paid)</span>
-                    <b>@_statusEntryCount</b>
+                <div style="background:#ddd;border-radius:4px;height:5px;overflow:hidden">
+                    <div style="background:@(allLinked?"#2e7d32":"#e65100");height:100%;width:@(_statusEntryCount>0?(_statusLinkedCount*100/_statusEntryCount):0)%;transition:width .4s"></div>
                 </div>
-                <div class="d-flex justify-space-between">
-                    <span style="color:#555">Linked to Challan</span>
-                    <b style="color:@(_statusLinkedCount == _statusEntryCount && _statusEntryCount > 0 ? "#2e7d32" : "#e65100")">
-                        @_statusLinkedCount / @_statusEntryCount
-                    </b>
+            </div>
+
+            @* Java + FVU *@
+            <div class="d-flex gap-2">
+                <div style="flex:1;background:@(_fvuJavaOk?"#e8f5e9":"#fff3e0");border-radius:6px;padding:5px 8px;text-align:center">
+                    <div style="font-size:9px;color:#666">Java</div>
+                    <div style="font-size:11px;font-weight:700;color:@(_fvuJavaOk?"#2e7d32":"#e65100")">@(_fvuJavaOk?"✓ Ready":"✗ Missing")</div>
                 </div>
-                <div class="d-flex justify-space-between">
-                    <span style="color:#555">Java</span>
-                    <b style="color:@(_fvuJavaOk?"#2e7d32":"#e65100")">@(_fvuJavaOk?"✅ Ready":"⚠ Not found")</b>
-                </div>
-                <div class="d-flex justify-space-between">
-                    <span style="color:#555">FVU Jar</span>
-                    <b style="color:@(_fvuJarOk?"#2e7d32":"#e65100")">@(_fvuJarOk?"✅ Ready":"⚠ Not found")</b>
+                <div style="flex:1;background:@(_fvuJarOk?"#e8f5e9":"#fff3e0");border-radius:6px;padding:5px 8px;text-align:center">
+                    <div style="font-size:9px;color:#666">FVU Jar</div>
+                    <div style="font-size:11px;font-weight:700;color:@(_fvuJarOk?"#2e7d32":"#e65100")">@(_fvuJarOk?"✓ Ready":"✗ Missing")</div>
                 </div>
             </div>
         </MudPaper>
@@ -259,7 +372,8 @@
     <TitleContent>Generate NIL Return</TitleContent>
     <DialogContent>
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-            NIL returns must be filed even when no TDS was deducted in a quarter.
+            NIL returns must be filed even when no TDS/TCS was deducted/collected in a quarter.
+            For 27EQ (TCS), select Form Type 27EQ below.
         </MudAlert>
         <MudGrid>
             <MudItem xs="6">
@@ -291,6 +405,22 @@
             @if (_generating) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
             Generate NIL File
         </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* ── PRN Entry Dialog ── *@
+<MudDialog @bind-Visible="_prnDialogOpen" Options='new DialogOptions { MaxWidth=MaxWidth.ExtraSmall, FullWidth=true }'>
+    <TitleContent>Enter Provisional Receipt Number</TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            Enter the PRN (Provisional Receipt Number) received after uploading to the IT Portal.
+        </MudAlert>
+        <MudTextField @bind-Value="_prnEdit" Label="PRN (15-digit token)" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Placeholder="12345678901234X" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _prnDialogOpen = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SavePrn">Save PRN</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -354,18 +484,17 @@
     private string _formType        = "26Q";
     private string _quarter         = "Q1";
     private bool   _isCorrection    = false;
-    private string _prevPrn         = "";
-    private string _responsibleName = "";
-    private string _responsiblePan  = "";
-    private string _designation     = "Director";
+    private string _correctionType   = "C1";
+    private string _prevPrn          = "";
+    private string _originalPrn      = "";
+    private string _prevQuarterToken = "";
+    private List<TDSPro.DAL.FilingHistoryRecord> _filingHistory = new();
     private bool   _generating;
     private Step   _step = Step.Idle;
 
     private string   _result          = "";
     private string   _lastTxtPath     = "";
     private string   _lastFvuPath     = "";
-    private string   _lastZipPath     = "";
-    private string   _errorHtmlPath   = "";
     private Severity _resultSeverity  = Severity.Info;
     private List<TDSPro.DAL.FvuError> _fvuErrors = new();
     private List<string> _logLines = new();
@@ -377,10 +506,12 @@
     private string _fvuNotReadyReason = "";
 
     // Quick status
-    private int _statusChallanCount = 0;
-    private int _statusEntryCount   = 0;
-    private int _statusLinkedCount  = 0;
+    private int    _statusChallanCount = 0;
+    private int    _statusEntryCount   = 0;
+    private int    _statusLinkedCount  = 0;
+    private double _statusTotalTds     = 0;
     private int _activeStep         = 3; // default: step 3 = Generate
+
 
     // NIL return
     private bool     _nilDialogOpen = false;
@@ -418,7 +549,7 @@
         new("Add TDS Entries",      "Record all TDS deductions against deductees with correct sections."),
         new("Generate .txt File",   "Generate the return text file using this wizard."),
         new("Validate with FVU",    "Run NSDL FVU — validates PAN, challan totals, section codes."),
-        new("Download CSI File",    "From OLTAS → e-Pay Tax → Payment History for the quarter."),
+        new("Download CSI File",    $"From OLTAS → e-Pay Tax → Payment History. Save .csi file to: {TDSPro.DAL.FolderManager.CsiFolder}"),
         new("Upload to IT Portal",  "Login incometax.gov.in with TAN, upload validated .fvu file."),
         new("Download TDS Cert",    "Download Form 16A / 16 from TRACES and issue to deductees."),
     };
@@ -429,19 +560,38 @@
         CheckFvuReadiness();
         LoadQuickStatus();
         BuildPortalCards();
+        LoadFilingHistory();
+    }
+
+    void LoadFilingHistory()
+    {
+        if (AppState.CurrentDeductorId == 0) return;
         try
         {
-            var d = DeductorSvc.GetAll().FirstOrDefault(x => x.Id == AppState.CurrentDeductorId);
-            if (d != null)
-            {
-                _responsibleName = string.IsNullOrEmpty(d.ResponsibleName) ? d.ContactPerson : d.ResponsibleName;
-                _responsiblePan  = string.IsNullOrEmpty(d.ResponsiblePan)  ? d.Pan           : d.ResponsiblePan;
-                _designation     = string.IsNullOrEmpty(d.Designation)     ? "Director"      : d.Designation;
-                _nilName         = _responsibleName;
-                _nilPan          = _responsiblePan;
-            }
+            _filingHistory = TDSPro.DAL.Database.GetFilingHistory(
+                AppState.CurrentDeductorId, AppState.CurrentFY, _formType, _quarter);
+
+            // Auto-fill PRN fields from history (list is newest-first)
+            var newestOriginal   = _filingHistory.FirstOrDefault(x => !x.IsCorrection);
+            var newestCorrection = _filingHistory.FirstOrDefault(x => x.IsCorrection);
+            // OriginalPrn = PRN of the very first original filing (oldest non-correction with a PRN)
+            var oldestOriginal = _filingHistory.LastOrDefault(x => !x.IsCorrection && !string.IsNullOrEmpty(x.Prn));
+            if (oldestOriginal != null && string.IsNullOrEmpty(_originalPrn)) _originalPrn = oldestOriginal.Prn;
+            // PrevPrn = most recent PRN (correction takes priority over original)
+            if (newestCorrection != null && !string.IsNullOrEmpty(newestCorrection.Prn) && string.IsNullOrEmpty(_prevPrn))
+                _prevPrn = newestCorrection.Prn;
+            else if (newestOriginal != null && !string.IsNullOrEmpty(newestOriginal.Prn) && string.IsNullOrEmpty(_prevPrn))
+                _prevPrn = newestOriginal.Prn;
         }
         catch { }
+    }
+
+    void OnFormOrQuarterChanged()
+    {
+        _filingHistory.Clear();
+        _prevPrn = ""; _originalPrn = "";
+        LoadFilingHistory();
+        LoadQuickStatus();
     }
 
     // ── Check Java + FVU jar are configured ────────────────────────────────────
@@ -496,6 +646,14 @@
             lc.Parameters.AddWithValue("@q",  _quarter);
             _statusLinkedCount = (int)(long)(lc.ExecuteScalar() ?? 0L);
 
+            using var tc = conn.CreateCommand();
+            tc.CommandText = @"SELECT COALESCE(SUM(total_tds),0) FROM tds_entries
+                WHERE deductor_id=@d AND financial_year=@fy AND quarter=@q AND status='Paid'";
+            tc.Parameters.AddWithValue("@d",  AppState.CurrentDeductorId);
+            tc.Parameters.AddWithValue("@fy", AppState.CurrentFY);
+            tc.Parameters.AddWithValue("@q",  _quarter);
+            _statusTotalTds = Convert.ToDouble(tc.ExecuteScalar() ?? 0.0);
+
             // Determine active step
             if (_statusLinkedCount > 0 && _statusLinkedCount == _statusEntryCount)
                 _activeStep = 3; // Ready to generate
@@ -513,22 +671,25 @@
         if (!ValidateInputs()) return;
         _generating = true; _step = Step.GeneratingTxt;
         _result = ""; _logLines.Clear(); _fvuErrors.Clear();
-        _lastTxtPath = ""; _lastFvuPath = ""; _lastZipPath = ""; _errorHtmlPath = "";
+        _lastTxtPath = ""; _lastFvuPath = "";
         StateHasChanged();
 
         try
         {
+            var did = AppState.CurrentDeductorId;
             var (ok, path, error) = await Task.Run(() =>
             {
                 var data   = BuildReturnData();
-                FolderManager.EnsureStructure(AppState.CurrentFY, _quarter); var outDir = FolderManager.SubFolder(AppState.CurrentFY, _quarter, "FVU");
-                return Svc.GenerateFvu(data, outDir);
+                var outDir = FolderManager.ReturnFolder(AppState.CurrentFY, _formType, _quarter);
+                Directory.CreateDirectory(outDir);
+                return Svc.GenerateFvu(data, outDir, did);
             });
 
             if (ok)
             {
                 _lastTxtPath    = path;
-                _result         = $"✅  Return file generated:\n{path}\n\nNext: Click 'Generate & Validate (FVU)' to validate, or open RPU manually.";
+                LoadFilingHistory();
+                _result         = $"✅  Return file generated:\n{path}\n\n📂  CSI file folder: {TDSPro.DAL.FolderManager.CsiFolder}\n⚠️  Download the .csi (Challan Status Inquiry) file from OLTAS (IT Portal → e-Pay Tax → Payment History) and save it to the folder above. FVU picks it up automatically.\n\nNext: Click 'Generate & Validate (FVU)' to validate.";
                 _resultSeverity = Severity.Success;
                 _activeStep     = 4;
             }
@@ -549,11 +710,12 @@
         if (!ValidateInputs()) return;
         _generating = true; _step = Step.GeneratingTxt;
         _result = ""; _logLines.Clear(); _fvuErrors.Clear();
-        _lastTxtPath = ""; _lastFvuPath = ""; _lastZipPath = ""; _errorHtmlPath = "";
+        _lastTxtPath = ""; _lastFvuPath = "";
         StateHasChanged();
 
         string txtPath = "";
         string outDir  = "";
+        var did2 = AppState.CurrentDeductorId;
 
         // Step 1: Generate .txt
         try
@@ -561,8 +723,9 @@
             var (ok, path, error) = await Task.Run(() =>
             {
                 var data = BuildReturnData();
-                outDir   = FolderManager.SubFolder(AppState.CurrentFY, _quarter, "FVU");
-                return Svc.GenerateFvu(data, outDir);
+                outDir   = FolderManager.ReturnFolder(AppState.CurrentFY, _formType, _quarter);
+                Directory.CreateDirectory(outDir);
+                return Svc.GenerateFvu(data, outDir, did2);
             });
 
             if (!ok) { _result = "❌  " + error; _resultSeverity = Severity.Error; _generating = false; _step = Step.Idle; return; }
@@ -594,9 +757,8 @@
 
             if (fvuResult.Success && !string.IsNullOrEmpty(fvuResult.FvuFile))
             {
+                LoadFilingHistory();
                 _lastFvuPath    = fvuResult.FvuFile;
-                _lastZipPath    = fvuResult.ZipFile;
-                _errorHtmlPath  = fvuResult.ErrorHtmlFile;
                 _fvuErrors      = fvuResult.Errors;
                 var zipNote     = !string.IsNullOrEmpty(fvuResult.ZipFile)
                     ? $"\n📦 Zip: {Path.GetFileName(fvuResult.ZipFile)} — ready to upload to TIN-NSDL"
@@ -608,7 +770,6 @@
             }
             else
             {
-                _errorHtmlPath  = fvuResult.ErrorHtmlFile;
                 _fvuErrors      = fvuResult.Errors;
                 _logLines.Add($"[{Now()}] ❌ FVU returned errors ({fvuResult.Errors.Count})");
 
@@ -643,7 +804,7 @@
             var path = await Task.Run(() =>
             {
                 var data = BuildReturnData();
-                FolderManager.EnsureStructure(AppState.CurrentFY, _quarter); var outDir = FolderManager.SubFolder(AppState.CurrentFY, _quarter, "FVU");
+                var outDir = FolderManager.ReturnFolder(AppState.CurrentFY, _formType, _quarter);
                 Directory.CreateDirectory(outDir);
                 var fileName = $"{_formType}_{data.Header.TanOfDeductor}_{AppState.CurrentFY.Replace("-","")}_{_quarter}_Paper.html";
                 var outPath  = Path.Combine(outDir, fileName);
@@ -664,21 +825,91 @@
         _generating = true; _nilResult = ""; StateHasChanged();
         try
         {
+            var did = AppState.CurrentDeductorId;
+            var nilForm = _nilForm; var nilQuarter = _nilQuarter;
+            var nilName = _nilName; var nilPan = _nilPan;
             var (ok, path, error) = await Task.Run(() =>
             {
-                var data = Svc.BuildReturn(AppState.CurrentDeductorId, AppState.CurrentFY, _nilQuarter, _nilForm);
-                data.Header.ResponsibleName = _nilName;
-                data.Header.ResponsiblePan  = _nilPan;
-                data.Challans.Clear();
-                data.Deductees.Clear();
-                FolderManager.EnsureStructure(AppState.CurrentFY, _nilQuarter + "_NIL"); var outDir = FolderManager.SubFolder(AppState.CurrentFY, _nilQuarter + "_NIL", "FVU");
-                return Svc.GenerateFvu(data, outDir);
+                var returnData = Svc.BuildReturn(did, AppState.CurrentFY, nilQuarter, nilForm);
+                var nilHeader  = returnData.Header;
+                nilHeader.ResponsibleName = nilName;
+                nilHeader.ResponsiblePan  = nilPan;
+                var outDir = FolderManager.ReturnFolder(AppState.CurrentFY, nilForm, nilQuarter + "_NIL");
+                Directory.CreateDirectory(outDir);
+                var content  = TDSPro.DAL.FvuGenerator.GenerateNil(nilHeader);
+                var fyShort  = AppState.CurrentFY.Replace("-", "");
+                var fileName = $"{nilForm}_NIL_{nilHeader.TanOfDeductor}_{fyShort}_{nilQuarter}.txt";
+                var fullPath = Path.Combine(outDir, fileName);
+                File.WriteAllText(fullPath, content, System.Text.Encoding.ASCII);
+                Database.LogAction("system", "NIL_RETURN", "Return",
+                    $"{nilForm} NIL {nilQuarter} {AppState.CurrentFY} — {nilHeader.TanOfDeductor}");
+                return (true, fullPath, "");
             });
             _nilResult   = ok ? $"NIL return generated:\n{path}" : "Error: " + error;
             _nilSeverity = ok ? Severity.Success : Severity.Error;
         }
-        catch (Exception ex) { _nilResult = "Error: " + ex.Message; _nilSeverity = Severity.Error; }
+        catch (Exception ex) { _nilResult = "Error: " + ErrorTranslator.UserFriendly(ex); _nilSeverity = Severity.Error; }
         _generating = false;
+    }
+
+    // ── Download CSI ───────────────────────────────────────────────────────
+    private bool   _csiDownloading = false;
+    private string _csiStatus      = "";
+
+    private async Task DownloadCsi()
+    {
+        var tan      = TDSPro.DAL.Database.GetSetting("ItPortalUserId", "");
+        var password = TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", "");
+        if (string.IsNullOrEmpty(tan) || string.IsNullOrEmpty(password))
+        {
+            Snackbar.Add("IT Portal credentials not set. Go to Settings → IT Portal.", Severity.Warning);
+            return;
+        }
+
+        var fy    = AppState.CurrentFY;
+        var parts = fy.Split('-');
+        if (parts.Length < 2 || !int.TryParse(parts[0], out var fromYInt) || !int.TryParse(parts[1], out var toYSuffix))
+        {
+            Snackbar.Add("Cannot determine FY dates — please select a valid financial year.", Severity.Error);
+            return;
+        }
+        var fromY = parts[0];
+        var toY   = 2000 + toYSuffix;
+        var from  = $"{fromY}-04-01";
+        var to    = $"{toY}-03-31";
+        if (DateTime.TryParse(to, out var toDate) && toDate > DateTime.Today)
+            to = DateTime.Today.ToString("yyyy-MM-dd");
+
+        TDSPro.DAL.FolderManager.EnsureStructure(fy);
+        var outPath = System.IO.Path.Combine(
+            TDSPro.DAL.FolderManager.CsiFolder,
+            $"{tan}.csi");
+
+        _csiDownloading = true;
+        _csiStatus = "Opening portal...";
+        StateHasChanged();
+
+        var progress = new Progress<string>(msg =>
+        {
+            _csiStatus = msg;
+            InvokeAsync(StateHasChanged);
+        });
+
+        var result = await CsiSvc.DownloadAsync(tan, password, from, to, outPath, progress);
+
+        _csiDownloading = false;
+        _csiStatus = "";
+        StateHasChanged();
+
+        if (result.Success)
+        {
+            Snackbar.Add($"CSI downloaded: {System.IO.Path.GetFileName(result.FilePath)}", Severity.Success);
+            try { TDSPro.DAL.FolderManager.OpenFolder(TDSPro.DAL.FolderManager.CsiFolder); } catch { }
+        }
+        else
+        {
+            Snackbar.Add("CSI download failed: " + result.Error, Severity.Error);
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
@@ -687,19 +918,16 @@
         if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return false; }
         if (_isCorrection && string.IsNullOrWhiteSpace(_prevPrn))
             { Snackbar.Add("Previous PRN is required for a correction return.", Severity.Warning); return false; }
-        if (string.IsNullOrWhiteSpace(_responsibleName))
-            { Snackbar.Add("Responsible person name is required.", Severity.Warning); return false; }
         return true;
     }
 
     TDSPro.DAL.Models.ReturnData BuildReturnData()
     {
         var data = Svc.BuildReturn(AppState.CurrentDeductorId, AppState.CurrentFY, _quarter, _formType);
-        data.Header.IsCorrection    = _isCorrection;
-        data.Header.PreviousPrn     = _prevPrn;
-        data.Header.ResponsibleName = _responsibleName;
-        data.Header.ResponsiblePan  = _responsiblePan;
-        data.Header.Designation     = _designation;
+        data.Header.IsCorrection   = _isCorrection;
+        data.Header.CorrectionType = _isCorrection ? _correctionType : "";
+        data.Header.PreviousPrn    = _isCorrection ? _prevPrn : (_quarter != "Q1" ? _prevQuarterToken : "");
+        data.Header.OriginalPrn    = _isCorrection ? _originalPrn : "";
         return data;
     }
 
@@ -713,14 +941,37 @@
         catch { }
     }
 
-    void OpenErrorReport()
+
+
+
+    // ── PRN dialog ───────────────────────────────────────────────────────
+    private bool   _prnDialogOpen = false;
+    private string _prnEdit       = "";
+    private int    _prnEditId     = 0;
+
+    void OpenPrnDialog(TDSPro.DAL.FilingHistoryRecord rec)
     {
+        _prnEditId    = rec.Id;
+        _prnEdit      = rec.Prn;
+        _prnDialogOpen = true;
+    }
+
+    void SavePrn()
+    {
+        if (_prnEditId == 0) return;
         try
         {
-            if (!string.IsNullOrEmpty(_errorHtmlPath) && File.Exists(_errorHtmlPath))
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_errorHtmlPath) { UseShellExecute = true });
+            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "UPDATE tds_filing_history SET prn=@prn WHERE id=@id";
+            cmd.Parameters.AddWithValue("@prn", _prnEdit.Trim());
+            cmd.Parameters.AddWithValue("@id",  _prnEditId);
+            cmd.ExecuteNonQuery();
+            _prnDialogOpen = false;
+            LoadFilingHistory();
+            Snackbar.Add("PRN saved.", Severity.Success);
         }
-        catch { }
+        catch (Exception ex) { Snackbar.Add("Save failed: " + ex.Message, Severity.Error); }
     }
 
     // ── Launch dialog ─────────────────────────────────────────────────────

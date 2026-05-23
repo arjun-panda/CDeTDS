@@ -1,6 +1,50 @@
 TDS Pro — Changelog
 ===================
 
+v3.1.0 (May 2026) — Product Hardening Release
+─────────────────────────────────────────────
+TEST INFRASTRUCTURE
+  + xUnit test project (TDSPro.Tests) — 184 tests, ~30s suite
+  + Tax math tests: slabs, 87A rebate, surcharge, age categories across all FYs
+  + HRA exemption tests (Sec 10(13A) min-of-three)
+  + SalaryOptimizer reconciliation invariants
+  + GitHub Actions CI (.github/workflows/ci.yml)
+
+DATA SAFETY
+  + Auto daily SQLite backup on app start (30-day retention)
+  + Manual "Backup Now" + restore UI on Settings page
+  + Backup type chips (auto vs manual), age, size columns
+  + Delete-backup with confirmation dialog
+  + Pre-restore safeguard: current DB copied to .bak before overwrite
+  + Transactional save for monthly_salary_entries + line_items
+  + Transactional save for salary_structures + components
+  + Bulk operations: per-row try/catch, partial success reporting
+  + ValidationResult + PayrollValidators (Employee/Structure/MonthlyEntry rules)
+  + Unlock now removes auto-created Sec 192 TDS entry
+  + Unlock refused if Sec 192 entry already linked to a paid challan
+
+PRO UX
+  + First-run wizard on Dashboard (Company → Employee → Done)
+  + Error translator: SQLite/IO/Network/Format exceptions → friendly messages
+  + Empty-state CTAs on 7 surfaces (Employees, Slips, Year Summary,
+    24Q Filing, Deductees, TDS Entries, Challans)
+
+PROPER PDF REPORTS (QuestPDF)
+  + Salary Slip PDF — A4 with Earnings/Deductions split, working days,
+    amount-in-words for Net Pay, DRAFT watermark if not approved
+  + Computation of Income PDF — CA-style section bands, identity header,
+    "COMPUTED · NOT AUDITED" disclaimer
+  + Form 16 PDF — paginated, deductor/employee blocks, quarterly TDS breakup,
+    signature block, page numbers in footer
+  + AmountInWords helper (Indian Lakh/Crore grouping, paise, negative)
+  + UI: "Save PDF" buttons alongside existing HTML/Excel exports
+
+REMOVED CRUFT
+  + Monthly Run tab merged into Salary Data (split-pane: list + detail)
+  + Bulk Actions modal replaces full Monthly Close tab
+  + payroll_runs reads now sourced from monthly_salary_entries
+    (legacy table preserved for back-compat but not written to)
+
 v3.0.0 (April 2026) — Major Release
 ─────────────────────────────────────
 NEW FEATURES

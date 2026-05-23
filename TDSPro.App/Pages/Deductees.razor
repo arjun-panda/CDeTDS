@@ -12,6 +12,17 @@
                OnClick="OpenAdd">Add Deductee</MudButton>
 </div>
 
+@if (_items.Count == 0)
+{
+    <EmptyState Icon="@Icons.Material.Filled.People"
+                Title="No deductees yet"
+                Subtitle="Deductees are parties whose payments have TDS deducted (vendors, contractors, professionals)."
+                PrimaryCta="+ Add Your First Deductee"
+                PrimaryAction="OpenAdd"
+                HelpText="Salary employees (Section 192) are auto-added as deductees when you approve a monthly salary." />
+}
+else
+{
 <div style="height:calc(100vh - 200px);overflow:hidden">
 <MudDataGrid T="Deductee" Items="_items" Hover="true" Striped="true" Dense="true"
              QuickFilter="_filter" SortMode="SortMode.Multiple"
@@ -64,6 +75,7 @@
     </Columns>
 </MudDataGrid>
 </div>
+}
 
 <MudDialog @bind-Visible="_dialogOpen" Options="_dialogOptions">
     <TitleContent>

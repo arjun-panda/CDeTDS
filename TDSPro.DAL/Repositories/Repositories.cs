@@ -40,8 +40,8 @@ namespace TDSPro.DAL.Repositories
                     cmd.CommandText = @"INSERT INTO deductors
                         (company_name,tan,pan,address,city,state,pincode,
                          contact_person,phone,email,financial_year,cpc_password,it_password,
-                         default_bsr_code,default_bank_name,responsible_name,responsible_pan,designation)
-                        VALUES(@cn,@t,@p,@ad,@ci,@st,@pi,@cp,@ph,@em,@fy,@cpwd,@ipwd,@bsr,@bank,@rn,@rp,@des)";
+                         default_bsr_code,default_bank_name,responsible_name,responsible_pan,designation,gstin)
+                        VALUES(@cn,@t,@p,@ad,@ci,@st,@pi,@cp,@ph,@em,@fy,@cpwd,@ipwd,@bsr,@bank,@rn,@rp,@des,@gstin)";
                 }
                 else
                 {
@@ -51,7 +51,7 @@ namespace TDSPro.DAL.Repositories
                         email=@em,financial_year=@fy,
                         cpc_password=@cpwd,it_password=@ipwd,
                         default_bsr_code=@bsr,default_bank_name=@bank,
-                        responsible_name=@rn,responsible_pan=@rp,designation=@des WHERE id=@id";
+                        responsible_name=@rn,responsible_pan=@rp,designation=@des,gstin=@gstin WHERE id=@id";
                     cmd.Parameters.AddWithValue("@id", d.Id);
                 }
                 cmd.Parameters.AddWithValue("@cn", d.CompanyName);
@@ -72,6 +72,7 @@ namespace TDSPro.DAL.Repositories
                 cmd.Parameters.AddWithValue("@rn",   d.ResponsibleName);
                 cmd.Parameters.AddWithValue("@rp",   d.ResponsiblePan.ToUpper());
                 cmd.Parameters.AddWithValue("@des",  d.Designation);
+                cmd.Parameters.AddWithValue("@gstin",d.Gstin.Trim().ToUpper());
                 cmd.ExecuteNonQuery();
                 return (true, d.Id == 0 ? "Deductor saved." : "Deductor updated.");
             }
@@ -117,6 +118,7 @@ namespace TDSPro.DAL.Repositories
             ResponsibleName  = r.IsDBNull(r.GetOrdinal("responsible_name"))  ? "" : r.GetString(r.GetOrdinal("responsible_name")),
             ResponsiblePan   = r.IsDBNull(r.GetOrdinal("responsible_pan"))   ? "" : r.GetString(r.GetOrdinal("responsible_pan")),
             Designation      = r.IsDBNull(r.GetOrdinal("designation"))       ? "" : r.GetString(r.GetOrdinal("designation")),
+            Gstin            = r.IsDBNull(r.GetOrdinal("gstin"))             ? "" : r.GetString(r.GetOrdinal("gstin")),
         };
 
         private static string SafeDecrypt(string enc)
@@ -273,7 +275,7 @@ namespace TDSPro.DAL.Repositories
                 if (e.Id == 0)
                 {
                     using var c2 = conn.CreateCommand();
-                    c2.CommandText = "SELECT COUNT(*) FROM tds_entries";
+                    c2.CommandText = "SELECT COALESCE(MAX(CAST(SUBSTR(entry_no,4) AS INTEGER)),0) FROM tds_entries WHERE entry_no LIKE 'TDS%'";
                     var cnt = (long)(c2.ExecuteScalar() ?? 0L);
                     e.EntryNo = $"TDS{cnt + 1:D6}";
                     cmd.CommandText = @"INSERT INTO tds_entries
@@ -302,10 +304,10 @@ namespace TDSPro.DAL.Repositories
                 cmd.Parameters.AddWithValue("@pn", e.PaymentNature);
                 cmd.Parameters.AddWithValue("@am", e.Amount);
                 cmd.Parameters.AddWithValue("@ra", e.Rate);
-                cmd.Parameters.AddWithValue("@ta", e.TdsAmount);
-                cmd.Parameters.AddWithValue("@su", e.Surcharge);
-                cmd.Parameters.AddWithValue("@ce", e.Cess);
-                cmd.Parameters.AddWithValue("@tt", e.TotalTds);
+                cmd.Parameters.AddWithValue("@ta", Math.Round(e.TdsAmount,  MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@su", Math.Round(e.Surcharge,  MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@ce", Math.Round(e.Cess,       MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@tt", Math.Round(e.TotalTds,   MidpointRounding.AwayFromZero));
                 cmd.Parameters.AddWithValue("@dd", e.DueDate?.ToString("yyyy-MM-dd") ?? "");
                 cmd.Parameters.AddWithValue("@pd", e.PaymentDate?.ToString("yyyy-MM-dd") ?? "");
                 cmd.Parameters.AddWithValue("@in", e.Interest);
@@ -320,6 +322,22 @@ namespace TDSPro.DAL.Repositories
                 return (true, "Entry saved.");
             }
             catch (Exception ex) { return (false, ex.Message); }
+        }
+
+        public TdsEntry? GetByRemarksTag(int deductorId, string tag)
+        {
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"SELECT e.*, d.company_name as deductor_name,
+                                       dd.name as deductee_name, dd.pan as deductee_pan
+                                FROM tds_entries e
+                                LEFT JOIN deductors d  ON e.deductor_id = d.id
+                                LEFT JOIN deductees dd ON e.deductee_id = dd.id
+                                WHERE e.deductor_id=@did AND e.remarks LIKE @tag LIMIT 1";
+            cmd.Parameters.AddWithValue("@did", deductorId);
+            cmd.Parameters.AddWithValue("@tag", $"%{tag}%");
+            using var r = cmd.ExecuteReader();
+            return r.Read() ? Map(r) : null;
         }
 
         public (bool Ok, string Msg) Delete(int id)
@@ -451,12 +469,12 @@ namespace TDSPro.DAL.Repositories
                 cmd.Parameters.AddWithValue("@bs", c.BsrCode);
                 cmd.Parameters.AddWithValue("@s",  c.Section);
                 cmd.Parameters.AddWithValue("@am", c.Amount);
-                cmd.Parameters.AddWithValue("@ta", c.TdsAmount);
-                cmd.Parameters.AddWithValue("@su", c.Surcharge);
-                cmd.Parameters.AddWithValue("@ce", c.Cess);
-                cmd.Parameters.AddWithValue("@in", c.Interest);
-                cmd.Parameters.AddWithValue("@lf", c.LateFee);
-                cmd.Parameters.AddWithValue("@to", c.TotalAmount);
+                cmd.Parameters.AddWithValue("@ta", Math.Round(c.TdsAmount,  MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@su", Math.Round(c.Surcharge,  MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@ce", Math.Round(c.Cess,       MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@in", Math.Round(c.Interest,   MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@lf", Math.Round(c.LateFee,    MidpointRounding.AwayFromZero));
+                cmd.Parameters.AddWithValue("@to", Math.Round(c.TotalAmount, MidpointRounding.AwayFromZero));
                 cmd.Parameters.AddWithValue("@bn", c.BankName);
                 cmd.Parameters.AddWithValue("@an", c.AckNo);
                 cmd.Parameters.AddWithValue("@qt", c.Quarter);
@@ -513,37 +531,50 @@ namespace TDSPro.DAL.Repositories
     // ── Dashboard Repository ──────────────────────────────────────────────────
     public class DashboardRepository
     {
-        public DashboardStats GetStats(string fy)
+        public DashboardStats GetStats(string fy, int? deductorId = null)
         {
             using var conn = Database.GetConnection();
             var stats = new DashboardStats();
+            var didFilter = deductorId.HasValue && deductorId.Value > 0 ? " AND deductor_id=@did" : "";
 
             long Q(string sql) {
                 using var c = conn.CreateCommand();
                 c.CommandText = sql;
                 c.Parameters.AddWithValue("@fy", fy);
+                if (deductorId.HasValue && deductorId.Value > 0) c.Parameters.AddWithValue("@did", deductorId.Value);
                 return (long)(c.ExecuteScalar() ?? 0L);
             }
             double QD(string sql) {
                 using var c = conn.CreateCommand();
                 c.CommandText = sql;
                 c.Parameters.AddWithValue("@fy", fy);
+                if (deductorId.HasValue && deductorId.Value > 0) c.Parameters.AddWithValue("@did", deductorId.Value);
                 var v = c.ExecuteScalar();
                 return v == null || v == DBNull.Value ? 0 : Convert.ToDouble(v);
             }
 
-            stats.TotalEntries   = (int)Q("SELECT COUNT(*) FROM tds_entries WHERE financial_year=@fy");
-            stats.TotalTds       = QD("SELECT COALESCE(SUM(total_tds),0) FROM tds_entries WHERE financial_year=@fy");
-            stats.TotalAmount    = QD("SELECT COALESCE(SUM(amount),0) FROM tds_entries WHERE financial_year=@fy");
-            stats.TotalChallans  = (int)Q("SELECT COUNT(*) FROM challans WHERE financial_year=@fy");
-            stats.TotalDeductees = (int)Q("SELECT COUNT(*) FROM deductees WHERE 1=1".Replace("@fy","'x'"));
-            stats.TotalDeductors = (int)Q("SELECT COUNT(*) FROM deductors WHERE is_active=1 AND 1=1".Replace("@fy","'x'"));
-            stats.PendingEntries = (int)Q("SELECT COUNT(*) FROM tds_entries WHERE status='Pending' AND financial_year=@fy");
+            stats.TotalEntries   = (int)Q($"SELECT COUNT(*) FROM tds_entries WHERE financial_year=@fy{didFilter}");
+            stats.TotalTds       = QD($"SELECT COALESCE(SUM(total_tds),0) FROM tds_entries WHERE financial_year=@fy{didFilter}");
+            stats.TotalAmount    = QD($"SELECT COALESCE(SUM(amount),0) FROM tds_entries WHERE financial_year=@fy{didFilter}");
+            stats.TotalChallans  = (int)Q($"SELECT COUNT(*) FROM challans WHERE financial_year=@fy{didFilter}");
+            stats.PendingEntries = (int)Q($"SELECT COUNT(*) FROM tds_entries WHERE status='Pending' AND financial_year=@fy{didFilter}");
 
-            // fix the ones that don't need fy param
-            using var c2 = conn.CreateCommand();
-            c2.CommandText = "SELECT COUNT(*) FROM deductees";
-            stats.TotalDeductees = Convert.ToInt32(c2.ExecuteScalar() ?? 0);
+            // Deductees scoped to this deductor (via tds_entries join); fallback to global count if no deductor
+            if (deductorId.HasValue && deductorId.Value > 0)
+            {
+                using var cd = conn.CreateCommand();
+                cd.CommandText = "SELECT COUNT(DISTINCT deductee_id) FROM tds_entries WHERE deductor_id=@did AND financial_year=@fy";
+                cd.Parameters.AddWithValue("@did", deductorId.Value);
+                cd.Parameters.AddWithValue("@fy",  fy);
+                stats.TotalDeductees = Convert.ToInt32(cd.ExecuteScalar() ?? 0);
+            }
+            else
+            {
+                using var c2 = conn.CreateCommand();
+                c2.CommandText = "SELECT COUNT(*) FROM deductees";
+                stats.TotalDeductees = Convert.ToInt32(c2.ExecuteScalar() ?? 0);
+            }
+
             using var c3 = conn.CreateCommand();
             c3.CommandText = "SELECT COUNT(*) FROM deductors WHERE is_active=1";
             stats.TotalDeductors = Convert.ToInt32(c3.ExecuteScalar() ?? 0);

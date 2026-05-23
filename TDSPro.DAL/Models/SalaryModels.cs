@@ -62,6 +62,23 @@ namespace TDSPro.DAL.Models
         public double GrossTaxableSalary{ get; set; }   // after exemptions
         public double NetSalary         { get; set; }
 
+        // ── Monthly Close workflow ─────────────────────────────────────────
+        public int    DaysWorked        { get; set; }       // 0 = full month
+        public int    LopDays           { get; set; }       // Loss of Pay days
+        public int    WorkingDays       { get; set; } = 30; // calendar working days that month
+        public string Status            { get; set; } = "Draft"; // Draft / Locked / Skip
+        public bool   IsLocked          { get; set; }
+        public string ApprovedAt        { get; set; } = "";
+        public string ApprovedBy        { get; set; } = "";
+
+        public double ProRataFactor =>
+            (DaysWorked > 0 && WorkingDays > 0)
+                ? (double)DaysWorked / WorkingDays
+                : 1.0;
+
+        // ── Named line items (persisted in salary_line_items) ────────────────
+        public List<SalaryLineItem> LineItems { get; set; } = new();
+
         // ── HELPERS ─────────────────────────────────────────────────────────
         public string MonthName => System.Globalization.CultureInfo.InvariantCulture
             .DateTimeFormat.GetAbbreviatedMonthName(Month);
@@ -72,24 +89,70 @@ namespace TDSPro.DAL.Models
             double da = DaPercent > 0 ? Math.Round((Basic + GradePay) * DaPercent / 100.0) : DaAmount;
             DaAmount = da;
 
+            // GrossPayment = total cash paid to employee (including bill reimbursements and leave enc)
             GrossPayment = Basic + GradePay + HRA + da
                          + SpecialAllowance + MedicalAllowance + Lta
                          + Bonus + Commission + AdvanceSalary + Arrears + OtherAllowances
-                         + PerqTaxable + LeaveEncTaxable;
+                         + PerqTotal + LeaveEncTotal;
 
+            // GrossTaxableSalary = GrossPayment minus all exemptions:
+            // PerqExempted carries: otherLinesExempt + perqLinesExempt + ltaExempt
+            // LeaveEncExempted is the leave encashment Sec 10(10AA) exemption
             GrossTaxableSalary = GrossPayment - PerqExempted - LeaveEncExempted;
 
             NetSalary = GrossPayment - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted;
         }
     }
 
+    /// <summary>Named line item: a perquisite or other-allowance with its rule reference (e.g. "Sec 17(2) Company Car ≤1.6L").</summary>
+    public class SalaryLineItem
+    {
+        public int    Id        { get; set; }
+        public int    EntryId   { get; set; }
+        public string Category  { get; set; } = "other"; // "perq" or "other"
+        public int    Ordinal   { get; set; }
+        public string Name      { get; set; } = "";
+        public double Taxable   { get; set; }
+        public double Exempt    { get; set; }
+        public string RuleRef   { get; set; } = "";
+    }
+
+    /// <summary>Reimbursement claim for one (employee, month, category) — tracks bills against eligibility cap.</summary>
+    public class ReimbursementClaim
+    {
+        public int    Id            { get; set; }
+        public int    EmployeeId    { get; set; }
+        public string FinancialYear { get; set; } = "";
+        public int    Month         { get; set; }
+        public int    Year          { get; set; }
+        public string Category      { get; set; } = ""; // telephone / fuel / books / meal / uniform / lta
+        public double Eligible      { get; set; }       // cap from salary structure
+        public double Claimed       { get; set; }       // amount with bills
+        public int    BillCount     { get; set; }
+        public string Status        { get; set; } = "pending"; // pending / submitted / approved / rejected / expired
+        public string Notes         { get; set; } = "";
+        public string SavedAt       { get; set; } = "";
+
+        public double Shortfall => Math.Max(0, Eligible - Claimed); // taxable if not claimed
+    }
+
     /// <summary>
     /// Annual tax computation result for one regime.
     /// </summary>
+    /// <summary>One Sec 10 exemption line in the computation — e.g. "Conveyance Reimb. u/s 10(14)(i)".</summary>
+    public class Sec10Item
+    {
+        public string Name      { get; set; } = "";
+        public string RuleRef   { get; set; } = "";
+        public double OldRegime { get; set; }   // exempt amount (old regime)
+        public double NewRegime { get; set; }   // exempt amount (new regime; 0 = taxable)
+    }
+
     public class RegimeResult
     {
         public string   RegimeName          { get; set; } = "";
-        public double   GrossSalary         { get; set; }   // total annual (actual + projected)
+        public double   GrossSalary         { get; set; }   // true gross before any exemptions (same both regimes)
+        public double   ReimbExemption      { get; set; }   // total Sec 10 exemptions stripped from annualGross
         public double   StandardDeduction   { get; set; }
         public double   HraExemption        { get; set; }
         public double   ProfTaxDeduction    { get; set; }
@@ -97,6 +160,8 @@ namespace TDSPro.DAL.Models
         public double   NpsEmployer80CCD2   { get; set; }
         public double   IncomeOtherSources  { get; set; }
         public double   TotalIncome         { get; set; }
+        // Itemised Sec 10 exemptions (shown in computation table)
+        public List<Sec10Item> Sec10Items   { get; set; } = new();
 
         // Tax
         public double   TaxOnIncome         { get; set; }
@@ -122,7 +187,7 @@ namespace TDSPro.DAL.Models
         public int           MonthsRemaining  { get; set; }
         public double        BalanceTax       => ChosenTax - YtdTdsDeducted;
         public double        ThisMonthTds     => MonthsRemaining > 0
-                                                 ? Math.Round(BalanceTax / MonthsRemaining)
+                                                 ? Math.Max(0, Math.Round(BalanceTax / MonthsRemaining))
                                                  : 0;
 
         // Context

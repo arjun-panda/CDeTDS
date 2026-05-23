@@ -146,7 +146,7 @@
             _resetDialogOpen = false;
             Snackbar.Add($"Password reset for {_resetUser.Username}.", Severity.Success);
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
     void Save()
@@ -201,7 +201,7 @@
             _dialogOpen = false; Load();
             Snackbar.Add("Saved.", Severity.Success);
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
     public class AppUser

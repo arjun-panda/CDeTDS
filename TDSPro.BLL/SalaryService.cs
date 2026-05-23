@@ -8,7 +8,97 @@ namespace TDSPro.BLL
     {
         private readonly SalaryRepository _repo = new();
 
+        /// <summary>Save without validation (legacy callers). Prefer SaveValidated.</summary>
         public void Save(MonthlySalaryEntry e) => _repo.Save(e);
+
+        /// <summary>Validate then save. Returns errors if validation fails; nothing written.</summary>
+        public (bool ok, string msg) SaveValidated(MonthlySalaryEntry e)
+        {
+            var v = PayrollValidators.ValidateMonthlyEntry(e);
+            if (!v.Ok) return (false, v.ErrorSummary);
+            _repo.Save(e);
+            return (true, v.Warnings.Count > 0 ? $"Saved (warnings: {v.WarningSummary})" : "Saved.");
+        }
+
+        public ValidationResult ValidateMonthly(MonthlySalaryEntry e) => PayrollValidators.ValidateMonthlyEntry(e);
+
+        /// <summary>
+        /// Auto-create or update a Section 192 TDS Entry for this monthly salary row.
+        /// Links to the deductee table via employee PAN (creates deductee if missing).
+        /// Idempotent — keyed by remark tag [AUTO:salary:{empId}:{fy}:{month}].
+        /// </summary>
+        public (bool ok, string msg) UpsertSec192Entry(MonthlySalaryEntry entry, Employee emp, int deductorId)
+        {
+            if (entry.TdsDeducted <= 0)
+                return (true, "No TDS this month — Sec 192 entry skipped.");
+            if (string.IsNullOrWhiteSpace(emp.Pan))
+                return (false, $"Employee {emp.Name} has no PAN — cannot create Sec 192 entry.");
+
+            var payRepo = new PayrollRepository();
+            int deducteeId = payRepo.EnsureSalaryDeductee(emp);
+            if (deducteeId == 0)
+                return (false, "Failed to resolve deductee for employee.");
+
+            string tag = $"[AUTO:salary:{emp.Id}:{entry.FinancialYear}:{entry.Month}]";
+
+            // Look up existing auto-created entry for this (employee, FY, month)
+            var tdsRepo = new TDSPro.DAL.Repositories.TdsEntryRepository();
+            var existing = tdsRepo.GetByRemarksTag(deductorId, tag);
+
+            int dim = DateTime.DaysInMonth(entry.Year, entry.Month);
+            var entryDate = new DateTime(entry.Year, entry.Month, dim);   // last day of pay month
+            // Sec 192 deposit due date — 7th of next month (April–February); 30 Apr for March
+            DateTime due = entry.Month == 3
+                ? new DateTime(entry.Year, 4, 30)
+                : new DateTime(entry.Year + (entry.Month == 12 ? 1 : 0),
+                               entry.Month == 12 ? 1 : entry.Month + 1, 7);
+            string quarter = entry.Month switch
+            {
+                >= 4 and <= 6  => "Q1",
+                >= 7 and <= 9  => "Q2",
+                >= 10 and <= 12=> "Q3",
+                _              => "Q4"
+            };
+
+            var te = existing ?? new TdsEntry();
+            te.DeductorId    = deductorId;
+            te.DeducteeId    = deducteeId;
+            te.Section       = "192";
+            te.PaymentNature = "Salary";
+            te.Amount        = entry.GrossPayment;
+            te.Rate          = 0;
+            te.TdsAmount     = entry.TdsDeducted;
+            te.Surcharge     = 0;
+            te.Cess          = 0;
+            te.TotalTds      = entry.TdsDeducted;
+            te.EntryDate     = entryDate;
+            te.DueDate       = due;
+            te.FinancialYear = entry.FinancialYear;
+            te.Quarter       = quarter;
+            te.Status        = existing == null ? "Pending" : te.Status;
+            te.Remarks       = $"Salary TDS — {new DateTime(1,entry.Month,1):MMMM} {entry.Year} {tag}";
+
+            var result = tdsRepo.Save(te);
+            return (result.Ok, result.Ok ? $"Sec 192 entry {(existing == null ? "created" : "updated")} (₹{entry.TdsDeducted:N0})" : result.Msg);
+        }
+
+        /// <summary>
+        /// Reverse of UpsertSec192Entry — finds the auto-created Sec 192 entry for this
+        /// (employee, FY, month) by remarks tag and deletes it. Called from Unlock so
+        /// stale TDS rows don't pollute quarterly returns after a correction.
+        /// </summary>
+        public (bool ok, string msg) RemoveSec192Entry(int employeeId, string fy, int month, int deductorId)
+        {
+            string tag = $"[AUTO:salary:{employeeId}:{fy}:{month}]";
+            var tdsRepo = new TDSPro.DAL.Repositories.TdsEntryRepository();
+            var match = tdsRepo.GetByRemarksTag(deductorId, tag);
+            if (match == null) return (true, "No Sec 192 entry to remove.");
+            if (!string.IsNullOrEmpty(match.ChallanNo))
+                return (false, $"Sec 192 entry already linked to challan {match.ChallanNo}. Unlink first.");
+            var r = tdsRepo.Delete(match.Id);
+            return (r.Ok, r.Ok ? $"Sec 192 entry removed (₹{match.TotalTds:N0})." : r.Msg);
+        }
+
         public MonthlySalaryEntry? Get(int empId, string fy, int month) => _repo.Get(empId, fy, month);
         public List<MonthlySalaryEntry> GetAllForFY(int empId, string fy) => _repo.GetAllForFY(empId, fy);
 
@@ -77,7 +167,9 @@ namespace TDSPro.BLL
             Employee emp,
             string fy,
             TaxDeclaration decl,
-            int forMonth)
+            int forMonth,
+            double? reimbShortfallOverride = null,
+            double? ytdTdsOverride = null)
         {
             int fyStart = FyStartYear(fy);
             var fyMonths = FyMonths;
@@ -89,20 +181,84 @@ namespace TDSPro.BLL
             int actualCount = 0; double projectionBasis = 0;
 
             // Sum actual gross (Apr to current month)
+            // annualGrossActual = TRUE gross payment (GrossPayment, before exemptions)
+            // annualSec10Actual = total sec10 exemptions from line items (for display and tax formula)
             double annualGrossActual = 0;
+            double annualSec10ExemptActual = 0;   // "other" + "perq" exempts from LineItems
+            double annualPerqOnlyExemptedActual = 0;  // only perq-category (taxable in new regime)
+            var sec10Actual = new Dictionary<(string name, string rule, string cat), double>();
             for (int i = 0; i <= currentFyIndex; i++)
             {
                 int m = fyMonths[i];
-                if (actualByMonth.TryGetValue(m, out var e)) { annualGrossActual += e.GrossTaxableSalary; actualCount++; }
+                if (actualByMonth.TryGetValue(m, out var e))
+                {
+                    e.PerqExempted = e.LineItems.Sum(li => li.Exempt);
+                    e.RecalcGross();
+                    annualGrossActual += e.GrossPayment;   // TRUE gross (Conveyance included as received)
+                    annualSec10ExemptActual += e.PerqExempted;  // all line item exempts
+                    actualCount++;
+                    foreach (var li in e.LineItems)
+                    {
+                        if (li.Exempt <= 0) continue;
+                        var key = (li.Name, li.RuleRef, li.Category);
+                        sec10Actual[key] = sec10Actual.GetValueOrDefault(key) + li.Exempt;
+                        if (li.Category == "perq") annualPerqOnlyExemptedActual += li.Exempt;
+                    }
+                    if (e.LeaveEncExempted > 0)
+                    {
+                        var key = ("Leave Encashment", "Sec 10(10AA)", "other");
+                        sec10Actual[key] = sec10Actual.GetValueOrDefault(key) + e.LeaveEncExempted;
+                    }
+                }
             }
-            // Projection basis = current month's gross taxable salary
-            projectionBasis = actualByMonth.TryGetValue(forMonth, out var cur) ? cur.GrossTaxableSalary : 0;
+            // Projection basis = current month's TRUE gross payment.
+            // For sec10 exempts: if current month has no line items yet (new/unsaved entry),
+            // fall back to last saved month with exempts so recurring items (Conveyance etc.) project correctly.
+            // In that case also exclude current month from actual sec10 count and project it instead.
+            projectionBasis = actualByMonth.TryGetValue(forMonth, out var cur) ? cur.GrossPayment : 0;
 
             // Project remaining months (after current)
             int projectedMonths = 12 - currentFyIndex - 1;
-            double annualGrossProjected = projectionBasis * projectedMonths;
 
-            double annualGross = annualGrossActual + annualGrossProjected;
+            // For sec10 exempts: if current month has no line items yet (new/unsaved entry),
+            // fall back to last saved month with exempts and project it too.
+            bool curHasLineExempts = cur?.LineItems.Any(l => l.Exempt > 0) == true;
+            var lastSaved = fyMonths.Take(currentFyIndex + 1)
+                                    .Select(m => actualByMonth.TryGetValue(m, out var em) ? em : null)
+                                    .LastOrDefault(e => e != null && e.LineItems.Any(l => l.Exempt > 0));
+            var projectionLineBasis = curHasLineExempts ? cur : lastSaved;
+            int projectedMonthsForSec10 = curHasLineExempts ? projectedMonths : projectedMonths + 1;
+            double annualSec10ExemptActualAdj = curHasLineExempts
+                ? annualSec10ExemptActual
+                : annualSec10ExemptActual - (cur?.PerqExempted ?? 0);
+            double projectionSec10Basis = projectionLineBasis?.PerqExempted ?? 0;
+            double annualGrossProjected       = projectionBasis * projectedMonths;
+            double annualSec10ExemptProjected = projectionSec10Basis * projectedMonthsForSec10;
+
+            double annualGross            = annualGrossActual + annualGrossProjected;
+            double annualSec10LineExempts = annualSec10ExemptActualAdj + annualSec10ExemptProjected;
+
+
+            // Variable pay (annual bonus + incentive) — added to projection so TDS spreads
+            // across all months. If the bonus has already been entered as a Salary Data row,
+            // it's already in annualGrossActual; we add it only if NOT yet present.
+            double annualVariable = (emp.Salary?.AnnualBonus ?? 0) + (emp.Salary?.AnnualIncentive ?? 0);
+            // Heuristic: assume bonus not yet paid in YTD if projectedMonths > 0 and YTD gross
+            // doesn't exceed expected monthly fixed × actual months by more than half the bonus
+            double expectedFixedYtd = ((cur?.Basic ?? 0) + (cur?.HRA ?? 0) + (cur?.DaAmount ?? 0) + (cur?.SpecialAllowance ?? 0) + (cur?.MedicalAllowance ?? 0) + (cur?.Lta ?? 0) + (cur?.OtherAllowances ?? 0)) * (currentFyIndex + 1);
+            if (annualGrossActual < expectedFixedYtd + annualVariable * 0.5)
+                annualGross += annualVariable;
+
+            // Reimbursement shortfall — amounts eligible but not claimed with bills become taxable
+            double reimbShortfall = reimbShortfallOverride ?? new TDSPro.DAL.ReimbursementRepository()
+                .GetForFy(emp.Id, fy)
+                .Sum(c => c.Shortfall);
+            annualGross += reimbShortfall;
+
+            // Bill-substantiated reimbursements (conveyance, telephone, etc.) flow through
+            // PerqExempted in each monthly entry, so they are ALREADY excluded from annualGross
+            // (both actual months via GrossTaxableSalary and projected months via projectionBasis).
+            // No further deduction needed — removing separate annualComponentsPaid.
 
             // Sum actual deductions
             double annualPf  = 0, annualPt  = 0, annualNps = 0;
@@ -126,7 +282,9 @@ namespace TDSPro.BLL
 
             // HRA exemption (monthly × 12 for simplicity, use current month data)
             double annualBasic = (cur?.Basic ?? 0) * 12;
-            double hraExemption = PayrollService.CalcHraExemptionPublic(cur?.Basic ?? 0, cur?.HRA ?? 0, decl.RentPaid, decl.HraCityType) * 12;
+            // Prefer employee-level HRA city type; fall back to declaration value
+            var hraCityType = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : decl.HraCityType;
+            double hraExemption = PayrollService.CalcHraExemptionPublic(cur?.Basic ?? 0, cur?.HRA ?? 0, decl.RentPaid, hraCityType) * 12;
 
             // Age category — needed for 80D self-limit (senior citizen gets ₹50K, others ₹25K)
             DateTime? dob = DateTime.TryParseExact(emp.DateOfBirth, "dd-MMM-yyyy",
@@ -147,6 +305,10 @@ namespace TDSPro.BLL
             double stdDedOld = oldRules.StandardDeduction;
 
             // Chapter VI-A deductions (old regime only — all applicable sections)
+            // 80TTA (non-senior, ₹10K) and 80TTB (senior, ₹50K) are mutually exclusive
+            double tta_ttb = isSelfSenior
+                           ? Math.Min(decl.Sec80TTB, 50000)   // senior: 80TTB only
+                           : Math.Min(decl.Sec80TTA, 10000);  // non-senior: 80TTA only
             double chap6a = Math.Min(decl.Sec80C + annualPf, 150000)          // 80C: LIC/PF/ELSS — PF counts, cap ₹1.5L
                           + Math.Min(decl.Sec80D_Self,    limit80DSelf)         // 80D self/family health insurance
                           + Math.Min(decl.Sec80D_Parents, limit80DParents)      // 80D parents health insurance
@@ -154,41 +316,105 @@ namespace TDSPro.BLL
                           + Math.Min(decl.Sec80CCD_Employee, 50000)             // 80CCD(1B) additional NPS — ₹50K cap
                           + decl.Sec80E                                          // 80E education loan interest — no cap
                           + Math.Min(decl.Sec80EEA, 150000)                     // 80EEA housing loan first home — ₹1.5L cap
-                          + Math.Min(decl.Sec80TTA, 10000)                      // 80TTA savings a/c interest — ₹10K (non-senior)
-                          + Math.Min(decl.Sec80TTB, 50000)                      // 80TTB savings interest — ₹50K (senior citizen only)
+                          + tta_ttb                                              // 80TTA or 80TTB (mutually exclusive)
                           + Math.Min(decl.Sec80DD,  125000)                     // 80DD differently abled dependent — ₹1.25L
                           + Math.Min(decl.Sec80U,   125000)                     // 80U self differently abled — ₹1.25L
-                          + decl.LtaExemption                                    // LTA u/s 10(5) — old regime only
                           + decl.OtherDeductions;
+            // LTA u/s 10(5) is a Sec 10 exemption — deducted from gross separately, NOT inside chap6a
+            double ltaExemption = decl.LtaExemption;
             // 80CCD(2) — FY-aware: 10% old regime all years; 14% new regime from FY 2024-25
             double nps80CCD2    = Math.Min(annualNps, annualBasic * TDSPro.Common.TaxRules.Get80CCD2Rate(fy, false));
             double nps80CCD2New = Math.Min(annualNps, annualBasic * TDSPro.Common.TaxRules.Get80CCD2Rate(fy, true));
 
+            // annualGross = TRUE gross (GrossPayment) already includes all components as received.
+            // annualSec10LineExempts = bills reimbursements + perq exempts from line items.
+            // "other" category exempts are exempt BOTH regimes u/s 10(14)(i).
+            // "perq" category exempts are exempt old regime; taxable new regime → add back for new regime.
+            var newRules     = TDSPro.Common.TaxRules.GetRules(fy, true);
+            double stdDedNew = newRules.StandardDeduction;
+            double curPerqOnlyExempted = cur?.LineItems.Where(l => l.Category == "perq").Sum(l => l.Exempt) ?? 0;
+            double annualPerqOnlyExemptedProjected = curPerqOnlyExempted * projectedMonths;
+            // newRegimeAddBack: perq-only exempts must be added back for new regime (taxable there)
+            double newRegimeAddBack = annualPerqOnlyExemptedActual + annualPerqOnlyExemptedProjected;
+            // "other" (bills reimbursement) exempts stay exempt in new regime — no add-back
+            double annualOtherExempts = annualSec10LineExempts - newRegimeAddBack;
+            // trueAnnualGross = gross for display; same for both regimes (true GrossPayment)
+            double trueAnnualGross = annualGross;
+
+            // Build itemised Sec 10 list — scale projected months proportionally from current
+            var sec10Items = new List<TDSPro.DAL.Models.Sec10Item>();
+            // HRA u/s 10(13A)
+            if (hraExemption > 0)
+                sec10Items.Add(new TDSPro.DAL.Models.Sec10Item { Name = "HRA", RuleRef = "Sec 10(13A)", OldRegime = hraExemption, NewRegime = 0 });
+            // LTA u/s 10(5) from declaration (old regime only)
+            if (ltaExemption > 0)
+                sec10Items.Add(new TDSPro.DAL.Models.Sec10Item { Name = "LTA", RuleRef = "Sec 10(5)", OldRegime = ltaExemption, NewRegime = 0 });
+            // Named line items from actual months + project remaining.
+            // Use projectionLineBasis (current month if it has line items, else last saved month with exempts)
+            // so recurring exemptions like Conveyance project correctly even when current month not yet entered.
+            foreach (var kvp in sec10Actual)
+            {
+                double projectedAmt = 0;
+                if (projectedMonthsForSec10 > 0 && projectionLineBasis != null)
+                {
+                    var curLi = projectionLineBasis.LineItems.FirstOrDefault(l => l.Name == kvp.Key.name && l.RuleRef == kvp.Key.rule && l.Category == kvp.Key.cat);
+                    projectedAmt = (curLi?.Exempt ?? 0) * projectedMonthsForSec10;
+                }
+                double total = kvp.Value + projectedAmt;
+                if (total <= 0) continue;
+                // Bills-based reimbursements u/s 10(14)(i) are exempt in both regimes per CBDT.
+                // "other" category = bills-substantiated reimbursements (always both-regime exempt).
+                // "perq" category without explicit Sec 10 rule = taxable in new regime.
+                bool newRegimeExempt = kvp.Key.cat == "other"                                               // all bills reimbursements
+                                    || kvp.Key.rule.Contains("10(14)(i)", StringComparison.OrdinalIgnoreCase)
+                                    || kvp.Key.rule.Contains("10(10AA)", StringComparison.OrdinalIgnoreCase);
+                sec10Items.Add(new TDSPro.DAL.Models.Sec10Item
+                {
+                    Name      = kvp.Key.name,
+                    RuleRef   = kvp.Key.rule,
+                    OldRegime = total,
+                    NewRegime = newRegimeExempt ? total : 0,
+                });
+            }
+
+            // ── OLD REGIME ────────────────────────────────────────────────────
+            // annualSec10LineExempts = bills reimbursements + perq exempts (all line item exempts)
+            // hraExemption and ltaExemption are separate Sec 10 exemptions not in lineItems
             double taxableOld = annualGross
-                - stdDedOld - hraExemption - annualPt - chap6a - nps80CCD2
+                - annualSec10LineExempts                    // Sec 10 line item exempts (bills reimb + perq)
+                - stdDedOld - hraExemption - ltaExemption - annualPt - chap6a - nps80CCD2
                 + decl.IncomeOtherSources;
             taxableOld = Math.Max(0, taxableOld);
 
-            var oldR = BuildRegime("Old Regime", taxableOld, annualGross, stdDedOld, hraExemption, annualPt, chap6a, nps80CCD2, decl.IncomeOtherSources, false, fy, ageCategory);
+            var oldR = BuildRegime("Old Regime", taxableOld, trueAnnualGross, stdDedOld, hraExemption, annualPt, chap6a, nps80CCD2, decl.IncomeOtherSources, false, fy, ageCategory, newRegimeAddBack, sec10Items);
 
             // ── NEW REGIME — FY-aware std deduction and slabs ─────────────────
-            // New regime: same slabs for all ages — no HRA, no LTA, no Chapter VI-A
-            var newRules     = TDSPro.Common.TaxRules.GetRules(fy, true);
-            double stdDedNew = newRules.StandardDeduction;
-            double taxableNew = Math.Max(0, annualGross - stdDedNew - nps80CCD2New + decl.IncomeOtherSources);
+            // annualOtherExempts = bills-reimbursement exempts ("other" cat) — exempt in BOTH regimes u/s 10(14)(i)
+            // newRegimeAddBack = perq exempts — taxable in new regime, so do NOT deduct them here
+            double taxableNew = Math.Max(0, trueAnnualGross - annualOtherExempts - stdDedNew - nps80CCD2New + decl.IncomeOtherSources);
 
-            var newR = BuildRegime("New Regime", taxableNew, annualGross, stdDedNew, 0, 0, 0, nps80CCD2New, decl.IncomeOtherSources, true, fy);
+            var newR = BuildRegime("New Regime", taxableNew, trueAnnualGross, stdDedNew, 0, 0, 0, nps80CCD2New, decl.IncomeOtherSources, true, fy, TDSPro.Common.AgeCategory.Below60, 0, sec10Items);
 
             // YTD TDS
             int fromYear = CalendarYear(fy, forMonth);
-            double ytd = _repo.GetYtdTds(emp.Id, fy, forMonth, fromYear);
+            double ytd = ytdTdsOverride ?? _repo.GetYtdTds(emp.Id, fy, forMonth, fromYear);
             int remaining = MonthsRemaining(fy, forMonth);
+
+            // If the employee has an explicit regime preference, honour it.
+            // Otherwise pick whichever regime has the lower total tax (auto-optimal).
+            string chosen;
+            if (string.Equals(emp.TaxRegime, "Old", StringComparison.OrdinalIgnoreCase))
+                chosen = "Old";
+            else if (string.Equals(emp.TaxRegime, "New", StringComparison.OrdinalIgnoreCase))
+                chosen = "New";
+            else
+                chosen = newR.TotalTax <= oldR.TotalTax ? "New" : "Old";
 
             return new AnnualComputation
             {
                 OldRegime        = oldR,
                 NewRegime        = newR,
-                ChosenRegime     = emp.TaxRegime ?? "New",
+                ChosenRegime     = chosen,
                 YtdTdsDeducted   = ytd,
                 MonthsRemaining  = remaining,
                 ComputedForMonth = forMonth,
@@ -201,7 +427,9 @@ namespace TDSPro.BLL
             string name, double taxableIncome, double grossSalary,
             double stdDed, double hraEx, double pt, double chap6a, double nps2, double otherSrc,
             bool isNew, string fy,
-            TDSPro.Common.AgeCategory age = TDSPro.Common.AgeCategory.Below60)
+            TDSPro.Common.AgeCategory age = TDSPro.Common.AgeCategory.Below60,
+            double reimbExemption = 0,
+            List<TDSPro.DAL.Models.Sec10Item>? sec10Items = null)
         {
             var rules                = TDSPro.Common.TaxRules.GetRules(fy, isNew, age);
             double rawTax            = TDSPro.Common.TaxRules.ComputeSlabTax(taxableIncome, rules);
@@ -214,6 +442,7 @@ namespace TDSPro.BLL
             {
                 RegimeName        = name,
                 GrossSalary       = grossSalary,
+                ReimbExemption    = reimbExemption,
                 StandardDeduction = stdDed,
                 HraExemption      = hraEx,
                 ProfTaxDeduction  = pt,
@@ -227,6 +456,7 @@ namespace TDSPro.BLL
                 Surcharge         = sc,
                 Cess              = cess,
                 TotalTax          = total,
+                Sec10Items        = sec10Items ?? new(),
             };
         }
     }

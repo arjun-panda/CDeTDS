@@ -85,6 +85,14 @@ namespace TDSPro.DAL
         public static string FyFolder(string fy)
             => Path.Combine(CompanyFolder, fy);
 
+        /// <summary>
+        /// Return output folder: {Company}\{FY}\Returns\{formType}\{quarter}\
+        /// e.g. Companies\DELA...\2025-26\Returns\26Q\Q1\
+        /// </summary>
+        public static string ReturnFolder(string fy, string formType, string quarter)
+            => Path.Combine(FyFolder(fy), "Returns", formType.ToUpper(), quarter.ToUpper());
+
+        // Legacy — kept for Reports and non-return sub-folders (Reports, Challans, etc.)
         public static string QuarterFolder(string fy, string quarter)
             => Path.Combine(FyFolder(fy), quarter);
 
@@ -97,6 +105,13 @@ namespace TDSPro.DAL
         public static string TempFolder
             => Path.Combine(BasePath, "Temp");
 
+        /// <summary>
+        /// Folder where CSI files should be saved. Place .csi files downloaded from
+        /// IT Portal / OLTAS here — FVU will pick them up automatically.
+        /// </summary>
+        public static string CsiFolder
+            => Path.Combine(BasePath, "CSI");
+
         // Sub-folder names
         public static readonly string[] SubFolders =
             { "Returns", "FVU", "Reports", "Challans", "Justification", "Conso" };
@@ -107,12 +122,19 @@ namespace TDSPro.DAL
             Directory.CreateDirectory(BasePath);
             Directory.CreateDirectory(BackupFolder);
             Directory.CreateDirectory(TempFolder);
+            Directory.CreateDirectory(CsiFolder);
             Directory.CreateDirectory(FyFolder(fy));
 
             var quarters = quarter != null
                 ? new[] { quarter }
                 : AppConstants.QuarterCodes;
 
+            // New: Returns\{formType}\{quarter}\ structure
+            foreach (var form in new[] { "26Q", "24Q" })
+                foreach (var q in quarters)
+                    Directory.CreateDirectory(ReturnFolder(fy, form, q));
+
+            // Legacy quarter sub-folders (Reports, Challans, etc.) — keep for non-return files
             foreach (var q in quarters)
             {
                 Directory.CreateDirectory(QuarterFolder(fy, q));
@@ -145,9 +167,10 @@ namespace TDSPro.DAL
         /// <summary>Get the FVU output path for a return.</summary>
         public static string FvuFilePath(string formType, string quarter, string fy, string tan)
         {
-            EnsureStructure(fy, quarter);
+            var folder = ReturnFolder(fy, formType, quarter);
+            Directory.CreateDirectory(folder);
             var fileName = $"{formType}_{tan}_{quarter}_{fy.Replace("-","")}.txt";
-            return Path.Combine(SubFolder(fy, quarter, "FVU"), fileName);
+            return Path.Combine(folder, fileName);
         }
 
         /// <summary>Get the Reports path.</summary>
@@ -244,6 +267,43 @@ namespace TDSPro.DAL
             catch { /* Silent — never crash app due to backup failure */ }
         }
 
+        /// <summary>Manual on-demand backup with timestamp — always creates a new file (no once-per-day gate).</summary>
+        public static string? BackupNow(string dbPath)
+        {
+            try
+            {
+                Directory.CreateDirectory(BackupFolder);
+                var stamp      = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                var backupFile = Path.Combine(BackupFolder, $"tds_pro_manual_{stamp}.db");
+                File.Copy(dbPath, backupFile, overwrite: false);
+                Database.LogAction("user", "MANUAL_BACKUP", "Backup", $"Saved: {backupFile}");
+                return backupFile;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>List all backup files (auto + manual) sorted newest-first.</summary>
+        public static List<BackupInfo> ListBackups()
+        {
+            try
+            {
+                Directory.CreateDirectory(BackupFolder);
+                return Directory.GetFiles(BackupFolder, "tds_pro_*.db")
+                    .Select(p => new FileInfo(p))
+                    .OrderByDescending(f => f.LastWriteTime)
+                    .Select(f => new BackupInfo
+                    {
+                        Path       = f.FullName,
+                        FileName   = f.Name,
+                        CreatedAt  = f.LastWriteTime,
+                        SizeBytes  = f.Length,
+                        IsAuto     = f.Name.StartsWith("tds_pro_auto_", StringComparison.OrdinalIgnoreCase),
+                    })
+                    .ToList();
+            }
+            catch { return new(); }
+        }
+
         // ── Open folder in Explorer ───────────────────────────────────────────
         public static void OpenFolder(string path)
         {
@@ -261,8 +321,12 @@ namespace TDSPro.DAL
         public static void OpenReturnFolder(string fy, string quarter)
             => OpenFolder(SubFolder(fy, quarter, "Returns"));
 
+        public static void OpenFvuFolder(string fy, string formType, string quarter)
+            => OpenFolder(ReturnFolder(fy, formType, quarter));
+
+        // Legacy overload — opens 26Q folder by default
         public static void OpenFvuFolder(string fy, string quarter)
-            => OpenFolder(SubFolder(fy, quarter, "FVU"));
+            => OpenFolder(ReturnFolder(fy, "26Q", quarter));
 
         // ── Base path config ──────────────────────────────────────────────────
         public static void SetBasePath(string newPath)
@@ -299,5 +363,22 @@ namespace TDSPro.DAL
             }
             catch { }
         }
+    }
+
+    /// <summary>Metadata for one backup file shown in the Settings → Backup &amp; Restore page.</summary>
+    public class BackupInfo
+    {
+        public string   Path      { get; set; } = "";
+        public string   FileName  { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+        public long     SizeBytes { get; set; }
+        public bool     IsAuto    { get; set; }
+        public string   SizeLabel => SizeBytes switch
+        {
+            < 1024            => $"{SizeBytes} B",
+            < 1024 * 1024     => $"{SizeBytes / 1024.0:F1} KB",
+            < 1024 * 1024 * 1024 => $"{SizeBytes / 1048576.0:F1} MB",
+            _                 => $"{SizeBytes / 1073741824.0:F2} GB",
+        };
     }
 }

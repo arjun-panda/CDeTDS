@@ -1,4 +1,4 @@
-using TDSPro.DAL;
+﻿using TDSPro.DAL;
 using TDSPro.DAL.Models;
 using TDSPro.Common;
 
@@ -72,7 +72,7 @@ namespace TDSPro.BLL
         {
             var ss   = emp.Salary ?? new SalaryStructure();
             var decl = _repo.GetDeclaration(emp.Id, fy);
-            var ytd  = _repo.GetYtdTds(emp.Id, fy, month, deductorId);
+            var ytd  = _repo.GetYtdTds(emp.Id, fy, month, year);
 
             // ── Pro-rata scaling ──────────────────────────────────────────────
             // Indian payroll standard (30-day method): per-day = monthly ÷ 30.
@@ -95,12 +95,20 @@ namespace TDSPro.BLL
                 SpecialAllowance = Math.Round(ss.SpecialAllowance * proRataFactor),
                 MedicalAllowance = Math.Round(ss.MedicalAllowance * proRataFactor),
                 Lta              = Math.Round(ss.Lta              * proRataFactor),
-                OtherAllowance   = Math.Round(ss.OtherAllowance   * proRataFactor),
+                OtherAllowance   = 0,                              // mirror of Components
                 PfApplicable     = ss.PfApplicable,
                 PfFixedAmount    = ss.PfFixedAmount > 0 ? Math.Round(ss.PfFixedAmount * proRataFactor) : 0,
                 EsiApplicable    = ss.EsiApplicable,
                 PtState          = ss.PtState,
                 EffectiveFrom    = ss.EffectiveFrom,
+                AnnualBonus      = ss.AnnualBonus,                 // annual figures — not pro-rated
+                AnnualIncentive  = ss.AnnualIncentive,
+                Components       = ss.Components.Select(c => new SalaryComponent {
+                    Category = c.Category, Name = c.Name, RuleRef = c.RuleRef, Ordinal = c.Ordinal,
+                    Received = Math.Round(c.Received * proRataFactor),
+                    Paid     = Math.Round(c.Paid     * proRataFactor),
+                    Taxable  = Math.Round(c.Taxable  * proRataFactor),
+                }).ToList(),
             };
             ss = scaled;   // use scaled for all calculations below
 
@@ -111,7 +119,15 @@ namespace TDSPro.BLL
             int remainMonths = MonthsRemaining(month, year, fyEndMonth, fyEndYear);
 
             // ── Annual projection ─────────────────────────────────────────────
-            double annualGross   = ss.GrossSalary * 12;
+            // Variable pay (bonus + incentive) — annual lump-sum, added to projection so TDS spreads
+            double annualVariable = ss.AnnualBonus + ss.AnnualIncentive;
+            // Reimbursement shortfall — amounts eligible but not claimed with bills become taxable
+            double reimbShortfall = new TDSPro.DAL.ReimbursementRepository()
+                .GetForFy(emp.Id, fy)
+                .Sum(c => c.Shortfall);
+            // Custom components — Received already in ss.GrossSalary; Paid (bills) is exempt
+            double annualComponentsPaid = ss.ComponentsPaid() * 12;
+            double annualGross   = ss.GrossSalary * 12 + annualVariable + reimbShortfall;
             double annualBasic   = ss.Basic        * 12;
             double annualHra     = ss.Hra          * 12;
             double annualRent    = decl.RentPaid   * 12;
@@ -148,7 +164,9 @@ namespace TDSPro.BLL
             double stdDedNew = newRules.StandardDeduction;   // ₹75,000 from FY 2024-25 (new regime only)
 
             // ── OLD REGIME ────────────────────────────────────────────────────
-            double hraExemption = CalcHraExemption(ss.Basic, ss.Hra, decl.RentPaid, decl.HraCityType);
+            // Prefer employee-level HRA city type; fall back to declaration value
+            var hraCityType = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : decl.HraCityType;
+            double hraExemption = CalcHraExemption(ss.Basic, ss.Hra, decl.RentPaid, hraCityType);
             double hraExAnnual  = hraExemption * 12;
 
             // 80D self-limit: ₹50K for senior citizen employee, ₹25K for general
@@ -163,6 +181,11 @@ namespace TDSPro.BLL
                 if (ageAtFYEnd >= 60) limit80DSelf = 50000;
             }
 
+            // 80TTA (non-senior ₹10K) and 80TTB (senior ₹50K) are mutually exclusive
+            bool isSeniorPs = ageCategory != TDSPro.Common.AgeCategory.Below60;
+            double tta_ttbPs = isSeniorPs
+                             ? Math.Min(decl.Sec80TTB, 50000)
+                             : Math.Min(decl.Sec80TTA, 10000);
             double chap6a = Math.Min(decl.Sec80C + annualPf, 150000)         // PF counts in 80C, cap ₹1.5L
                           + Math.Min(decl.Sec80D_Self,    limit80DSelf)        // 80D self
                           + Math.Min(decl.Sec80D_Parents, limit80DParents)     // 80D parents
@@ -170,8 +193,7 @@ namespace TDSPro.BLL
                           + Math.Min(decl.Sec80CCD_Employee, 50000)            // 80CCD(1B) ₹50K
                           + decl.Sec80E                                         // education loan — no limit
                           + Math.Min(decl.Sec80EEA, 150000)                    // housing loan first home ₹1.5L
-                          + Math.Min(decl.Sec80TTA, 10000)                     // savings interest non-senior ₹10K
-                          + Math.Min(decl.Sec80TTB, 50000)                     // savings interest senior ₹50K
+                          + tta_ttbPs                                           // 80TTA or 80TTB (mutually exclusive)
                           + Math.Min(decl.Sec80DD, 125000)                     // differently abled dependent ₹1.25L max
                           + Math.Min(decl.Sec80U,  125000)                     // self differently abled ₹1.25L max
                           + decl.OtherDeductions;                               // any other declared
@@ -184,11 +206,11 @@ namespace TDSPro.BLL
             double taxableOld = annualGross
                               - hraExAnnual
                               - stdDedOld
-                              - annualPf
                               - annualPt
-                              - chap6a
+                              - chap6a                             // includes PF inside 80C — do NOT subtract annualPf separately
                               - npsEmployer
                               - decl.LtaExemption                  // LTA — old regime only
+                              - annualComponentsPaid               // bills-substantiated portion of components
                               + decl.IncomeOtherSources;
             taxableOld = Math.Max(0, Math.Round(taxableOld));
 
@@ -204,6 +226,7 @@ namespace TDSPro.BLL
             double taxableNew = annualGross
                               - stdDedNew
                               - npsEmployerNew
+                              - annualComponentsPaid               // bills reimbursements exempt both regimes u/s 10(14)(i)
                               + decl.IncomeOtherSources;
             taxableNew = Math.Max(0, Math.Round(taxableNew));
 
@@ -215,7 +238,13 @@ namespace TDSPro.BLL
             double taxNew = taxAfterNew;
 
             // ── Choose regime ─────────────────────────────────────────────────
-            bool useOld = emp.TaxRegime == "Old";
+            bool useOld;
+            if (string.Equals(emp.TaxRegime, "Old", StringComparison.OrdinalIgnoreCase))
+                useOld = true;
+            else if (string.Equals(emp.TaxRegime, "New", StringComparison.OrdinalIgnoreCase))
+                useOld = false;
+            else
+                useOld = totalTaxOld <= totalTaxNew;   // auto-optimal: pick lower tax
             double stdDed        = useOld ? stdDedOld : stdDedNew;
             double chosenTax     = useOld ? totalTaxOld : totalTaxNew;
             double taxableChosen = useOld ? taxableOld  : taxableNew;
@@ -242,7 +271,7 @@ namespace TDSPro.BLL
                 Special           = ss.SpecialAllowance,
                 Medical           = ss.MedicalAllowance,
                 Lta               = ss.Lta,
-                Other             = ss.OtherAllowance,
+                Other             = ss.ComponentsReceived(),   // mirrors Other Allowance UI field
                 GrossSalary       = ss.GrossSalary,
                 PfEmployee        = pfMonthly,
                 EsiEmployee       = esiMonthly,
@@ -274,79 +303,35 @@ namespace TDSPro.BLL
             };
         }
 
-        /// <summary>Run payroll for all active employees of a deductor for the given month.</summary>
-        public List<SalaryComputeResult> RunBulk(int deductorId, int month, int year, string fy,
-            Dictionary<int,int>? proRataOverrides = null)
+        /// <summary>Returns PayrollRun-shaped rows for a given month, sourced from monthly_salary_entries (single source of truth after Pass 2).</summary>
+        public List<PayrollRun> GetRuns(int month, int year, int? deductorId = null)
         {
             var salaryRepo = new SalaryRepository();
-            var employees = _repo.GetAllEmployees(deductorId)
-                .Where(e => e.IsActive)
-                .Where(e =>
-                {
-                    var monthStart = new DateTime(year, month, 1);
-                    var monthEnd   = new DateTime(year, month, DateTime.DaysInMonth(year, month));
-
-                    // Skip if employee hasn't joined yet this month
-                    if (!string.IsNullOrEmpty(e.JoinDate)
-                        && DateTime.TryParse(e.JoinDate, out var jd))
-                        if (jd > monthEnd) return false;
-
-                    // Skip if employee left before this month started
-                    if (!string.IsNullOrEmpty(e.LeavingDate)
-                        && DateTime.TryParse(e.LeavingDate, out var ld))
-                        if (monthStart > ld) return false;
-
-                    return true;
-                })
-                .ToList();
-
-            var results = new List<SalaryComputeResult>();
-            int totalDays = DateTime.DaysInMonth(year, month);
+            var employees  = _repo.GetAllEmployees(deductorId).Where(e => e.IsActive).ToList();
+            // Derive FY from year+month: month >= 4 → FY starts that year; else previous year
+            int fyStart = month >= 4 ? year : year - 1;
+            string fy = $"{fyStart}-{(fyStart + 1) % 100:D2}";
+            var list = new List<PayrollRun>();
             foreach (var emp in employees)
-                if (emp.Salary != null)
-                {
-                    int daysWorked;
-                    if (proRataOverrides != null && proRataOverrides.TryGetValue(emp.Id, out int d))
-                    {
-                        daysWorked = d; // explicit override takes priority
-                    }
-                    else if (!string.IsNullOrEmpty(emp.JoinDate)
-                        && DateTime.TryParse(emp.JoinDate, out var jd)
-                        && jd.Month == month && jd.Year == year)
-                    {
-                        // Joining month: pro-rate from joining day
-                        // days worked = 30 - ((joinDay - 1) * 30 / daysInMonth) using 30-day standard
-                        int calDaysWorked = totalDays - jd.Day + 1;
-                        daysWorked = (int)Math.Round(calDaysWorked * 30.0 / totalDays);
-                    }
-                    else
-                    {
-                        daysWorked = -1; // full month
-                    }
-
-                    var result = Compute(emp, month, year, fy,
-                        daysWorked < 0 ? 0 : daysWorked,
-                        daysWorked < 0 ? 0 : 30,
-                        deductorId);
-
-                    // If user manually entered TDS in Salary Data, use it instead of computed value
-                    var savedEntry = salaryRepo.Get(emp.Id, fy, month);
-                    if (savedEntry != null && savedEntry.TdsDeducted > 0)
-                        result.Run.TdsDeducted = savedEntry.TdsDeducted;
-
-                    results.Add(result);
-                }
-
-            return results;
+            {
+                var e = salaryRepo.Get(emp.Id, fy, month);
+                if (e == null || e.Status == "Skip") continue;
+                list.Add(AdaptEntryToRun(e, emp, deductorId));
+            }
+            return list;
         }
 
-        public void SaveRun(PayrollRun run) => _repo.SaveRun(run);
-
-        public List<PayrollRun> GetRuns(int month, int year, int? deductorId = null)
-            => _repo.GetRuns(month, year, deductorId);
-
+        /// <summary>Returns all PayrollRun-shaped rows for an FY, sourced from monthly_salary_entries.</summary>
         public List<PayrollRun> GetRunsForFY(string fy, int? deductorId = null)
-            => _repo.GetRunsForFY(fy, deductorId);
+        {
+            var salaryRepo = new SalaryRepository();
+            var employees  = _repo.GetAllEmployees(deductorId).Where(e => e.IsActive).ToList();
+            var list = new List<PayrollRun>();
+            foreach (var emp in employees)
+                foreach (var e in salaryRepo.GetAllForFY(emp.Id, fy).Where(x => x.Status != "Skip"))
+                    list.Add(AdaptEntryToRun(e, emp, deductorId));
+            return list;
+        }
 
         /// <summary>
         /// Returns a year summary: one row per employee, one column per month (Apr–Mar).
@@ -354,32 +339,79 @@ namespace TDSPro.BLL
         /// </summary>
         public List<EmployeeYearSummary> GetYearSummary(string fy, int? deductorId = null)
         {
-            var runs = _repo.GetRunsForFY(fy, deductorId);
-
-            // Group by employee
-            var grouped = runs
-                .GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode, r.Pan })
-                .Select(g => new EmployeeYearSummary
+            // Source of truth = monthly_salary_entries (after Pass 2). Legacy payroll_runs no longer populated.
+            var salaryRepo = new SalaryRepository();
+            var employees = _repo.GetAllEmployees(deductorId).Where(e => e.IsActive).ToList();
+            var result = new List<EmployeeYearSummary>();
+            foreach (var emp in employees)
+            {
+                var entries = salaryRepo.GetAllForFY(emp.Id, fy);
+                if (entries.Count == 0) continue;
+                var summary = new EmployeeYearSummary
                 {
-                    EmployeeId   = g.Key.EmployeeId,
-                    EmployeeName = g.Key.EmployeeName,
-                    EmployeeCode = g.Key.EmployeeCode,
-                    Pan          = g.Key.Pan,
-                    // If duplicate rows exist for same month, keep the one with the highest Id (latest save)
-                    MonthlyRuns  = g.GroupBy(r => r.Month)
-                                    .ToDictionary(mg => mg.Key, mg => mg.OrderByDescending(r => r.Id).First()),
-                })
-                .OrderBy(s => s.EmployeeName)
-                .ToList();
+                    EmployeeId   = emp.Id,
+                    EmployeeName = emp.Name,
+                    EmployeeCode = emp.EmployeeCode,
+                    Pan          = emp.Pan,
+                    MonthlyRuns  = entries
+                        .Where(e => e.Status != "Skip")           // exclude LOP-skip months from yearly totals
+                        .GroupBy(e => e.Month)
+                        .ToDictionary(g => g.Key, g => AdaptEntryToRun(g.OrderByDescending(x => x.Id).First(), emp, deductorId)),
+                };
+                result.Add(summary);
+            }
+            return result.OrderBy(s => s.EmployeeName).ToList();
+        }
 
-            return grouped;
+        /// <summary>Project a saved MonthlySalaryEntry into a PayrollRun shape so EmployeeYearSummary keeps working.</summary>
+        private static PayrollRun AdaptEntryToRun(MonthlySalaryEntry e, Employee emp, int? deductorId)
+        {
+            return new PayrollRun
+            {
+                Id              = e.Id,
+                EmployeeId      = e.EmployeeId,
+                DeductorId      = deductorId ?? e.DeductorId,
+                Month           = e.Month,
+                Year            = e.Year,
+                FinancialYear   = e.FinancialYear,
+                Basic           = e.Basic,
+                Hra             = e.HRA,
+                Da              = e.DaAmount,
+                Special         = e.SpecialAllowance,
+                Medical         = e.MedicalAllowance,
+                Lta             = e.Lta,
+                Other           = e.OtherAllowances,
+                GrossSalary     = e.GrossPayment > 0 ? e.GrossPayment : e.Basic + e.HRA + e.DaAmount + e.SpecialAllowance + e.MedicalAllowance + e.Lta + e.OtherAllowances + e.Bonus + e.Commission + e.AdvanceSalary + e.Arrears + e.NpsEmployer + e.PerqTaxable + e.LeaveEncTaxable,
+                PfEmployee      = e.PfEmployee,
+                EsiEmployee     = e.EsiEmployee,
+                ProfessionalTax = e.ProfessionalTax,
+                TdsDeducted     = e.TdsDeducted,
+                Status          = e.IsLocked ? "Processed" : (string.IsNullOrEmpty(e.Status) ? "Draft" : e.Status),
+                TaxRegimeUsed   = emp.TaxRegime,
+                EmployeeName    = emp.Name,
+                EmployeeCode    = emp.EmployeeCode,
+                Pan             = emp.Pan,
+            };
         }
 
         public List<Employee> GetEmployees(int? deductorId = null)
             => _repo.GetAllEmployees(deductorId);
 
         public (bool ok, string msg) SaveEmployee(Employee e)
-            => _repo.SaveEmployee(e);
+        {
+            // Validate first; refuse to persist invalid data.
+            var v = PayrollValidators.ValidateEmployee(e);
+            if (!v.Ok) return (false, v.ErrorSummary);
+            var (ok, msg) = _repo.SaveEmployee(e);
+            // Surface warnings (e.g. malformed IFSC) to caller even when save succeeds
+            if (ok && v.Warnings.Count > 0)
+                return (true, $"{msg} (warnings: {v.WarningSummary})");
+            return (ok, msg);
+        }
+
+        /// <summary>Validate an employee without saving — used by UI to pre-flight before opening dialog actions.</summary>
+        public ValidationResult ValidateEmployeeOnly(Employee e)
+            => PayrollValidators.ValidateEmployee(e);
 
         public (bool ok, string msg) DeleteEmployee(int id)
             => _repo.DeleteEmployee(id);
@@ -390,145 +422,14 @@ namespace TDSPro.BLL
         public void SaveDeclaration(TaxDeclaration d)
             => _repo.SaveDeclaration(d);
 
-        /// <summary>Push processed payroll runs to tds_entries for 24Q filing.</summary>
-        public int PushTo24Q(List<PayrollRun> runs, int deductorId)
-        {
-            int pushed = 0;
-            var unpushed = runs.Where(r => r.TdsEntryId == null && r.TdsDeducted > 0).ToList();
-            if (!unpushed.Any()) return 0;
+        public List<LandlordRecord> GetLandlords(int empId, string fy)
+            => _repo.GetLandlords(empId, fy);
 
-            using var conn = Database.GetConnection();
-            using var tx   = conn.BeginTransaction();
-            try
-            {
-                foreach (var run in unpushed)
-                {
-                    // ── Resolve deductee_id — employee must exist in deductees table ──
-                    // For salary entries, auto-create a shadow deductee if not present
-                    int deducteeId = GetOrCreateDeducteeForEmployee(conn, tx, run, deductorId);
-                    if (deducteeId <= 0) continue;  // can't create — skip
+        public void SaveLandlord(LandlordRecord lr)
+            => _repo.SaveLandlord(lr);
 
-                    // ── FY-aware section code (strip "Section " prefix for storage) ──
-                    string sectionCode = run.FinancialYear != null
-                        && TDSPro.Common.TaxRules.IsNewAct(run.FinancialYear)
-                        ? "392(1)" : "192";
-
-                    using var cntCmd = conn.CreateCommand();
-                    cntCmd.Transaction = tx;
-                    cntCmd.CommandText = "SELECT COUNT(*) FROM tds_entries WHERE entry_no LIKE 'SAL%'";
-                    var salCnt = (long)(cntCmd.ExecuteScalar() ?? 0L);
-                    string entryNo = $"SAL{salCnt + 1:D6}";
-
-                    using var cmd = conn.CreateCommand();
-                    cmd.Transaction = tx;
-                    cmd.CommandText = @"
-                        INSERT OR IGNORE INTO tds_entries
-                            (entry_no, deductor_id, deductee_id, entry_date, section,
-                             nature_of_payment, financial_year, quarter,
-                             amount, rate, surcharge, cess, tds_amount, total_tds,
-                             status, remarks)
-                        VALUES
-                            (@eno, @did, @deid, @dt, @sec,
-                             'Salary', @fy, @qtr,
-                             @amt, 0, @sc, @cess, @tds, @tds,
-                             'Pending', @rem)";
-                    cmd.Parameters.AddWithValue("@eno",  entryNo);
-                    cmd.Parameters.AddWithValue("@did",  deductorId);
-                    cmd.Parameters.AddWithValue("@deid", deducteeId);
-                    cmd.Parameters.AddWithValue("@dt",   new DateTime(run.Year, run.Month, 1).ToString("yyyy-MM-dd"));
-                    cmd.Parameters.AddWithValue("@sec",  sectionCode);
-                    cmd.Parameters.AddWithValue("@fy",   run.FinancialYear);
-                    cmd.Parameters.AddWithValue("@qtr",  MonthToQuarter(run.Month));
-                    cmd.Parameters.AddWithValue("@amt",  run.GrossSalary);
-                    cmd.Parameters.AddWithValue("@sc",   run.Surcharge / 12.0);
-                    cmd.Parameters.AddWithValue("@cess", run.Cess      / 12.0);
-                    cmd.Parameters.AddWithValue("@tds",  run.TdsDeducted);
-                    cmd.Parameters.AddWithValue("@rem",  $"PAYROLL {run.MonthLabel} {run.FinancialYear}");
-
-                    int rows = cmd.ExecuteNonQuery();
-                    if (rows > 0)
-                    {
-                        using var lid = conn.CreateCommand();
-                        lid.Transaction = tx;
-                        lid.CommandText = "SELECT last_insert_rowid()";
-                        int entryId = Convert.ToInt32(lid.ExecuteScalar());
-                        _repo.MarkAsPushed(run.Id, entryId, tx);
-                        pushed++;
-                    }
-                    else
-                    {
-                        // INSERT OR IGNORE skipped a duplicate — still mark as pushed
-                        using var existCmd = conn.CreateCommand();
-                        existCmd.Transaction = tx;
-                        existCmd.CommandText = "SELECT id FROM tds_entries WHERE entry_no=@eno";
-                        existCmd.Parameters.AddWithValue("@eno", entryNo);
-                        var existId = existCmd.ExecuteScalar();
-                        if (existId != null)
-                        {
-                            _repo.MarkAsPushed(run.Id, Convert.ToInt32(existId), tx);
-                            pushed++;
-                        }
-                    }
-                }
-                tx.Commit();
-            }
-            catch
-            {
-                tx.Rollback();
-                throw;
-            }
-            return pushed;
-        }
-
-        /// <summary>
-        /// Find or create a deductee record for a salary employee.
-        /// Salary employees live in the employees table; tds_entries requires a deductee_id.
-        /// We create a minimal deductee shadow record if one doesn't exist for the PAN.
-        /// </summary>
-        private static int GetOrCreateDeducteeForEmployee(
-            Microsoft.Data.Sqlite.SqliteConnection conn,
-            Microsoft.Data.Sqlite.SqliteTransaction tx,
-            PayrollRun run, int deductorId)
-        {
-            if (string.IsNullOrEmpty(run.Pan)) return 0;
-            string pan = run.Pan.Trim().ToUpper();
-
-            // Check existing deductee by PAN (globally unique)
-            using var chk = conn.CreateCommand();
-            chk.Transaction = tx;
-            chk.CommandText = "SELECT id FROM deductees WHERE pan=@pan LIMIT 1";
-            chk.Parameters.AddWithValue("@pan", pan);
-            var existing = chk.ExecuteScalar();
-            if (existing != null) return Convert.ToInt32(existing);
-
-            // Auto-create minimal shadow deductee for this salary employee
-            // deductee_code = "EMP-{PAN}" ensures uniqueness
-            string code = $"EMP-{pan}";
-            string sec  = TDSPro.Common.TaxRules.IsNewAct(run.FinancialYear) ? "392(1)" : "192";
-
-            using var ins = conn.CreateCommand();
-            ins.Transaction = tx;
-            ins.CommandText = @"
-                INSERT OR IGNORE INTO deductees
-                    (deductee_code, name, pan, section, deductee_type,
-                     is_resident, rate, deductor_id, remarks)
-                VALUES (@code, @name, @pan, @sec, 'Individual',
-                        1, 0, @did, 'Auto-created from payroll')";
-            ins.Parameters.AddWithValue("@code", code);
-            ins.Parameters.AddWithValue("@name", run.EmployeeName);
-            ins.Parameters.AddWithValue("@pan",  pan);
-            ins.Parameters.AddWithValue("@sec",  sec);
-            ins.Parameters.AddWithValue("@did",  deductorId);
-            ins.ExecuteNonQuery();
-
-            // Return the id (whether newly created or already existed)
-            using var lid = conn.CreateCommand();
-            lid.Transaction = tx;
-            lid.CommandText = "SELECT id FROM deductees WHERE pan=@pan LIMIT 1";
-            lid.Parameters.AddWithValue("@pan", pan);
-            var result = lid.ExecuteScalar();
-            return result != null ? Convert.ToInt32(result) : 0;
-        }
+        public void DeleteLandlord(int id)
+            => _repo.DeleteLandlord(id);
 
         // ══════════════════════════════════════════════════════════════════════
         // TAX SLABS
@@ -563,43 +464,6 @@ namespace TDSPro.BLL
             if (income >  800000) { tax += (income - 800000)  * 0.10; income = 800000;  }
             if (income >  400000) { tax += (income - 400000)  * 0.05; }
             return Math.Round(tax);
-        }
-
-        /// <summary>
-        /// Apply Section 87A rebate + marginal relief.
-        /// Returns (taxAfterRebate, rebateAmount).
-        /// Marginal relief: if income is just above the rebate threshold,
-        /// tax is capped at (income − threshold) so the cliff is smoothed.
-        /// </summary>
-        private static (double taxAfter, double rebate) Apply87A(double tax, double income, bool isNew)
-        {
-            double threshold  = isNew ? 1200000 : 500000;
-            double maxRebate  = isNew ? 60000   : 12500;
-
-            if (income <= threshold)
-            {
-                // Full rebate — income is within the 0-tax zone
-                double rebate = Math.Min(tax, maxRebate);
-                return (Math.Max(0, tax - rebate), rebate);
-            }
-            else
-            {
-                // Marginal relief: effective tax cannot exceed (income − threshold)
-                // This prevents the cliff where ₹1 extra income costs ₹60,000 tax
-                double marginalCap = income - threshold;
-                double capped      = Math.Min(tax, marginalCap);
-                double rebate      = Math.Max(0, tax - capped);
-                return (capped, rebate);
-            }
-        }
-
-        private static double CalcSurcharge(double tax, double income)
-        {
-            if (income > 50000000) return Math.Round(tax * 0.37);
-            if (income > 20000000) return Math.Round(tax * 0.25);
-            if (income > 10000000) return Math.Round(tax * 0.15);
-            if (income >  5000000) return Math.Round(tax * 0.10);
-            return 0;
         }
 
         /// <summary>HRA exemption = min(actual HRA, 50%/40% basic, rent - 10% basic). Monthly.</summary>

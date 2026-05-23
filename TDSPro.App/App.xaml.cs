@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Win32;
 using MudBlazor.Services;
 using System.IO;
 using System.Windows;
+using TDSPro.App.Services;
 using TDSPro.BLL;
 using TDSPro.DAL;
 
@@ -14,17 +16,28 @@ namespace TDSPro.App
 
         public App()
         {
-            // Catch any unhandled exception and write to a log before crashing
+            // Catch any unhandled exception and write to crash log before crashing
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
                 var msg = e.ExceptionObject?.ToString() ?? "Unknown error";
                 TryLog("UNHANDLED: " + msg);
-                MessageBox.Show(msg, "TDS Pro — Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                TryCrashLog(msg);
+                if (e.IsTerminating)
+                    MessageBox.Show(
+                        "TDS Pro encountered a fatal error and must close.\n\n" +
+                        "A crash log has been saved to:\n" + CrashLogPath() + "\n\n" +
+                        "Please send this file to admin@capitaldesk.co.in for support.",
+                        "TDS Pro — Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
             };
             DispatcherUnhandledException += (s, e) =>
             {
                 TryLog("DISPATCHER: " + e.Exception?.ToString());
-                MessageBox.Show(e.Exception?.Message, "TDS Pro — Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                TryCrashLog(e.Exception?.ToString() ?? "");
+                MessageBox.Show(
+                    "An error occurred:\n\n" + e.Exception?.Message + "\n\n" +
+                    "The application will try to continue. If this persists, restart TDS Pro.\n" +
+                    "Crash log: " + CrashLogPath(),
+                    "TDS Pro — Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 e.Handled = true;
             };
 
@@ -48,6 +61,8 @@ namespace TDSPro.App
             services.AddMudServices();
 
             services.AddSingleton<AppStateService>();
+            services.AddSingleton<FilePickerService>();
+            services.AddSingleton<CsiDownloadService>();
 
             // BLL
             services.AddTransient<DeductorService>();
@@ -57,6 +72,7 @@ namespace TDSPro.App
             services.AddTransient<DashboardService>();
             services.AddTransient<PayrollService>();
             services.AddTransient<SalaryService>();
+            services.AddTransient<MonthlyCloseService>();
             services.AddTransient<TdsRulesService>();
             services.AddTransient<ReportsService>();
             services.AddTransient<ReturnService>();
@@ -64,6 +80,7 @@ namespace TDSPro.App
 
             // DAL
             services.AddTransient<LicenseService>();
+            services.AddSingleton<UpdateCheckService>();
             services.AddTransient<DueDateService>();
             services.AddTransient<PanVerificationService>();
 
@@ -71,6 +88,9 @@ namespace TDSPro.App
             services.AddBlazorWebViewDeveloperTools();
 #endif
         }
+
+        // Cached once per process — registry reads are slow on some systems
+        private static bool? _webView2Installed = null;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -87,25 +107,15 @@ namespace TDSPro.App
 
                 var state = Services.GetRequiredService<AppStateService>();
                 state.AppDataPath = appDataPath;
-                TryLog("AppDataPath: " + appDataPath);
 
-                TryLog("Initialising DB...");
+                // Fast DB init — CreateTables + seeds only (no migrations)
+                TryLog("DB fast init...");
                 Database.Initialize(appDataPath);
                 TryLog("DB OK");
 
-                try { new RulesUpdateService().AutoUpdateIfNeeded(); } catch (Exception ex) { TryLog("Rules: " + ex.Message); }
-
                 state.CurrentFY = FolderManager.DetectFY(DateTime.Today);
-                TryLog("FY: " + state.CurrentFY);
 
-                try
-                {
-                    var licSvc = Services.GetRequiredService<LicenseService>();
-                    state.CurrentLicense = licSvc.LoadSaved();
-                }
-                catch { state.CurrentLicense = LicenseService.BuildTrial(); }
-
-                // Restore last-used deductor so CompanyFolder is set before any page loads
+                // Restore last-used deductor — pages need it before first render
                 try
                 {
                     var lastId = int.Parse(Database.GetSetting("LAST_DEDUCTOR_ID", "0"));
@@ -117,13 +127,62 @@ namespace TDSPro.App
                 }
                 catch { }
 
-                try { FolderManager.EnsureStructure(state.CurrentFY); } catch { }
-                Task.Run(() => { try { Database.VacuumAndCheck(appDataPath); } catch { } });
+                state.CurrentLicense = LicenseService.BuildTrial();
 
                 TryLog("Showing MainWindow...");
                 var mainWindow = new MainWindow();
                 mainWindow.Show();
                 TryLog("MainWindow shown OK");
+
+                // Everything below runs after the window is visible ─────────────
+                Task.Run(() =>
+                {
+                    // 1. Schema migrations + daily backup (skipped if schema is current)
+                    try { Database.RunMigrationsAndBackup(appDataPath); } catch (Exception ex) { TryLog("Migrations: " + ex.Message); }
+
+                    // 2. WebView2 check — only reads registry once per process
+                    if (_webView2Installed == null)
+                        _webView2Installed = IsWebView2Installed();
+                    if (_webView2Installed == false)
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            var result = MessageBox.Show(
+                                "Microsoft Edge WebView2 Runtime is not installed.\n\n" +
+                                "TDS Pro requires WebView2 to display its interface.\n\n" +
+                                "Click OK to open the download page, then re-launch TDS Pro after installing.",
+                                "TDS Pro — Missing Component",
+                                MessageBoxButton.OKCancel,
+                                MessageBoxImage.Warning);
+                            if (result == MessageBoxResult.OK)
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                                    "https://go.microsoft.com/fwlink/p/?LinkId=2124703") { UseShellExecute = true });
+                            Shutdown(1);
+                        });
+                        return;
+                    }
+
+                    // 3. QuestPDF licence (trivial but no need to block startup)
+                    try { PdfReports.Initialize(); } catch { }
+
+                    // 4. Folder structure
+                    try { FolderManager.EnsureStructure(state.CurrentFY); } catch { }
+
+                    // 5. Real license
+                    try
+                    {
+                        var licSvc = Services.GetRequiredService<LicenseService>();
+                        var lic = licSvc.LoadSaved();
+                        if (lic != null) state.CurrentLicense = lic;
+                    }
+                    catch { }
+
+                    // 6. TDS rules update (network — last)
+                    try { new RulesUpdateService().AutoUpdateIfNeeded(); } catch (Exception ex) { TryLog("Rules: " + ex.Message); }
+
+                    // 7. DB vacuum/analyse (only if needed)
+                    try { Database.VacuumAndCheck(appDataPath); } catch { }
+                });
             }
             catch (Exception ex)
             {
@@ -147,13 +206,14 @@ namespace TDSPro.App
                 if (File.Exists(dbPath))
                 {
                     Directory.CreateDirectory(backupDir);
-                    var dest = Path.Combine(backupDir, $"TDSPro_backup_{DateTime.Now:yyyyMMdd_HHmmss}.db");
-                    File.Copy(dbPath, dest, overwrite: false);
+                    // Daily backup — one file per day, overwritten on subsequent closes the same day
+                    var dest = Path.Combine(backupDir, $"TDSPro_backup_{DateTime.Now:yyyyMMdd}.db");
+                    File.Copy(dbPath, dest, overwrite: true);
 
-                    // Keep only the 10 most recent backups
+                    // Keep only the 30 most recent daily backups (~1 month rolling window)
                     var old = Directory.GetFiles(backupDir, "TDSPro_backup_*.db")
                                        .OrderByDescending(f => f)
-                                       .Skip(10);
+                                       .Skip(30);
                     foreach (var f in old)
                         try { File.Delete(f); } catch { }
                 }
@@ -161,6 +221,54 @@ namespace TDSPro.App
             catch { }
 
             base.OnExit(e);
+        }
+
+        private static bool IsWebView2Installed()
+        {
+            // Machine-wide (most installs)
+            using var k1 = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}");
+            if (k1 != null)
+            {
+                var v = k1.GetValue("pv") as string;
+                if (!string.IsNullOrEmpty(v) && v != "0.0.0.0") return true;
+            }
+
+            using var k2 = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}");
+            if (k2 != null)
+            {
+                var v = k2.GetValue("pv") as string;
+                if (!string.IsNullOrEmpty(v) && v != "0.0.0.0") return true;
+            }
+
+            // Per-user install
+            using var k3 = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}");
+            if (k3 != null)
+            {
+                var v = k3.GetValue("pv") as string;
+                if (!string.IsNullOrEmpty(v) && v != "0.0.0.0") return true;
+            }
+
+            return false;
+        }
+
+        private static string CrashLogPath()
+            => Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "TDSPro", "Logs", $"crash_{DateTime.Now:yyyyMMdd}.log");
+
+        private static void TryCrashLog(string msg)
+        {
+            try
+            {
+                var path = CrashLogPath();
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.AppendAllText(path,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] TDS Pro v{TDSPro.Common.AppConstants.AppVersion}\n{msg}\n\n");
+            }
+            catch { }
         }
 
         private static void TryLog(string msg)
@@ -171,8 +279,9 @@ namespace TDSPro.App
                 {
                     _logPath = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        "TDSPro", "blazor_startup.log");
+                        "TDSPro", "Logs", "startup.log");
                 }
+                Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
                 File.AppendAllText(_logPath, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n");
             }
             catch { }

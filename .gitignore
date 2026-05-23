@@ -33,3 +33,20 @@ TDSPro.UI/
 # Logs
 *.log
 fvu.log
+
+# NSDL FVU utility folder (large binary, not source)
+TDS_STANDALONE_FVU_9.4/
+
+# NSDL spec/reference files (large, not source)
+*.xls
+*.pdf
+nsdl_*.tsv
+24QRQ*.txt
+26QRQ*.txt
+*.fvu
+
+# WebView2 installer (large binary)
+MicrosoftEdgeWebview2Setup.exe
+
+# IDE cache files
+*.lscache

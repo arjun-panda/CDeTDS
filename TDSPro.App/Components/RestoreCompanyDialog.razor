@@ -1,0 +1,44 @@
+@* Lets an admin pick a soft-deleted company and restore it (is_active=1) *@
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.Restore" Class="mr-2" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Restore Deleted Company</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Color="Color.Secondary" Class="mb-3">
+            Pick a company to restore. All its TDS entries and challans will become visible again.
+        </MudText>
+        <MudSelect T="int" @bind-Value="_selectedId" Label="Deleted Company"
+                   Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+            @foreach (var d in Deleted)
+            {
+                <MudSelectItem Value="@d.Id">@d.CompanyName (@d.Tan)</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                   StartIcon="@Icons.Material.Filled.Restore"
+                   Disabled="_selectedId == 0"
+                   OnClick="Confirm">
+            Restore
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<Deductor> Deleted { get; set; } = new();
+    private int _selectedId;
+
+    protected override void OnInitialized()
+    {
+        if (Deleted.Count > 0) _selectedId = Deleted[0].Id;
+    }
+
+    void Cancel() => MudDialog.Cancel();
+    void Confirm() => MudDialog.Close(DialogResult.Ok(_selectedId));
+}

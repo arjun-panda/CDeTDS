@@ -20,6 +20,7 @@ namespace TDSPro.DAL.Models
         public string ResponsibleName { get; set; } = "";
         public string ResponsiblePan  { get; set; } = "";
         public string Designation     { get; set; } = "";
+        public string Gstin           { get; set; } = "";
         // Bank defaults — auto-filled when adding challans
         public string DefaultBsrCode  { get; set; } = "";
         public string DefaultBankName { get; set; } = "";

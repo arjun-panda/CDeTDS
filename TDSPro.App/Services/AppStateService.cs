@@ -15,6 +15,9 @@ namespace TDSPro.App
         public string AppDataPath     { get; set; } = "";
         public string CurrentUser     { get; private set; } = "";
         public string CurrentRole     { get; private set; } = "";
+        // FY locked at login — the only FY where create / edit / delete is allowed.
+        public string SessionFY       { get; private set; } = "";
+        // FY currently being viewed in the UI — may differ from SessionFY when browsing past years.
         public string CurrentFY       { get; set; } = "";
         public int    CurrentDeductorId   { get; private set; } = 0;
         public string CurrentDeductorName { get; private set; } = "";
@@ -24,6 +27,12 @@ namespace TDSPro.App
 
         public string CurrentAY =>
             TDSPro.Common.TaxRules.AssessmentYearLabel(CurrentFY);
+
+        /// <summary>True when the user is viewing a year other than the one they logged in to — UI must block create/edit/delete.</summary>
+        public bool IsReadOnlyFY =>
+            !string.IsNullOrEmpty(CurrentFY)
+            && !string.IsNullOrEmpty(SessionFY)
+            && CurrentFY != SessionFY;
 
         public event Action? OnChange;
 
@@ -38,12 +47,22 @@ namespace TDSPro.App
         {
             CurrentUser = "";
             CurrentRole = "";
+            SessionFY = "";
             CurrentDeductorId = 0;
             CurrentDeductorName = "";
             CurrentDeductorTan = "";
             NotifyChanged();
         }
 
+        /// <summary>Called once at login. Locks the editable FY for the rest of the session.</summary>
+        public void SetSessionFY(string fy)
+        {
+            SessionFY = fy;
+            CurrentFY = fy;
+            NotifyChanged();
+        }
+
+        /// <summary>Switch the viewed FY for reference (read-only when ≠ SessionFY).</summary>
         public void SetFY(string fy)
         {
             CurrentFY = fy;

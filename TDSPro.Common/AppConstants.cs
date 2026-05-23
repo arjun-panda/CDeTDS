@@ -8,7 +8,8 @@ namespace TDSPro.Common
     public static class AppConstants
     {
         public const string AppName    = "TDS Pro";
-        public const string AppVersion = "2.0.0";
+        public const string AppVersion = "3.1.0";
+        public const string VersionCheckUrl = "https://tdspro.in/version.json";
         public const string DbFileName = "tds_pro.db";
 
         // ── Known section codes (for UI dropdowns only) ───────────────────────
@@ -20,7 +21,9 @@ namespace TDSPro.Common
             "194I","194IA","194IB","194IC","194J","194K","194LA",
             "194LB","194LC","194LD","194M","194N","194O","194P",
             "194Q","194R","194S","195","196A","196B","196C","196D",
-            "206AB","206CCA"
+            "206AB","206CCA",
+            // TCS sections (27EQ)
+            "206C","206C(1)","206C(1C)","206C(1F)","206C(1G)","206C(1H)"
         };
 
         // ── Higher TDS rate when PAN not available ────────────────────────────
@@ -37,20 +40,28 @@ namespace TDSPro.Common
             "NRI - Individual", "NRI - Company", "Other"
         };
 
-        // ── Financial years — generated dynamically so the list never expires ─
-        // Shows 3 past FYs + current + 1 future FY
-        // e.g. today = Apr 2026 → current FY = 2026-27
-        //      list  = 2023-24, 2024-25, 2025-26, 2026-27, 2027-28
+        // ── Current financial year (dynamic) ─────────────────────────────────
+        public static string CurrentFinancialYear
+        {
+            get
+            {
+                int y = DateTime.Today.Month >= 4 ? DateTime.Today.Year : DateTime.Today.Year - 1;
+                return $"{y}-{(y + 1) % 100:D2}";
+            }
+        }
+
+        // ── Financial years — current + 3 past, newest first, no future FY ──
+        // The April-1st rollover auto-adds the new FY (current year becomes part of the list)
+        // e.g. today = May 2026 → list = 2026-27, 2025-26, 2024-25, 2023-24
         public static string[] FinancialYears
         {
             get
             {
-                // Determine current FY: after 31-March means new FY has started
-                int today     = DateTime.Today.Month >= 4
-                                ? DateTime.Today.Year
-                                : DateTime.Today.Year - 1;
+                int today = DateTime.Today.Month >= 4
+                            ? DateTime.Today.Year
+                            : DateTime.Today.Year - 1;
                 var list = new List<string>();
-                for (int y = today - 3; y <= today + 1; y++)
+                for (int y = today; y >= today - 3; y--)
                     list.Add($"{y}-{(y + 1) % 100:D2}");
                 return list.ToArray();
             }
@@ -63,16 +74,18 @@ namespace TDSPro.Common
         // ── Indian states ─────────────────────────────────────────────────────
         public static readonly string[] IndianStates = new[]
         {
-            "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
-            "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
-            "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
-            "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
-            "Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi",
-            "Jammu & Kashmir","Ladakh","Puducherry","Chandigarh","Other"
+            // Ordered alphabetically; names must match FvuGenerator.NsdlStateCode() exactly
+            "Andaman & Nicobar","Andhra Pradesh","Andhra Pradesh (New)","Arunachal Pradesh",
+            "Assam","Bihar","Chandigarh","Chhattisgarh","Dadra & Nagar Haveli",
+            "Daman & Diu","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh",
+            "Jammu & Kashmir","Jharkhand","Karnataka","Kerala","Ladakh","Lakshadweep",
+            "Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland",
+            "Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+            "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
         };
 
         // ── Return form types ─────────────────────────────────────────────────
-        public static readonly string[] ReturnFormTypes = new[] { "24Q", "26Q", "27Q", "27EQ" };
+        public static readonly string[] ReturnFormTypes = new[] { "24Q", "26Q", "27EQ" };
 
         // ── Nature of payment by section (for auto-fill in TDS entry) ─────────
         public static readonly Dictionary<string, string> SectionNature = new()
@@ -114,8 +127,15 @@ namespace TDSPro.Common
             ["196B"]  = "Income from units (including long-term capital gain)",
             ["196C"]  = "Income from foreign currency bonds or shares of Indian company",
             ["196D"]  = "Income of foreign institutional investors from securities",
-            ["206AB"] = "Payment to specified person (non-filer of ITR)",
-            ["206CCA"]= "Collected from specified person (non-filer of ITR)",
+            ["206AB"]    = "Payment to specified person (non-filer of ITR)",
+            ["206CCA"]   = "Collected from specified person (non-filer of ITR)",
+            // TCS sections (27EQ)
+            ["206C"]     = "TCS — Alcoholic liquor, timber, tendu leaves, forest produce, scrap, minerals",
+            ["206C(1)"]  = "TCS — Sale of alcoholic liquor for human consumption",
+            ["206C(1C)"] = "TCS — Grant of lease or licence of parking lot, toll plaza, mine or quarry",
+            ["206C(1F)"] = "TCS — Sale of motor vehicle exceeding ₹10 lakh",
+            ["206C(1G)"] = "TCS — Overseas remittance / foreign tour package under LRS",
+            ["206C(1H)"] = "TCS — Sale of goods exceeding ₹50 lakh in a year",
         };
 
         // ── User roles ────────────────────────────────────────────────────────

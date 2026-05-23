@@ -1,4 +1,4 @@
-﻿@page "/entries"
+@page "/entries"
 @inject AppStateService AppState
 @inject TdsEntryService Svc
 @inject DeducteeService DeducteeSvc
@@ -7,93 +7,199 @@
 @inject IDialogService DialogSvc
 @implements IDisposable
 
-<div class="d-flex align-center gap-2 mb-2 flex-wrap">
-    <MudText Typo="Typo.h5">TDS Entries</MudText>
-    <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+<div style="display:flex;flex-direction:column;height:100%">
+
+@* ── compact toolbar ── *@
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-shrink:0;flex-wrap:wrap">
+    <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">TDS Entries</span>
+
+    @if (_items.Any())
+    {
+        <div style="display:flex;align-items:stretch;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;gap:0">
+            <div style="padding:4px 12px;border-right:1px solid #e2e8f0;text-align:center">
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px">Entries</div>
+                <div style="font-size:14px;font-weight:700;color:#1565C0">@_items.Count</div>
+            </div>
+            <div style="padding:4px 12px;border-right:1px solid #e2e8f0;text-align:center">
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px">Gross</div>
+                <div style="font-size:14px;font-weight:700;color:#2e7d32">₹@_items.Sum(x=>x.Amount).ToString("N0")</div>
+            </div>
+            <div style="padding:4px 12px;border-right:1px solid #e2e8f0;text-align:center">
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px">Total TDS</div>
+                <div style="font-size:14px;font-weight:700;color:#e65100">₹@_items.Sum(x=>x.TotalTds).ToString("N0")</div>
+            </div>
+            <div style="padding:4px 12px;text-align:center">
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px">Challan</div>
+                <div style="font-size:14px;font-weight:700;color:#6a1b9a">@_items.Count(x=>!string.IsNullOrEmpty(x.ChallanNo))</div>
+            </div>
+        </div>
+    }
+
+    <div style="flex:1;min-width:0"></div>
+    <MudTextField @bind-Value="_search" Placeholder="Search deductee, section, entry no..."
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                  Style="width:260px;flex-shrink:0" />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Add"
+               Disabled="@AppState.IsReadOnlyFY"
                OnClick="OpenAdd">New Entry</MudButton>
 </div>
 
-@if (_items.Any())
-{
-    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px;background:#e3f2fd;border-radius:8px;padding:8px 14px;text-align:center">
-            <div style="font-size:10px;color:#666">Total Entries</div>
-            <div style="font-size:18px;font-weight:700;color:#1565C0">@_items.Count</div>
+@* ── scrollable content ── *@
+<div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px">
+    @if (!_items.Any())
+    {
+        <EmptyState Icon="@Icons.Material.Filled.Receipt"
+                    Title="No TDS entries yet"
+                    Subtitle="TDS entries record tax deducted from each payment. Salary entries (Section 192) are auto-created from Payroll — others are added manually."
+                    PrimaryCta="+ New Entry"
+                    PrimaryAction="OpenAdd"
+                    HelpText="Bulk-import non-salary TDS entries via Excel Import/Export." />
+    }
+    @{
+        var filtered = _filteredItems.ToList();
+        var months = filtered
+            .GroupBy(x => new DateTime(x.EntryDate.Year, x.EntryDate.Month, 1))
+            .OrderByDescending(g => g.Key)
+            .ToList();
+    }
+    @if (_items.Any() && !filtered.Any())
+    {
+        <div style="padding:60px 20px;text-align:center;color:#9e9e9e;font-size:14px;
+                    border:2px dashed #e0e0e0;border-radius:12px;background:#fafafa">
+            No TDS entries match your search.
         </div>
-        <div style="flex:2;min-width:160px;background:#e8f5e9;border-radius:8px;padding:8px 14px;text-align:center">
-            <div style="font-size:10px;color:#666">Gross Amount</div>
-            <div style="font-size:18px;font-weight:700;color:#2e7d32">₹@_items.Sum(x=>x.Amount).ToString("N0")</div>
-        </div>
-        <div style="flex:2;min-width:160px;background:#fff3e0;border-radius:8px;padding:8px 14px;text-align:center">
-            <div style="font-size:10px;color:#666">Total TDS</div>
-            <div style="font-size:18px;font-weight:700;color:#e65100">₹@_items.Sum(x=>x.TotalTds).ToString("N0")</div>
-        </div>
-        <div style="flex:1;min-width:120px;background:#f3e5f5;border-radius:8px;padding:8px 14px;text-align:center">
-            <div style="font-size:10px;color:#666">Linked to Challan</div>
-            <div style="font-size:18px;font-weight:700;color:#6a1b9a">@_items.Count(x=>!string.IsNullOrEmpty(x.ChallanNo))</div>
-        </div>
-    </div>
-}
+    }
+    @foreach (var month in months)
+    {
+        var isCollapsed = _collapsedMonths.Contains(month.Key);
+        var monthTds    = month.Sum(x => x.TotalTds);
+        var monthGross  = month.Sum(x => x.Amount);
+        var depositDue  = month.Key.Month == 3
+                          ? new DateTime(month.Key.Year, 4, 30)
+                          : month.Key.AddMonths(1).AddDays(6);
+        var sectionGroups = month.GroupBy(x => x.Section ?? "").OrderBy(g => g.Key).ToList();
+        var isOverdue   = depositDue < DateTime.Today;
 
-<MudTextField @bind-Value="_search" Placeholder="Search deductee, section, entry no..."
-              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-              Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-              Style="max-width:360px" Class="mb-2" />
+        <div class="te-month-card">
 
-<div style="height:calc(100vh - 290px);overflow:auto;border:1px solid #e0e0e0;border-radius:8px">
-    <table style="width:100%;border-collapse:collapse;table-layout:fixed">
-        <colgroup>
-            <col style="width:110px" />
-            <col style="width:100px" />
-            <col />
-            <col style="width:80px" />
-            <col style="width:50px" />
-            <col style="width:110px" />
-            <col style="width:100px" />
-            <col style="width:75px" />
-        </colgroup>
-        <thead>
-            <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:1">
-                <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px">Entry No</th>
-                <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px">Date</th>
-                <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px">Deductee</th>
-                <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px">Section</th>
-                <th style="padding:10px 12px;text-align:center;font-weight:600;font-size:13px">Qtr</th>
-                <th style="padding:10px 12px;text-align:right;font-weight:600;font-size:13px">Gross (₹)</th>
-                <th style="padding:10px 12px;text-align:right;font-weight:600;font-size:13px">TDS (₹)</th>
-                <th style="padding:10px 12px"></th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (!_filteredItems.Any())
+            @* ── Month header ── *@
+            <div class="te-month-hdr" @onclick="@(() => ToggleMonth(month.Key))">
+                <span class="te-chevron">@(isCollapsed ? "›" : "∨")</span>
+                <div style="display:flex;flex-direction:column;gap:1px">
+                    <span class="te-month-name">@month.Key.ToString("MMM yyyy")</span>
+                    <span class="te-month-meta">
+                        @month.Count() entr@(month.Count()==1?"y":"ies") &nbsp;·&nbsp;
+                        @string.Join(", ", sectionGroups.Select(s => s.Key))
+                    </span>
+                </div>
+                <div style="flex:1"></div>
+                <span class="te-deposit-badge @(isOverdue ? "te-overdue" : "")">
+                    Due @depositDue.ToString("dd MMM")
+                </span>
+                <div class="te-hdr-sep"></div>
+                <div style="text-align:right">
+                    <div class="te-hdr-lbl">TDS</div>
+                    <div class="te-hdr-tds">₹@monthTds.ToString("N0")</div>
+                </div>
+                <div class="te-hdr-sep"></div>
+                <div style="text-align:right">
+                    <div class="te-hdr-lbl">Gross</div>
+                    <div class="te-hdr-gross">₹@monthGross.ToString("N0")</div>
+                </div>
+            </div>
+
+            @if (!isCollapsed)
             {
-                <tr>
-                    <td colspan="8" style="padding:40px;text-align:center;color:#9e9e9e;font-size:14px">
-                        No TDS entries found.
-                    </td>
-                </tr>
+                @* ── flat table, no intermediate section strip ── *@
+                <table class="te-tbl">
+                    <colgroup>
+                        <col style="width:100px"/>
+                        <col style="width:90px"/>
+                        <col/>
+                        <col style="width:44px"/>
+                        <col style="width:36px"/>
+                        <col style="width:110px"/>
+                        <col style="width:110px"/>
+                        <col style="width:108px"/>
+                    </colgroup>
+                    <thead>
+                        <tr class="te-thead-row">
+                            <th class="te-th">Entry No</th>
+                            <th class="te-th">Date</th>
+                            <th class="te-th">Deductee</th>
+                            <th class="te-th" style="text-align:center">Sec</th>
+                            <th class="te-th" style="text-align:center">Qtr</th>
+                            <th class="te-th" style="text-align:right">Gross (₹)</th>
+                            <th class="te-th" style="text-align:right">TDS (₹)</th>
+                            <th class="te-th" style="text-align:right"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sec in sectionGroups)
+                        {
+                            @foreach (var e in sec.OrderByDescending(x => x.EntryDate))
+                            {
+                                <tr class="te-row" @onmouseenter="@(() => _hoverId = e.Id)" @onmouseleave="@(() => _hoverId = 0)"
+                                    style="background:@(_hoverId==e.Id?"#f0f7ff":"#fff")">
+                                    <td class="te-td" style="font-family:monospace;font-size:11px;color:#94a3b8">@e.EntryNo</td>
+                                    <td class="te-td" style="color:#64748b;white-space:nowrap">@e.EntryDate.ToString("dd-MMM-yy")</td>
+                                    <td class="te-td" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@e.DeducteeName</td>
+                                    <td class="te-td" style="text-align:center">
+                                        <span class="te-sec-badge">@(string.IsNullOrEmpty(e.Section) ? "—" : e.Section)</span>
+                                    </td>
+                                    <td class="te-td" style="text-align:center;color:#94a3b8;font-size:11px">@e.Quarter</td>
+                                    <td class="te-td" style="text-align:right;color:#475569">₹@e.Amount.ToString("N0")</td>
+                                    <td class="te-td" style="text-align:right;font-weight:700;color:#e65100">₹@e.TotalTds.ToString("N0")</td>
+                                    <td class="te-td" style="text-align:right;white-space:nowrap;padding-right:8px">
+                                        @if (e.Status == "Adjusted")
+                                        {
+                                            <span class="te-adj-badge">Adj</span>
+                                        }
+                                        else if (e.Status == "Paid")
+                                        {
+                                            <span class="te-paid-badge">Paid</span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(e.ChallanNo))
+                                        {
+                                            <span class="te-challan-badge" title="Challan: @e.ChallanNo">✓ Linked</span>
+                                        }
+                                        else
+                                        {
+                                            <MudTooltip Text="Mark as Adjusted">
+                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Small"
+                                                               Color="Color.Secondary" Disabled="@AppState.IsReadOnlyFY"
+                                                               OnClick="() => MarkAdjusted(e)" />
+                                            </MudTooltip>
+                                        }
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                       Disabled="@AppState.IsReadOnlyFY" OnClick="() => OpenEdit(e)" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                       Disabled="@(AppState.IsReadOnlyFY && (!string.IsNullOrEmpty(e.ChallanNo) || e.Status=="Paid"))"
+                                                       OnClick="() => DeleteItem(e)" />
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="te-tfoot-row">
+                            <td colspan="5" class="te-tfoot-td" style="text-align:right;color:#64748b;font-size:11px">
+                                @month.Count() entries &nbsp;·&nbsp; @sectionGroups.Count section@(sectionGroups.Count==1?"":"s")
+                            </td>
+                            <td class="te-tfoot-td" style="text-align:right;color:#475569">₹@monthGross.ToString("N0")</td>
+                            <td class="te-tfoot-td" style="text-align:right;color:#e65100;font-weight:700">₹@monthTds.ToString("N0")</td>
+                            <td class="te-tfoot-td"></td>
+                        </tr>
+                    </tfoot>
+                </table>
             }
-            @foreach (var e in _filteredItems)
-            {
-                <tr @onmouseenter="@(() => _hoverId = e.Id)" @onmouseleave="@(() => _hoverId = 0)"
-                    style="background:@(_hoverId==e.Id?"#f5f5f5":e.Id%2==0?"#fafafa":"#fff");border-bottom:1px solid #f0f0f0;transition:background .15s">
-                    <td style="padding:9px 12px;font-family:monospace;font-size:13px;white-space:nowrap">@e.EntryNo</td>
-                    <td style="padding:9px 12px;font-size:13px;white-space:nowrap">@e.EntryDate.ToString("dd-MMM-yyyy")</td>
-                    <td style="padding:9px 12px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@e.DeducteeName</td>
-                    <td style="padding:9px 12px;font-size:13px">@e.Section</td>
-                    <td style="padding:9px 12px;font-size:13px;text-align:center">@e.Quarter</td>
-                    <td style="padding:9px 12px;font-size:13px;text-align:right">@e.Amount.ToString("N0")</td>
-                    <td style="padding:9px 12px;font-size:13px;text-align:right;font-weight:700;color:#e65100">@e.TotalTds.ToString("N0")</td>
-                    <td style="padding:9px 12px;text-align:right;white-space:nowrap">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit"   Size="Size.Small" OnClick="() => OpenEdit(e)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteItem(e)" />
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-</div>
+        </div>
+    }
+</div>@* end scrollable *@
+</div>@* end flex column *@
 
 <MudDialog @bind-Visible="_dialogOpen" Options="_dialogOptions">
     <TitleContent>
@@ -104,7 +210,7 @@
         @if (_editing != null)
         {
             <MudGrid Spacing="2">
-                @* Row 1 â€” Deductee, Section, Quarter *@
+                @* Row 1 — Deductee, Section, Quarter *@
                 <MudItem xs="7">
                     <MudAutocomplete T="Deductee"
                                      Label="Deductee*"
@@ -134,7 +240,7 @@
                     </MudSelect>
                 </MudItem>
 
-                @* Row 2 â€” Payment Date + Nature of Payment *@
+                @* Row 2 — Payment Date + Nature of Payment *@
                 <MudItem xs="4">
                     <DateField Value="_paymentDate" ValueChanged="OnDateChanged"
                                Label="Payment / Credit Date*"
@@ -145,7 +251,7 @@
                                   Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
 
-                @* Row 3 â€” Amount, Rate, TDS, Calc *@
+                @* Row 3 — Amount, Rate, TDS, Calc *@
                 <MudItem xs="4">
                     <MudNumericField T="double?" Value="@(_editing.Amount == 0 ? null : (double?)_editing.Amount)"
                                      Label="Gross Amount (₹)*" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
@@ -158,23 +264,19 @@
                                      Placeholder="0.00" HideSpinButtons="true" Class="amount-field"
                                      ValueChanged="@((double? v) => OnRateChanged(v ?? 0))" />
                 </MudItem>
-                <MudItem xs="3">
+                <MudItem xs="5">
                     <MudNumericField T="double?" Value="@(_editing.TdsAmount == 0 ? null : (double?)_editing.TdsAmount)"
-                                     Label="TDS (₹)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
-                                     Placeholder="0.00" HideSpinButtons="true" Class="amount-field"
-                                     ValueChanged="@((double? v) => { if (_editing != null) _editing.TdsAmount = v ?? 0; })" />
-                </MudItem>
-                <MudItem xs="2" Class="d-flex align-center">
-                    <MudButton Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" OnClick="AutoCalcTds">Calc</MudButton>
+                                     Label="TDS (₹)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0"
+                                     Placeholder="0" HideSpinButtons="true" Class="amount-field" ReadOnly="true" />
                 </MudItem>
 
-                @* Row 4 â€” Remarks *@
+                @* Row 4 — Remarks *@
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_editing.Remarks" Label="Remarks"
                                   Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
 
-                @* Smart info chips â€” 206AA / LDC / Challan link *@
+                @* Smart info chips — 206AA / LDC / Challan link *@
                 @if (_infoChips.Any())
                 {
                     <MudItem xs="12">
@@ -191,7 +293,7 @@
                 {
                     <MudItem xs="12">
                         <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Link">
-                            Linked to Challan <b>@_editing.ChallanNo</b> â€” unlink from Challans page to change.
+                            Linked to Challan <b>@_editing.ChallanNo</b> — unlink from Challans page to change.
                         </MudAlert>
                     </MudItem>
                 }
@@ -199,20 +301,20 @@
                 @* Total bar *@
                 <MudItem xs="12">
                     <div style="background:#e3f2fd;border-radius:6px;padding:8px 14px;display:flex;gap:20px;align-items:center;font-size:12px">
-                        <div><span style="color:#888">TDS</span>&nbsp;<b>₹@_editing.TdsAmount.ToString("N2")</b></div>
+                        <div><span style="color:#888">TDS</span>&nbsp;<b>₹@_editing.TdsAmount.ToString("N0")</b></div>
                         @if (_editing.Surcharge > 0)
                         {
                             <div style="color:#bbb">+</div>
-                            <div><span style="color:#888">Sur</span>&nbsp;<b>₹@_editing.Surcharge.ToString("N2")</b></div>
+                            <div><span style="color:#888">Sur</span>&nbsp;<b>₹@_editing.Surcharge.ToString("N0")</b></div>
                         }
                         @if (_editing.Cess > 0)
                         {
                             <div style="color:#bbb">+</div>
-                            <div><span style="color:#888">Cess</span>&nbsp;<b>₹@_editing.Cess.ToString("N2")</b></div>
+                            <div><span style="color:#888">Cess</span>&nbsp;<b>₹@_editing.Cess.ToString("N0")</b></div>
                         }
                         <div style="margin-left:auto;font-size:14px">
                             <span style="color:#666">TOTAL&nbsp;</span>
-                            <b style="font-size:16px;color:#1565C0">₹@((_editing.TdsAmount + _editing.Surcharge + _editing.Cess).ToString("N2"))</b>
+                            <b style="font-size:16px;color:#1565C0">₹@((_editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee).ToString("N0"))</b>
                         </div>
                     </div>
                 </MudItem>
@@ -224,7 +326,8 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save"
+                   Disabled="@AppState.IsReadOnlyFY">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -234,6 +337,12 @@
     private string _search = "";
     private int _hoverId;
 
+    private HashSet<DateTime> _collapsedMonths = new();
+    void ToggleMonth(DateTime m)
+    {
+        if (!_collapsedMonths.Add(m)) _collapsedMonths.Remove(m);
+    }
+
     private IEnumerable<TdsEntry> _filteredItems => string.IsNullOrEmpty(_search) ? _items :
         _items.Where(e =>
             e.EntryNo.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
@@ -241,6 +350,7 @@
             e.DeducteePan.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
             e.Section.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
             (e.ChallanNo?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+
 
     private bool _dialogOpen;
     private TdsEntry? _editing;
@@ -281,7 +391,7 @@
     {
         _items = Svc.GetAll(AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null, AppState.CurrentFY);
     }
-    void Reload() { Load(); StateHasChanged(); }
+    void Reload() { _collapsedMonths.Clear(); Load(); StateHasChanged(); }
 
     void OpenAdd()
     {
@@ -318,7 +428,7 @@
         _selectedDeductee = _deductees.FirstOrDefault(x => x.Id == _editing.DeducteeId);
         _infoChips        = BuildInfoChips(_editing);
         _saveError   = "";
-        AutoCalcTds();   // recalculate surcharge/cess from current rules â€” clears stale DB values
+        AutoCalcTds();   // recalculate surcharge/cess from current rules — clears stale DB values
         _dialogOpen  = true;
     }
 
@@ -370,10 +480,10 @@
             entry.Rate = d.LowerCertRate;
             return;
         }
-        // 206AA: no PAN â†’ rate = max(default, 20%)
+        // 206AA: no PAN → rate = higher of (20%, twice the normal rate)
         if (string.IsNullOrWhiteSpace(d.Pan))
         {
-            entry.Rate = Math.Max(defaultRate, 20.0);
+            entry.Rate = Math.Max(20.0, defaultRate * 2);
             return;
         }
         entry.Rate = defaultRate;
@@ -411,10 +521,10 @@
         if (d == null) return chips;
 
         if (string.IsNullOrWhiteSpace(d.Pan))
-            chips.Add(new InfoChip("206AA â€” No PAN, rate = max(rule, 20%)", Color.Warning, Icons.Material.Filled.Warning));
+            chips.Add(new InfoChip("206AA — No PAN, rate = max(rule, 20%)", Color.Warning, Icons.Material.Filled.Warning));
 
         if (!string.IsNullOrEmpty(d.LowerCertNo) && d.LowerCertRate > 0)
-            chips.Add(new InfoChip($"LDC â€” rate {d.LowerCertRate:N1}% (cert: {d.LowerCertNo}" +
+            chips.Add(new InfoChip($"LDC — rate {d.LowerCertRate:N1}% (cert: {d.LowerCertNo}" +
                                    (string.IsNullOrEmpty(d.LowerCertTill) ? ")" : $", till {d.LowerCertTill})"),
                                    Color.Success, Icons.Material.Filled.VerifiedUser));
 
@@ -430,15 +540,20 @@
         if (_editing.Amount > 0 && _editing.Rate > 0)
         {
             var prev = _editing.TdsAmount;
-            _editing.TdsAmount = Math.Round(_editing.Amount * _editing.Rate / 100, 2);
+            _editing.TdsAmount = Math.Round(_editing.Amount * _editing.Rate / 100, 0);
         }
         else
         {
         }
 
-        bool cessApplicable = _editing.Section is "192" or "195";
-
-        if (!string.IsNullOrEmpty(_editing.Section))
+        // Sec 192 salary TDS: amount already includes cess (computed by payroll engine).
+        // Never add surcharge/cess on top — zero them out.
+        if (_editing.Section is "192" or "192A" or "192B")
+        {
+            _editing.Surcharge = 0;
+            _editing.Cess      = 0;
+        }
+        else if (!string.IsNullOrEmpty(_editing.Section))
         {
             var d    = _deductees.FirstOrDefault(x => x.Id == _editing.DeducteeId);
 
@@ -448,21 +563,10 @@
                 d?.IsResident ?? true,
                 _editing.EntryDate == default ? DateTime.Today : _editing.EntryDate);
 
-
-            if (rule != null)
+            if (rule != null && _editing.Section is "195")
             {
-                if (cessApplicable)
-                {
-                    var prevSur = _editing.Surcharge;
-                    var prevCes = _editing.Cess;
-                    _editing.Surcharge = Math.Round(_editing.TdsAmount * rule.SurchargeRate / 100, 2);
-                    _editing.Cess      = Math.Round((_editing.TdsAmount + _editing.Surcharge) * rule.CessRate / 100, 2);
-                }
-                else
-                {
-                    _editing.Surcharge = 0;
-                    _editing.Cess      = 0;
-                }
+                _editing.Surcharge = Math.Round(_editing.TdsAmount * rule.SurchargeRate / 100, 2);
+                _editing.Cess      = Math.Round((_editing.TdsAmount + _editing.Surcharge) * rule.CessRate / 100, 2);
             }
             else
             {
@@ -489,12 +593,17 @@
     void Save()
     {
         if (_editing == null) return;
+        if (AppState.IsReadOnlyFY)
+        {
+            Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year). Switch to FY {AppConstants.CurrentFinancialYear} to make changes.", Severity.Warning);
+            return;
+        }
 
-        // License limit â€” only block when adding new entry
+        // License limit — only block when adding new entry
         if (_editing.Id == 0)
         {
             if (AppState.CurrentLicense.IsReadOnly)
-                { _saveError = "License expired â€” renew to add entries."; return; }
+                { _saveError = "License expired — renew to add entries."; return; }
             var maxEnt = AppState.CurrentLicense.MaxEntries;
             if (maxEnt != int.MaxValue && _items.Count >= maxEnt)
                 { _saveError = $"Limit reached: your license allows {maxEnt} entries. Upgrade to Pro for more."; return; }
@@ -508,6 +617,14 @@
         _editing.PaymentDate = _paymentDate.Value;
         _editing.EntryDate   = _paymentDate.Value;
 
+        // Auto-set due date: 7th of next month; 30 Apr for March deductions (Sec 192)
+        if (_editing.DueDate == default || _editing.DueDate == DateTime.MinValue)
+        {
+            var pd = _paymentDate.Value;
+            _editing.DueDate = pd.Month == 3
+                ? new DateTime(pd.Year + 1, 4, 30)
+                : new DateTime(pd.Month == 12 ? pd.Year + 1 : pd.Year, pd.Month == 12 ? 1 : pd.Month + 1, 7);
+        }
 
         // Always recalculate before saving
         AutoCalcTds();
@@ -517,21 +634,33 @@
         if (_editing.Section is not ("192" or "195"))
             _editing.Cess = 0;
 
-        _editing.TotalTds = _editing.TdsAmount + _editing.Surcharge + _editing.Cess;
-
+        _editing.TotalTds = _editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee;
 
         var (ok, msg) = Svc.Save(_editing);
         if (ok) { _dialogOpen = false; Load(); Snackbar.Add("TDS entry saved.", Severity.Success); }
         else _saveError = msg;
     }
 
+    void MarkAdjusted(TdsEntry e)
+    {
+        var (ok, msg) = Svc.MarkAdjusted(e.Id);
+        if (ok) { Load(); Snackbar.Add($"{e.EntryNo} marked as Adjusted.", Severity.Success); }
+        else Snackbar.Add(msg, Severity.Error);
+    }
+
     async Task DeleteItem(TdsEntry e)
     {
+        // Allow deleting Pending unlinked entries even in read-only FY (e.g. duplicate cleanup)
+        if (AppState.IsReadOnlyFY && (!string.IsNullOrEmpty(e.ChallanNo) || e.Status == "Paid"))
+        {
+            Snackbar.Add($"FY {AppState.CurrentFY} is locked — only unlinked Pending entries can be deleted.", Severity.Warning);
+            return;
+        }
         // Block deletion if entry is linked to a challan
         if (!string.IsNullOrEmpty(e.ChallanNo))
         {
             await DialogSvc.ShowMessageBox(
-                "Cannot Delete â€” Entry is Linked",
+                "Cannot Delete — Entry is Linked",
                 $"Entry '{e.EntryNo}' is linked to Challan '{e.ChallanNo}'.\n\nUnlink it from the challan first, then delete.",
                 yesText: "OK");
             return;
@@ -539,7 +668,7 @@
 
         var confirmed = await DialogSvc.ShowMessageBox(
             "Delete Entry?",
-            $"Delete TDS entry '{e.EntryNo}' for '{e.DeducteeName}' â€” ₹{e.TdsAmount:N0}?",
+            $"Delete TDS entry '{e.EntryNo}' for '{e.DeducteeName}' — ₹{e.TdsAmount:N0}?",
             yesText: "Delete", cancelText: "Cancel");
         if (confirmed != true) return;
         var (ok, msg) = Svc.Delete(e.Id);

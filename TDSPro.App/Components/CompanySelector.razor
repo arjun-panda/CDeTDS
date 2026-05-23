@@ -2,13 +2,14 @@
 @inject AppStateService AppState
 @inject DeductorService DeductorSvc
 @inject ISnackbar Snackbar
+@inject IDialogService DialogSvc
 
-<MudDialog Style="min-width:480px">
+<MudDialog Style="min-width:640px;max-width:720px">
     <TitleContent>
         <div class="d-flex align-center">
             <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />
             <MudText Typo="Typo.h6">
-                @(_addingNew ? "Add New Company" : "Select Company & Financial Year")
+                @(_addingNew ? (_new.Id == 0 ? "Add New Company" : "Modify Company") : "Select Company & Financial Year")
             </MudText>
         </div>
     </TitleContent>
@@ -29,11 +30,18 @@
                 }
             </MudSelect>
 
-            <MudSelect T="string" @bind-Value="_selectedFY" Label="Financial Year*"
-                       Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+            <MudSelect T="string" @bind-Value="_selectedFY" Label="Working Financial Year*"
+                       Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
+                       Disabled="@_fyLocked"
+                       HelperText="@(_fyLocked ? "Locked for this session — log out to switch FY." : "You will have full edit access to this FY. Other years remain read-only for reference.")">
                 @foreach (var fy in AppConstants.FinancialYears)
                 {
-                    <MudSelectItem Value="@fy">FY @fy</MudSelectItem>
+                    var isCurrent = fy == AppConstants.CurrentFinancialYear;
+                    <MudSelectItem Value="@fy">
+                        <span style="font-weight:@(isCurrent?"700":"400")">
+                            FY @fy@(isCurrent ? "  · Current" : "")
+                        </span>
+                    </MudSelectItem>
                 }
             </MudSelect>
 
@@ -42,10 +50,11 @@
                 <MudAlert Severity="Severity.Warning" Class="mt-3">@_error</MudAlert>
             }
 
+
             @if (_deductors.Count == 0)
             {
                 <MudAlert Severity="Severity.Info" Class="mt-3">
-                    No companies yet. Click <b>+ New Company</b> to add one.
+                    No companies yet. Click <b>+ Create</b> to add one.
                 </MudAlert>
             }
         }
@@ -71,26 +80,60 @@
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_new.Address" Label="Address" Variant="Variant.Outlined" />
                 </MudItem>
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="_new.City" Label="City" Variant="Variant.Outlined" />
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_new.City" Label="City" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
-                <MudItem xs="6">
-                    <MudSelect @bind-Value="_new.State" Label="State" Variant="Variant.Outlined"
+                <MudItem xs="4">
+                    <MudSelect @bind-Value="_new.State" Label="State" Variant="Variant.Outlined" Margin="Margin.Dense"
                                AnchorOrigin="Origin.BottomCenter">
                         @foreach (var s in AppConstants.IndianStates)
                         { <MudSelectItem Value="@s">@s</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="_new.ContactPerson" Label="Contact Person" Variant="Variant.Outlined" />
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_new.Pincode" Label="Pincode" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="_new.Phone" Label="Phone" Variant="Variant.Outlined" />
+                <MudItem xs="4">
+                    <MudTextField Value="@_new.Gstin" Label="GSTIN" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  MaxLength="15" Immediate="true" Class="upper-field"
+                                  ValueChanged="@((string v) => _new.Gstin = (v ?? "").ToUpper())" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_new.ContactPerson" Label="Contact Person" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_new.Phone" Label="Phone" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="12">
-                    <MudTextField Value="@_new.Email" Label="Email" Variant="Variant.Outlined"
+                    <MudTextField Value="@_new.Email" Label="Email" Variant="Variant.Outlined" Margin="Margin.Dense"
                                   InputType="InputType.Email" Style="text-transform:lowercase"
                                   Immediate="true" ValueChanged="@((string v) => _new.Email = (v ?? "").Trim().ToLower())" />
+                </MudItem>
+                <MudItem xs="12"><MudDivider Class="my-1" /></MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Responsible Person (for return filing / Form 16)</MudText>
+                </MudItem>
+                <MudItem xs="5">
+                    <MudTextField @bind-Value="_new.ResponsibleName" Label="Responsible Person" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  HelperText="As appearing on PAN card" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField Value="@_new.ResponsiblePan" Label="PAN of Responsible" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  MaxLength="10" Immediate="true" Class="upper-field"
+                                  ValueChanged="@((string v) => _new.ResponsiblePan = (v ?? "").ToUpper())" />
+                </MudItem>
+                <MudItem xs="3">
+                    <MudTextField @bind-Value="_new.Designation" Label="Designation" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12"><MudDivider Class="my-1" /></MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Bank Defaults (auto-filled in Challans)</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_new.DefaultBsrCode" Label="BSR Code (7 digits)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_new.DefaultBankName" Label="Bank Name" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
             </MudGrid>
 
@@ -104,12 +147,35 @@
     <DialogActions>
         @if (!_addingNew)
         {
-            <MudButton OnClick="() => _addingNew = true"
+            <MudButton OnClick="StartAdd"
                        StartIcon="@Icons.Material.Filled.Add" Color="Color.Secondary">
-                New Company
+                Create
             </MudButton>
+            <MudButton OnClick="StartEdit"
+                       StartIcon="@Icons.Material.Filled.Edit" Color="Color.Secondary"
+                       Disabled="_selectedDeductorId == 0">
+                Modify
+            </MudButton>
+            @if (_isAdmin)
+            {
+                <MudButton OnClick="DoDelete"
+                           StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                           Disabled="_selectedDeductorId == 0"
+                           title="Admin only">
+                    Delete
+                </MudButton>
+                @if (_deletedCount > 0)
+                {
+                    <MudButton OnClick="OpenRestore"
+                               StartIcon="@Icons.Material.Filled.Restore" Color="Color.Warning"
+                               title="Restore deleted company">
+                        Restore (@_deletedCount)
+                    </MudButton>
+                }
+            }
             <MudSpacer />
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Confirm"
+                       StartIcon="@Icons.Material.Filled.OpenInBrowser"
                        Disabled="_selectedDeductorId == 0 && _deductors.Count > 0">
                 Open
             </MudButton>
@@ -121,7 +187,7 @@
             </MudButton>
             <MudSpacer />
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveNew">
-                Save & Select
+                @(_new.Id == 0 ? "Save & Select" : "Save Changes")
             </MudButton>
         }
     </DialogActions>
@@ -136,20 +202,32 @@
     private string _error = "";
 
     private bool     _addingNew;
-    private Deductor _new = new();
+    private Deductor _new = new() { IsActive = true, State = "Delhi" };
     private string   _saveError = "";
+    private bool     _isAdmin;
+    private int      _deletedCount;
+    private bool     _fyLocked;     // true when re-opened mid-session — FY can't change without logout
+
 
     protected override void OnInitialized()
     {
         _deductors  = DeductorSvc.GetAll();
-        _selectedFY = AppState.CurrentFY;
+        // If already logged in to a session FY, lock it; otherwise default to system current FY
+        if (!string.IsNullOrEmpty(AppState.SessionFY))
+        {
+            _selectedFY = AppState.SessionFY;
+            _fyLocked   = true;
+        }
+        else
+        {
+            _selectedFY = TDSPro.Common.AppConstants.CurrentFinancialYear;
+        }
+        _isAdmin    = AppState.CurrentRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                   || AppState.CurrentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
+        _deletedCount = _isAdmin ? DeductorSvc.GetDeleted().Count : 0;
 
-        // Restore last-used deductor and FY from DB settings
+        // Restore last-used deductor; FY stays on current unless user explicitly changes it
         var lastDeductorId = TDSPro.DAL.Database.GetSetting("LAST_DEDUCTOR_ID", "0");
-        var lastFY         = TDSPro.DAL.Database.GetSetting("LAST_FY", "");
-
-        if (!string.IsNullOrEmpty(lastFY) && TDSPro.Common.AppConstants.FinancialYears.Contains(lastFY))
-            _selectedFY = lastFY;
 
         if (int.TryParse(lastDeductorId, out int lastId) && lastId > 0
             && _deductors.Any(d => d.Id == lastId))
@@ -157,19 +235,8 @@
         else if (_deductors.Count == 1)
             _selectedDeductorId = _deductors[0].Id;
 
-#if DEBUG
-        var dev = _deductors.FirstOrDefault(x =>
-            x.CompanyName.Contains("Icons", StringComparison.OrdinalIgnoreCase));
-        if (dev != null) _selectedDeductorId = dev.Id;
-        _selectedFY = "2026-27";
-#endif
-    }
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-#if DEBUG
-        if (firstRender) Confirm();
-#endif
+        if (string.IsNullOrEmpty(_selectedFY))
+            _selectedFY = TDSPro.DAL.FolderManager.DetectFY(DateTime.Today);
     }
 
     void Confirm()
@@ -185,26 +252,119 @@
             AppState.SetDeductor(d.Id, d.CompanyName, d.Tan);
             TDSPro.DAL.Database.SetSetting("LAST_DEDUCTOR_ID", _selectedDeductorId.ToString());
         }
-        AppState.SetFY(_selectedFY);
+        // First time at login: lock the editable session FY. Mid-session re-open: only refresh view.
+        if (string.IsNullOrEmpty(AppState.SessionFY))
+            AppState.SetSessionFY(_selectedFY);
+        else
+            AppState.SetFY(_selectedFY);
         TDSPro.DAL.Database.SetSetting("LAST_FY", _selectedFY);
         MudDialog.Close(DialogResult.Ok(true));
     }
 
-    void CancelAdd() { _addingNew = false; _saveError = ""; }
+    void CancelAdd() { _addingNew = false; _saveError = ""; _new = new Deductor { IsActive = true, State = "Delhi" }; }
+
+    void StartAdd()
+    {
+        _new = new Deductor { IsActive = true, State = "Delhi" };
+        _saveError = "";
+        _addingNew = true;
+    }
+
+    void StartEdit()
+    {
+        var d = _deductors.FirstOrDefault(x => x.Id == _selectedDeductorId);
+        if (d == null) return;
+        // Clone — so cancel doesn't mutate the list copy
+        _new = new Deductor
+        {
+            Id = d.Id, CompanyName = d.CompanyName, Tan = d.Tan, Pan = d.Pan, Gstin = d.Gstin,
+            Address = d.Address, City = d.City, State = d.State, Pincode = d.Pincode,
+            ContactPerson = d.ContactPerson, Phone = d.Phone, Email = d.Email,
+            FinancialYear = d.FinancialYear, IsActive = d.IsActive,
+            CpcPassword = d.CpcPassword, ItPassword = d.ItPassword,
+            DefaultBsrCode = d.DefaultBsrCode, DefaultBankName = d.DefaultBankName,
+            ResponsibleName = d.ResponsibleName, ResponsiblePan = d.ResponsiblePan, Designation = d.Designation
+        };
+        _saveError = "";
+        _addingNew = true;
+    }
+
+    async Task DoDelete()
+    {
+        if (!_isAdmin)
+        {
+            Snackbar.Add("Only Admin users can delete companies.", Severity.Warning);
+            return;
+        }
+        var d = _deductors.FirstOrDefault(x => x.Id == _selectedDeductorId);
+        if (d == null) return;
+
+        var (entries, challans) = DeductorSvc.GetImpactCounts(d.Id);
+        var impactLine = entries == 0 && challans == 0
+            ? "This company has no TDS entries or challans."
+            : $"Linked records that will be hidden along with this company:\n" +
+              $"  • {entries} TDS entr{(entries == 1 ? "y" : "ies")}\n" +
+              $"  • {challans} challan{(challans == 1 ? "" : "s")}\n\n" +
+              "Daily backup runs automatically — you can restore this company later from the Restore button.";
+
+        var ok = await DialogSvc.ShowMessageBox(
+            $"Delete '{d.CompanyName}'?",
+            (MarkupString)System.Net.WebUtility.HtmlEncode(impactLine).Replace("\n", "<br>"),
+            yesText: "Delete", cancelText: "Cancel");
+        if (ok != true) return;
+
+        var (success, msg) = DeductorSvc.Delete(d.Id);
+        if (!success) { Snackbar.Add(msg, Severity.Error); return; }
+
+        _deductors = DeductorSvc.GetAll();
+        if (_selectedDeductorId == d.Id) _selectedDeductorId = _deductors.FirstOrDefault()?.Id ?? 0;
+        _deletedCount = DeductorSvc.GetDeleted().Count;
+        Snackbar.Add($"'{d.CompanyName}' deleted. {entries + challans} record(s) hidden — restorable from Restore.", Severity.Success);
+    }
+
+    async Task OpenRestore()
+    {
+        var deleted = DeductorSvc.GetDeleted();
+        if (deleted.Count == 0)
+        {
+            Snackbar.Add("No deleted companies to restore.", Severity.Info);
+            return;
+        }
+        var parameters = new DialogParameters { ["Deleted"] = deleted };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dlg = await DialogSvc.ShowAsync<RestoreCompanyDialog>("Restore Deleted Company", parameters, options);
+        var result = await dlg.Result;
+        if (result != null && !result.Canceled && result.Data is int restoredId && restoredId > 0)
+        {
+            var r = DeductorSvc.Restore(restoredId);
+            if (r.Ok)
+            {
+                _deductors = DeductorSvc.GetAll();
+                _selectedDeductorId = restoredId;
+                _deletedCount = DeductorSvc.GetDeleted().Count;
+                Snackbar.Add("Company restored. All linked entries and challans are visible again.", Severity.Success);
+            }
+            else Snackbar.Add(r.Msg, Severity.Error);
+        }
+    }
 
     void SaveNew()
     {
         _saveError = "";
+        _new.IsActive = true;
+        _new.Tan = (_new.Tan ?? "").Trim().ToUpper();
+        _new.Pan = (_new.Pan ?? "").Trim().ToUpper();
         var (ok, msg) = DeductorSvc.Save(_new);
         if (!ok) { _saveError = msg; return; }
 
-        // Reload list and auto-select the new entry
+        bool wasEdit = _new.Id != 0;
+        // Reload list and auto-select the saved entry
         _deductors = DeductorSvc.GetAll();
         var saved = _deductors.FirstOrDefault(x => x.Tan == _new.Tan);
         if (saved != null) _selectedDeductorId = saved.Id;
 
         _addingNew = false;
-        _new = new Deductor();
-        Snackbar.Add("Company added successfully.", Severity.Success);
+        _new = new Deductor { IsActive = true, State = "Delhi" };
+        Snackbar.Add(wasEdit ? "Company updated." : "Company added successfully.", Severity.Success);
     }
 }

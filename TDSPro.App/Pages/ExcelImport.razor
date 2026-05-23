@@ -3,11 +3,13 @@
 @inject TdsEntryService EntrySvc
 @inject DeducteeService DeducteeSvc
 @inject ChallanService ChallanSvc
+@inject PayrollService PayrollSvc
 @inject ISnackbar Snackbar
 @using System.IO
+@using TDSPro.DAL.Models
 
 <div class="d-flex align-center gap-3 mb-4">
-    <MudText Typo="Typo.h5">Excel Import / Export</MudText>
+    <MudText Typo="Typo.h5">Import / Export</MudText>
     <MudSpacer />
     <MudText Typo="Typo.caption" Color="Color.Secondary">FY @AppState.CurrentFY · @AppState.CurrentDeductorName</MudText>
 </div>
@@ -18,177 +20,245 @@
     <MudTabPanel Text="Import Data" Icon="@Icons.Material.Filled.Upload">
         <MudGrid Spacing="3">
 
-            @* TDS Entries Import *@
+            @* TDS Entries *@
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px">
-                    <div class="d-flex align-center gap-2 mb-3">
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #1565C0">
+                    <div class="d-flex align-center gap-2 mb-2">
                         <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" />
-                        <MudText Typo="Typo.subtitle1">Import TDS Entries</MudText>
+                        <MudText Typo="Typo.subtitle1">TDS Entries</MudText>
                     </div>
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                        Download the template, fill in TDS entry data, then upload.
-                        Columns: Entry No, Date (dd-MM-yyyy), Deductee PAN, Section, Amount, Rate %, TDS Amount, Remarks.
-                    </MudAlert>
-                    <div class="d-flex gap-2 mb-3">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Download"
-                                   OnClick='() => DownloadTemplate("entries")'>
-                            Download Template
-                        </MudButton>
-                    </div>
-                    <MudTextField @bind-Value="_entriesFilePath" Label="Excel File Path (.xlsx)"
-                                  Variant="Variant.Outlined" Class="mb-2"
-                                  Placeholder="C:\path\to\tds_entries.xlsx" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Date · TAN · PAN · Section · Amount · Rate · FY · Quarter.
+                        Unknown deductees are auto-created from PAN.
+                    </MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
+                               OnClick='() => DownloadTemplate("entries")'>Template</MudButton>
+                    <FilePicker @bind-Value="_entriesFilePath" Title="Select TDS Entries Excel" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportEntries" Disabled="_importing">
+                               OnClick="ImportEntries" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_entriesFilePath))">
                         @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import Entries
+                        Import
                     </MudButton>
-                    @if (_entryResult != null)
+                    @ResultAlert(_entryResult, "entries")
+                </MudPaper>
+            </MudItem>
+
+            @* Deductees *@
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #7b1fa2">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" />
+                        <MudText Typo="Typo.subtitle1">Deductee Master</MudText>
+                    </div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Name · PAN · Section · Rate · Type · Resident.
+                        Type and rate auto-detected from PAN if blank.
+                    </MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
+                               OnClick='() => DownloadTemplate("deductees")'>Template</MudButton>
+                    <FilePicker @bind-Value="_deducteesFilePath" Title="Select Deductee Master Excel" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Upload"
+                               OnClick="ImportDeductees" Disabled="@(_importing || string.IsNullOrEmpty(_deducteesFilePath))">
+                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Import
+                    </MudButton>
+                    @ResultAlert(_deducteeResult, "deductees")
+                </MudPaper>
+            </MudItem>
+
+            @* Challans *@
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #2e7d32">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" />
+                        <MudText Typo="Typo.subtitle1">Challans (ITNS 281)</MudText>
+                    </div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        BSR Code · Date · Challan No · Section · Quarter · TDS Amount.
+                        Upsert by BSR + Challan No + Date.
+                    </MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
+                               OnClick='() => DownloadTemplate("challans")'>Template</MudButton>
+                    <FilePicker @bind-Value="_challansFilePath" Title="Select Challans Excel" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Upload"
+                               OnClick="ImportChallans" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_challansFilePath))">
+                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Import
+                    </MudButton>
+                    @ResultAlert(_challanResult, "challans")
+                </MudPaper>
+            </MudItem>
+
+            @* Employees *@
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #e65100">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Warning" />
+                        <MudText Typo="Typo.subtitle1">Employee Master (24Q)</MudText>
+                    </div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Name · PAN · Code · Designation · Salary structure.
+                        Upsert by PAN. Salary structure auto-created if Basic provided.
+                    </MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
+                               OnClick='() => DownloadTemplate("employees")'>Template</MudButton>
+                    <FilePicker @bind-Value="_employeesFilePath" Title="Select Employee Master Excel" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Upload"
+                               OnClick="ImportEmployees" Disabled="@(_importing || string.IsNullOrEmpty(_employeesFilePath))">
+                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Import
+                    </MudButton>
+                    @ResultAlert(_employeeResult, "employees")
+                </MudPaper>
+            </MudItem>
+
+            @* TRACES Conso File *@
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #37474f">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.CloudDownload" />
+                        <MudText Typo="Typo.subtitle1">TRACES Conso File</MudText>
+                    </div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Import consolidated .tds/.txt file downloaded from TRACES portal.
+                        Auto-creates deductor, challans, deductees and TDS entries.
+                    </MudText>
+                    <FilePicker @bind-Value="_consoFilePath"
+                                Title="Select TRACES Conso File"
+                                Filter="TRACES Files|*.tds;*.txt|All Files|*.*" />
+
+                    @* Password field — only shown for .tds (ZIP) files *@
+                    @if (_consoFilePath.EndsWith(".tds", StringComparison.OrdinalIgnoreCase))
                     {
-                        <MudAlert Severity="@(_entryResult.HasErrors ? Severity.Warning : Severity.Success)"
-                                  Class="mt-2" Dense="true">
-                            @_entryResult.Summary
+                        <MudTextField @bind-Value="_consoPassword"
+                                      Label="ZIP Password"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Class="mt-2 upper-field"
+                                      InputType="@(_showConsoPass ? InputType.Text : InputType.Password)"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@(_showConsoPass ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                      OnAdornmentClick="() => _showConsoPass = !_showConsoPass"
+                                      HelperText="Format: TAN_RequestNumber  e.g. DELI03886B_86528  (from TRACES → Requested Downloads)" />
+                    }
+
+                    <MudButton Variant="Variant.Filled" Size="Size.Small" Class="mt-3"
+                               StartIcon="@Icons.Material.Filled.Upload"
+                               OnClick="ImportConso" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_consoFilePath))">
+                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Import TRACES File
+                    </MudButton>
+
+                    @if (_consoResult != null)
+                    {
+                        <MudAlert Severity="@(_consoResult.Success ? Severity.Success : Severity.Error)" Class="mt-2" Dense="true">
+                            @_consoResult.Message
                         </MudAlert>
-                        @if (_entryResult.Errors.Any())
+                        @if (_consoResult.Success)
                         {
-                            <div style="max-height:120px;overflow-y:auto;font-size:11px;margin-top:8px">
-                                @foreach (var e in _entryResult.Errors)
-                                { <div style="color:#c62828">@e</div> }
+                            <div style="font-size:12px;margin-top:4px;color:#1e6b3c">
+                                Form: @_consoResult.FormType &nbsp;|&nbsp; @_consoResult.Quarter &nbsp;|&nbsp; FY @_consoResult.FY<br/>
+                                Challans: @_consoResult.ChallansImported &nbsp;|&nbsp;
+                                Deductees: @_consoResult.DeducteesImported &nbsp;|&nbsp;
+                                Entries: @_consoResult.EntriesImported
+                                @if (_consoResult.DeducteesSkipped > 0)
+                                { <span style="color:#7f4f00"> &nbsp;| @_consoResult.DeducteesSkipped skipped (invalid PAN)</span> }
+                            </div>
+                        }
+                        @if (_consoResult.Warnings.Any())
+                        {
+                            <div style="max-height:100px;overflow-y:auto;font-size:11px;margin-top:4px">
+                                @foreach (var w in _consoResult.Warnings)
+                                { <div style="color:#7f4f00">⚠ @w</div> }
+                            </div>
+                        }
+                        @if (_consoResult.Errors.Any())
+                        {
+                            <div style="max-height:80px;overflow-y:auto;font-size:11px;margin-top:4px">
+                                @foreach (var e in _consoResult.Errors)
+                                { <div style="color:#990000">✕ @e</div> }
                             </div>
                         }
                     }
                 </MudPaper>
             </MudItem>
 
-            @* Deductees Import *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px">
-                    <div class="d-flex align-center gap-2 mb-3">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" />
-                        <MudText Typo="Typo.subtitle1">Import Deductees</MudText>
-                    </div>
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                        Import deductee master from Excel.
-                        Columns: Name, PAN, Section, Deductee Type, Rate %, Resident (Y/N), Remarks.
-                    </MudAlert>
-                    <div class="d-flex gap-2 mb-3">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Download"
-                                   OnClick='() => DownloadTemplate("deductees")'>
-                            Download Template
-                        </MudButton>
-                    </div>
-                    <MudTextField @bind-Value="_deducteesFilePath" Label="Excel File Path (.xlsx)"
-                                  Variant="Variant.Outlined" Class="mb-2"
-                                  Placeholder="C:\path\to\deductees.xlsx" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportDeductees" Disabled="_importing">
-                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import Deductees
-                    </MudButton>
-                    @if (_deducteeResult != null)
-                    {
-                        <MudAlert Severity="@(_deducteeResult.HasErrors ? Severity.Warning : Severity.Success)"
-                                  Class="mt-2" Dense="true">
-                            @_deducteeResult.Summary
-                        </MudAlert>
-                        @if (_deducteeResult.Errors.Any())
-                        {
-                            <div style="max-height:120px;overflow-y:auto;font-size:11px;margin-top:8px">
-                                @foreach (var e in _deducteeResult.Errors)
-                                { <div style="color:#c62828">@e</div> }
-                            </div>
-                        }
-                    }
-                </MudPaper>
-            </MudItem>
         </MudGrid>
     </MudTabPanel>
 
     @* ── EXPORT ── *@
     <MudTabPanel Text="Export Data" Icon="@Icons.Material.Filled.Download">
         <MudGrid Spacing="3">
-
-            @* TDS Entries Export *@
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #1565C0">
                     <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" Class="mb-2" />
                     <MudText Typo="Typo.subtitle1" Class="mb-1">TDS Entries</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        All TDS entries for FY @AppState.CurrentFY
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">All entries · FY @AppState.CurrentFY</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
-                               OnClick="ExportEntries" Disabled="_exporting">
-                        Export to Excel
-                    </MudButton>
+                               OnClick="ExportEntries" Disabled="_exporting">Export Excel</MudButton>
                 </MudPaper>
             </MudItem>
 
-            @* Deductees Export *@
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #7b1fa2">
                     <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" Class="mb-2" />
                     <MudText Typo="Typo.subtitle1" Class="mb-1">Deductees</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Full deductee master list
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Full deductee master</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
-                               OnClick="ExportDeductees" Disabled="_exporting">
-                        Export to Excel
-                    </MudButton>
+                               OnClick="ExportDeductees" Disabled="_exporting">Export Excel</MudButton>
                 </MudPaper>
             </MudItem>
 
-            @* Challans Export *@
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #2e7d32">
                     <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" Class="mb-2" />
                     <MudText Typo="Typo.subtitle1" Class="mb-1">Challans</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        All Challan 281 entries for FY @AppState.CurrentFY
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">All challans · FY @AppState.CurrentFY</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
-                               OnClick="ExportChallans" Disabled="_exporting">
-                        Export to Excel
-                    </MudButton>
+                               OnClick="ExportChallans" Disabled="_exporting">Export Excel</MudButton>
                 </MudPaper>
             </MudItem>
 
-            @* Tally Format Export *@
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #e65100">
-                    <MudIcon Icon="@Icons.Material.Filled.CompareArrows" Color="Color.Warning" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Tally Format</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        TDS entries in Tally-compatible Excel format
-                    </MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Warning" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-1">Employees</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Employee master with salary structure</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
-                               OnClick="ExportTally" Disabled="_exporting">
-                        Export Tally Format
-                    </MudButton>
+                               OnClick="ExportEmployees" Disabled="_exporting">Export Excel</MudButton>
                 </MudPaper>
             </MudItem>
 
-            @* Open Export Folder *@
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #00467F">
+                    <MudIcon Icon="@Icons.Material.Filled.CompareArrows" Color="Color.Info" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-1">Tally Format</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Journal entries for Tally import</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.TableChart"
+                               OnClick="ExportTally" Disabled="_exporting">Export Tally</MudButton>
+                </MudPaper>
+            </MudItem>
+
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #555">
                     <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mb-2" />
                     <MudText Typo="Typo.subtitle1" Class="mb-1">Export Folder</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Open the folder where exported files are saved
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Open folder where exports are saved</MudText>
                     <MudButton Variant="Variant.Outlined" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.FolderOpen"
-                               OnClick="OpenExportFolder">
-                        Open Folder
-                    </MudButton>
+                               OnClick="OpenExportFolder">Open Folder</MudButton>
                 </MudPaper>
             </MudItem>
         </MudGrid>
@@ -199,15 +269,93 @@
         }
     </MudTabPanel>
 
+    @* ── YEAR-END TRANSFER ── *@
+    <MudTabPanel Text="Year-End Transfer" Icon="@Icons.Material.Filled.SwapHoriz">
+        <MudGrid Spacing="3" Justify="Justify.Center">
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-6" Elevation="2" Style="border-radius:12px">
+                    <MudText Typo="Typo.h6" Class="mb-1">Year-End Data Transfer</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                        Sets the active financial year to the new FY. All deductees and employees carry forward automatically.
+                        Prior year entries and challans are preserved and accessible via the FY filter — nothing is deleted.
+                        Tax declarations are reset so employees can submit fresh declarations for the new year.
+                    </MudText>
+
+                    <MudGrid Spacing="2">
+                        <MudItem xs="6">
+                            <MudSelect @bind-Value="_yearEndFrom" Label="Archive Year (From)" Variant="Variant.Outlined">
+                                @foreach (var fy in AppConstants.FinancialYears)
+                                { <MudSelectItem Value="@fy">@fy</MudSelectItem> }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudSelect @bind-Value="_yearEndTo" Label="New Active Year (To)" Variant="Variant.Outlined">
+                                @foreach (var fy in AppConstants.FinancialYears)
+                                { <MudSelectItem Value="@fy">@fy</MudSelectItem> }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudAlert Severity="Severity.Warning" Class="mt-3 mb-3" Dense="true">
+                        This will switch the active FY for <b>@AppState.CurrentDeductorName</b> from <b>@_yearEndFrom</b> to <b>@_yearEndTo</b>.
+                        All prior data remains intact. Tax declarations for @_yearEndTo will be cleared for fresh submission.
+                    </MudAlert>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium"
+                               StartIcon="@Icons.Material.Filled.SwapHoriz"
+                               OnClick="DoYearEndTransfer" Disabled="_transferring || _yearEndFrom == _yearEndTo">
+                        @if (_transferring) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Transfer to @_yearEndTo
+                    </MudButton>
+
+                    @if (_yearEndResult != null)
+                    {
+                        <MudAlert Severity="@(_yearEndResult.Success ? Severity.Success : Severity.Error)" Class="mt-3">
+                            @_yearEndResult.Message
+                        </MudAlert>
+                        @if (_yearEndResult.Success)
+                        {
+                            <MudGrid Spacing="2" Class="mt-2">
+                                <MudItem xs="6" sm="3">
+                                    <MudPaper Class="pa-3 text-center" Elevation="0" Style="background:#f0fdf4;border-radius:8px">
+                                        <MudText Typo="Typo.h5" Style="color:#166534">@_yearEndResult.DeducteesCarried</MudText>
+                                        <MudText Typo="Typo.caption">Deductees Carried</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudPaper Class="pa-3 text-center" Elevation="0" Style="background:#f0fdf4;border-radius:8px">
+                                        <MudText Typo="Typo.h5" Style="color:#166534">@_yearEndResult.EmployeesCarried</MudText>
+                                        <MudText Typo="Typo.caption">Employees Carried</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudPaper Class="pa-3 text-center" Elevation="0" Style="background:#fff7ed;border-radius:8px">
+                                        <MudText Typo="Typo.h5" Style="color:#9a3412">@_yearEndResult.EntriesArchived</MudText>
+                                        <MudText Typo="Typo.caption">Entries Archived</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudPaper Class="pa-3 text-center" Elevation="0" Style="background:#fff7ed;border-radius:8px">
+                                        <MudText Typo="Typo.h5" Style="color:#9a3412">@_yearEndResult.ChallansArchived</MudText>
+                                        <MudText Typo="Typo.caption">Challans Archived</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            </MudGrid>
+                        }
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
     @* ── TEMPLATES ── *@
-    <MudTabPanel Text="Templates & Help" Icon="@Icons.Material.Filled.Help">
+    <MudTabPanel Text="Templates" Icon="@Icons.Material.Filled.Help">
         <MudGrid Spacing="3">
             <MudItem xs="12">
                 <MudAlert Severity="Severity.Info">
-                    Download blank Excel templates to use for importing data. Fill in your data following the column headers exactly.
+                    Download blank Excel templates with sample rows and instructions. Delete the sample row (row 2) before importing.
                 </MudAlert>
             </MudItem>
-
             @foreach (var t in _templates)
             {
                 <MudItem xs="12" md="4">
@@ -216,25 +364,23 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">@t.Desc</MudText>
                         <MudButton Variant="Variant.Outlined" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Download"
-                                   OnClick="() => DownloadTemplate(t.Key)">
-                            Download Template
-                        </MudButton>
+                                   OnClick="() => DownloadTemplate(t.Key)">Download</MudButton>
                     </MudPaper>
                 </MudItem>
             }
-
             <MudItem xs="12">
                 <MudPaper Class="pa-4" Elevation="0" Style="background:#f5f5f5;border-radius:10px">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Import Rules & Tips</MudText>
-                    <ul style="font-size:13px;color:#555;line-height:2">
-                        <li>Date columns must be in <b>dd-MM-yyyy</b> format (e.g. 31-03-2025).</li>
-                        <li>PAN must be exactly 10 characters in format ABCDE1234F.</li>
-                        <li>Section codes must match known sections (e.g. 194C, 194J, 192).</li>
-                        <li>Amount values must be numeric without ₹ symbol or commas.</li>
-                        <li>Resident column: use Y or N (case-insensitive).</li>
-                        <li>Duplicate PAN entries in deductee import will be skipped.</li>
-                        <li>Duplicate entry numbers in TDS entries import will be updated.</li>
-                        <li>Maximum 5,000 rows per import file.</li>
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Import Rules</MudText>
+                    <ul style="font-size:13px;color:#555;line-height:2.2">
+                        <li>Dates must be <b>dd-MM-yyyy</b> (e.g. 31-03-2026).</li>
+                        <li>PAN: exactly 10 chars, format ABCDE1234F.</li>
+                        <li>Deductee type and TDS rate are <b>auto-detected from PAN</b> if left blank.</li>
+                        <li>Deductees missing from master are <b>auto-created</b> during TDS Entries import.</li>
+                        <li>Challan upsert key: BSR Code + Challan No + Date.</li>
+                        <li>Employee upsert key: PAN (per deductor).</li>
+                        <li>Amount columns: numeric only, no ₹ or commas.</li>
+                        <li>Delete the yellow sample row before importing.</li>
+                        <li>Max 5,000 rows per file.</li>
                     </ul>
                 </MudPaper>
             </MudItem>
@@ -244,21 +390,117 @@
 </MudTabs>
 
 @code {
-    private string _entriesFilePath  = "";
+    private string _entriesFilePath   = "";
     private string _deducteesFilePath = "";
-    private bool   _importing;
-    private bool   _exporting;
-    private ImportResult? _entryResult;
-    private ImportResult? _deducteeResult;
-    private string _exportMsg  = "";
-    private Severity _exportSeverity = Severity.Info;
+    private string _challansFilePath  = "";
+    private string _employeesFilePath = "";
+    private string _consoFilePath     = "";
+    private string _consoPassword     = "";
+    private bool   _showConsoPass;
+
+    private bool _importing;
+    private bool _exporting;
+    private bool _transferring;
+
+    private ImportResult?      _entryResult;
+    private ImportResult?      _deducteeResult;
+    private ImportResult?      _challanResult;
+    private ImportResult?      _employeeResult;
+    private ConsoImportResult? _consoResult;
+    private string             _exportMsg      = "";
+    private Severity           _exportSeverity = Severity.Info;
+
+    private string         _yearEndFrom   = AppConstants.CurrentFinancialYear;
+    private string         _yearEndTo     = AppConstants.CurrentFinancialYear;
+    private YearEndResult? _yearEndResult;
+
+    protected override void OnInitialized()
+    {
+        var fys = AppConstants.FinancialYears;
+        _yearEndFrom = AppState.CurrentFY;
+        var idx = Array.IndexOf(fys, AppState.CurrentFY);
+        _yearEndTo = idx >= 0 && idx + 1 < fys.Length ? fys[idx + 1] : AppState.CurrentFY;
+    }
+
+    private readonly Dictionary<string, bool> _showErrors = new();
+
+    private RenderFragment ResultAlert(ImportResult? r, string key = "") => __builder =>
+    {
+        if (r == null) return;
+
+        // Summary alert
+        __builder.OpenComponent<MudAlert>(0);
+        __builder.AddAttribute(1, "Severity", r.HasErrors ? (r.SuccessCount > 0 ? Severity.Warning : Severity.Error) : Severity.Success);
+        __builder.AddAttribute(2, "Class", "mt-2");
+        __builder.AddAttribute(3, "Dense", true);
+        __builder.AddAttribute(4, "ChildContent", (RenderFragment)(__b => __b.AddContent(5, r.Summary)));
+        __builder.CloseComponent();
+
+        if (r.Errors.Any())
+        {
+            var rowErrors   = r.Errors.Where(e => System.Text.RegularExpressions.Regex.IsMatch(e, @"^Row \d+:")).ToList();
+            var otherErrors = r.Errors.Where(e => !System.Text.RegularExpressions.Regex.IsMatch(e, @"^Row \d+:")).ToList();
+            var autoCreated = r.Errors.Where(e => e.Contains("auto-created")).ToList();
+            var realErrors  = r.Errors.Where(e => !e.Contains("auto-created")).ToList();
+
+            bool expanded = _showErrors.TryGetValue(key, out var v) ? v : false;
+            string toggleLabel = expanded ? "▲ Hide details" : $"▼ Show {r.Errors.Count} detail(s)";
+
+            // Toggle link
+            __builder.OpenElement(10, "div");
+            __builder.AddAttribute(11, "style", "margin-top:4px;font-size:11px");
+
+            if (autoCreated.Any())
+            {
+                __builder.OpenElement(12, "span");
+                __builder.AddAttribute(13, "style", "color:#b45309;margin-right:8px");
+                __builder.AddContent(14, $"⚠ {autoCreated.Count} auto-created");
+                __builder.CloseElement();
+            }
+            if (realErrors.Any())
+            {
+                __builder.OpenElement(15, "span");
+                __builder.AddAttribute(16, "style", "color:#c62828;margin-right:8px");
+                __builder.AddContent(17, $"✕ {realErrors.Count} error(s)");
+                __builder.CloseElement();
+            }
+
+            __builder.OpenElement(18, "a");
+            __builder.AddAttribute(19, "style", "cursor:pointer;color:#1565C0;text-decoration:underline");
+            __builder.AddAttribute(20, "onclick", EventCallback.Factory.Create(this, () =>
+            {
+                _showErrors[key] = !(_showErrors.TryGetValue(key, out var cur) && cur);
+                StateHasChanged();
+            }));
+            __builder.AddContent(21, toggleLabel);
+            __builder.CloseElement();
+            __builder.CloseElement(); // div
+
+            if (expanded)
+            {
+                __builder.OpenElement(22, "div");
+                __builder.AddAttribute(23, "style", "max-height:160px;overflow-y:auto;font-size:11px;margin-top:4px;border:1px solid #e0e0e0;border-radius:4px;padding:4px 8px;background:#fafafa");
+                int seq = 24;
+                foreach (var e in r.Errors)
+                {
+                    bool isInfo = e.Contains("auto-created");
+                    __builder.OpenElement(seq++, "div");
+                    __builder.AddAttribute(seq++, "style", isInfo ? "color:#b45309;padding:1px 0" : "color:#c62828;padding:1px 0");
+                    __builder.AddContent(seq++, isInfo ? "ℹ " + e : "✕ " + e);
+                    __builder.CloseElement();
+                }
+                __builder.CloseElement();
+            }
+        }
+    };
 
     private record TemplateInfo(string Key, string Name, string Desc);
     private readonly List<TemplateInfo> _templates = new()
     {
-        new("entries",    "TDS Entries Template",    "Import bulk TDS entry data (deductee, section, amount, TDS)"),
-        new("deductees",  "Deductee Master Template", "Import deductee master data (name, PAN, section, type)"),
-        new("challans",   "Challans Template",        "Import Challan 281 payment data"),
+        new("entries",   "TDS Entries",    "Date, TAN, PAN, Section, Amount, Rate, FY, Quarter"),
+        new("deductees", "Deductee Master","Name, PAN, Section, Rate, Type, Resident"),
+        new("challans",  "Challans",       "BSR Code, Date, Challan No, Section, Quarter, TDS Amount"),
+        new("employees", "Employee Master","Name, PAN, Code, Designation, Salary Structure (24Q)"),
     };
 
     void DownloadTemplate(string type)
@@ -267,24 +509,23 @@
         {
             var folder = FolderManager.TemplatesFolder;
             Directory.CreateDirectory(folder);
-            var path   = Path.Combine(folder, $"TDSPro_Template_{type}.xlsx");
+            var path = Path.Combine(folder, $"TDSPro_Template_{type}.xlsx");
             ExcelEngine.ExportImportTemplate(path, type);
             FolderManager.OpenFolder(folder);
-            Snackbar.Add($"Template saved to: {path}", Severity.Success);
+            Snackbar.Add($"Template saved: {Path.GetFileName(path)}", Severity.Success);
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
     async Task ImportEntries()
     {
-        if (string.IsNullOrWhiteSpace(_entriesFilePath)) { Snackbar.Add("Enter the file path.", Severity.Warning); return; }
-        if (!File.Exists(_entriesFilePath)) { Snackbar.Add("File not found: " + _entriesFilePath, Severity.Error); return; }
+        if (!ValidatePath(_entriesFilePath)) return;
         _importing = true; _entryResult = null; StateHasChanged();
         try
         {
-            var result = await Task.Run(() => ExcelEngine.ImportEntries(_entriesFilePath));
-            _entryResult = result;
-            Snackbar.Add(result.Summary, result.HasErrors ? Severity.Warning : Severity.Success);
+            var r = await Task.Run(() => ExcelEngine.ImportEntries(_entriesFilePath));
+            _entryResult = r;
+            Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
         _importing = false;
@@ -292,14 +533,58 @@
 
     async Task ImportDeductees()
     {
-        if (string.IsNullOrWhiteSpace(_deducteesFilePath)) { Snackbar.Add("Enter the file path.", Severity.Warning); return; }
-        if (!File.Exists(_deducteesFilePath)) { Snackbar.Add("File not found: " + _deducteesFilePath, Severity.Error); return; }
+        if (!ValidatePath(_deducteesFilePath)) return;
         _importing = true; _deducteeResult = null; StateHasChanged();
         try
         {
-            var result = await Task.Run(() => ExcelEngine.ImportDeductees(_deducteesFilePath));
-            _deducteeResult = result;
-            Snackbar.Add(result.Summary, result.HasErrors ? Severity.Warning : Severity.Success);
+            var r = await Task.Run(() => ExcelEngine.ImportDeductees(_deducteesFilePath));
+            _deducteeResult = r;
+            Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
+        _importing = false;
+    }
+
+    async Task ImportChallans()
+    {
+        if (!ValidatePath(_challansFilePath)) return;
+        _importing = true; _challanResult = null; StateHasChanged();
+        try
+        {
+            var r = await Task.Run(() => ExcelEngine.ImportChallans(_challansFilePath, AppState.CurrentDeductorId, AppState.CurrentFY));
+            _challanResult = r;
+            Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
+        _importing = false;
+    }
+
+    async Task ImportEmployees()
+    {
+        if (!ValidatePath(_employeesFilePath)) return;
+        _importing = true; _employeeResult = null; StateHasChanged();
+        try
+        {
+            var r = await Task.Run(() => ExcelEngine.ImportEmployees(_employeesFilePath, AppState.CurrentDeductorId));
+            _employeeResult = r;
+            Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
+        _importing = false;
+    }
+
+    async Task ImportConso()
+    {
+        if (!ValidatePath(_consoFilePath)) return;
+        _importing = true; _consoResult = null; StateHasChanged();
+        try
+        {
+            var password = _consoFilePath.EndsWith(".tds", StringComparison.OrdinalIgnoreCase)
+                ? _consoPassword.Trim()
+                : null;
+            var r = await Task.Run(() => ConsoImporter.Import(_consoFilePath, zipPassword: password));
+            _consoResult = r;
+            Snackbar.Add(r.Message, r.Success ? Severity.Success : Severity.Error);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
         _importing = false;
@@ -311,15 +596,13 @@
         try
         {
             var entries = EntrySvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY);
-            var exportDir = FolderManager.ExportsFolder;
-            Directory.CreateDirectory(exportDir);
-            var path = Path.Combine(exportDir, $"TDSEntries_{AppState.CurrentFY}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            var path = TimestampedPath($"TDSEntries_{AppState.CurrentFY}");
             await Task.Run(() => ExcelEngine.ExportEntries(entries, path));
-            _exportMsg = $"Exported {entries.Count} entries to: {path}";
+            _exportMsg = $"Saved: {Path.GetFileName(path)}  ({entries.Count} entries)";
             _exportSeverity = Severity.Success;
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
         }
-        catch (Exception ex) { _exportMsg = "Error: " + ex.Message; _exportSeverity = Severity.Error; }
+        catch (Exception ex) { _exportMsg = "Error: " + ErrorTranslator.UserFriendly(ex); _exportSeverity = Severity.Error; }
         _exporting = false;
     }
 
@@ -328,15 +611,14 @@
         _exporting = true; _exportMsg = ""; StateHasChanged();
         try
         {
-            var deductees = DeducteeSvc.GetAll();
-            Directory.CreateDirectory(FolderManager.ExportsFolder);
-            var path = Path.Combine(FolderManager.ExportsFolder, $"Deductees_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            await Task.Run(() => ExcelEngine.ExportDeductees(deductees, path));
-            _exportMsg = $"Exported {deductees.Count} deductees to: {path}";
+            var list = DeducteeSvc.GetAll();
+            var path = TimestampedPath("Deductees");
+            await Task.Run(() => ExcelEngine.ExportDeductees(list, path));
+            _exportMsg = $"Saved: {Path.GetFileName(path)}  ({list.Count} deductees)";
             _exportSeverity = Severity.Success;
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
         }
-        catch (Exception ex) { _exportMsg = "Error: " + ex.Message; _exportSeverity = Severity.Error; }
+        catch (Exception ex) { _exportMsg = "Error: " + ErrorTranslator.UserFriendly(ex); _exportSeverity = Severity.Error; }
         _exporting = false;
     }
 
@@ -345,14 +627,30 @@
         _exporting = true; _exportMsg = ""; StateHasChanged();
         try
         {
-            var challans = ChallanSvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY);
-            var path = Path.Combine(FolderManager.ExportsFolder, $"Challans_{AppState.CurrentFY}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            await Task.Run(() => ExcelEngine.ExportChallans(challans, path));
-            _exportMsg = $"Exported {challans.Count} challans to: {path}";
+            var list = ChallanSvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY);
+            var path = TimestampedPath($"Challans_{AppState.CurrentFY}");
+            await Task.Run(() => ExcelEngine.ExportChallans(list, path));
+            _exportMsg = $"Saved: {Path.GetFileName(path)}  ({list.Count} challans)";
             _exportSeverity = Severity.Success;
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
         }
-        catch (Exception ex) { _exportMsg = "Error: " + ex.Message; _exportSeverity = Severity.Error; }
+        catch (Exception ex) { _exportMsg = "Error: " + ErrorTranslator.UserFriendly(ex); _exportSeverity = Severity.Error; }
+        _exporting = false;
+    }
+
+    async Task ExportEmployees()
+    {
+        _exporting = true; _exportMsg = ""; StateHasChanged();
+        try
+        {
+            var list = PayrollSvc.GetEmployees(AppState.CurrentDeductorId);
+            var path = TimestampedPath("Employees");
+            await Task.Run(() => ExcelEngine.ExportEmployees(list, path));
+            _exportMsg = $"Saved: {Path.GetFileName(path)}  ({list.Count} employees)";
+            _exportSeverity = Severity.Success;
+            FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
+        }
+        catch (Exception ex) { _exportMsg = "Error: " + ErrorTranslator.UserFriendly(ex); _exportSeverity = Severity.Error; }
         _exporting = false;
     }
 
@@ -362,24 +660,56 @@
         try
         {
             var entries = EntrySvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY);
-            var path = Path.Combine(FolderManager.ExportsFolder, $"TDSTally_{AppState.CurrentFY}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            var path = TimestampedPath($"TDSTally_{AppState.CurrentFY}");
             await Task.Run(() => ExcelEngine.ExportTallyFormat(entries, path));
-            _exportMsg = $"Tally format exported to: {path}";
+            _exportMsg = $"Saved: {Path.GetFileName(path)}";
             _exportSeverity = Severity.Success;
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
         }
-        catch (Exception ex) { _exportMsg = "Error: " + ex.Message; _exportSeverity = Severity.Error; }
+        catch (Exception ex) { _exportMsg = "Error: " + ErrorTranslator.UserFriendly(ex); _exportSeverity = Severity.Error; }
         _exporting = false;
     }
 
     void OpenExportFolder()
     {
+        try { Directory.CreateDirectory(FolderManager.ExportsFolder); FolderManager.OpenFolder(FolderManager.ExportsFolder); }
+        catch { }
+    }
+
+    async Task DoYearEndTransfer()
+    {
+        if (_yearEndFrom == _yearEndTo) { Snackbar.Add("From and To FY must be different.", Severity.Warning); return; }
+        if (!string.IsNullOrEmpty(AppState.SessionFY) && _yearEndTo != AppState.SessionFY)
+        {
+            Snackbar.Add($"Transfer target must be your logged-in FY ({AppState.SessionFY}). Log out and log in to FY {_yearEndTo} to import there.", Severity.Warning);
+            return;
+        }
+        _transferring = true; _yearEndResult = null; StateHasChanged();
         try
         {
-            var d = FolderManager.ExportsFolder;
-            Directory.CreateDirectory(d);
-            FolderManager.OpenFolder(d);
+            var r = await Task.Run(() => ExcelEngine.TransferYearEnd(AppState.CurrentDeductorId, _yearEndFrom, _yearEndTo));
+            _yearEndResult = r;
+            if (r.Success)
+            {
+                AppState.SetFY(_yearEndTo);
+                Snackbar.Add($"Viewing FY {_yearEndTo}. To edit, log out and log in selecting FY {_yearEndTo}.", Severity.Info);
+            }
+            else Snackbar.Add(r.Message, Severity.Error);
         }
-        catch { }
+        catch (Exception ex) { Snackbar.Add("Transfer failed: " + ex.Message, Severity.Error); }
+        _transferring = false;
+    }
+
+    bool ValidatePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) { Snackbar.Add("Please select a file first.", Severity.Warning); return false; }
+        if (!File.Exists(path)) { Snackbar.Add($"File not found: {path}", Severity.Error); return false; }
+        return true;
+    }
+
+    string TimestampedPath(string name)
+    {
+        Directory.CreateDirectory(FolderManager.ExportsFolder);
+        return Path.Combine(FolderManager.ExportsFolder, $"{name}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
     }
 }

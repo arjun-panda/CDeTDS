@@ -1,4 +1,4 @@
-@page "/login"
+﻿@page "/login"
 @page "/"
 @layout EmptyLayout
 @inject AppStateService AppState
@@ -107,7 +107,27 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !AppState.IsLoggedIn && AppState.AutoLogin)
+        if (!firstRender) return;
+
+        // Show EULA on first-ever launch (before anything else)
+        var eulaAccepted = Database.GetSetting("EULA_ACCEPTED", "");
+        if (string.IsNullOrEmpty(eulaAccepted))
+        {
+            var opts = new DialogOptions
+            {
+                MaxWidth         = MaxWidth.Medium,
+                FullWidth        = true,
+                CloseButton      = false,
+                CloseOnEscapeKey = false,
+                BackdropClick    = false
+            };
+            var dlg    = await DialogSvc.ShowAsync<EulaDialog>("", opts);
+            var result = await dlg.Result;
+            // If declined, Shutdown is called inside EulaDialog — nothing more to do
+            if (result == null || result.Canceled) return;
+        }
+
+        if (!AppState.IsLoggedIn && AppState.AutoLogin)
             await DoLogin();
     }
 
@@ -186,9 +206,10 @@
             if (rows == 0) { _resetMsg = "Username not found."; return; }
             _resetSeverity = Severity.Success;
             _resetMsg = "Password reset successfully. You can now log in.";
+            var resetForUser = _resetUser;
             _resetUser = _resetNew = _resetConfirm = "";
-            Database.LogAction("system", "PASSWORD_RESET", "Auth", $"Password reset for {_resetUser}");
+            Database.LogAction("system", "PASSWORD_RESET", "Auth", $"Password reset for {resetForUser}");
         }
-        catch (Exception ex) { _resetMsg = "Error: " + ex.Message; }
+        catch (Exception ex) { _resetMsg = "Error: " + ErrorTranslator.UserFriendly(ex); }
     }
 }

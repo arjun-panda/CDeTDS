@@ -85,8 +85,8 @@ TDSPro_CS/
 - Edit any rate in **TDS Rules 2026** screen — instant effect, no code change
 
 ### FVU / Returns
-- NSDL RPU v9.0 format: **FH | BH | DE | CD | DD | BC | FC** pipe-delimited records
-- Amounts in paise (multiply by 100), dates in dd/MM/yyyy
+- Protean RPU 5.6+ / FVU 9.4 format: **FH ^ BH ^ CD ^ DD ^ SD ^ S16 ^ C6A** caret-delimited records
+- Amounts in rupees with `.00` suffix (no paise), dates in ddMMyyyy (no separators)
 - 24Q (salary) and 26Q (non-salary) generators
 - FVU validation: PAN, TAN, BSR, challan reconciliation
 - **Java FVU utility runner**: async `Process.Start`, live terminal log, error HTML parser
@@ -177,7 +177,7 @@ Documents\TDSPro\
 
 ---
 
-## FVU File Format (NSDL RPU v9.0)
+## FVU File Format (Protean RPU 5.6+ / FVU 9.4)
 ```
 FH|T|26Q|9.0|1|1
 BH|DELA12345A|202627|26Q|1|AAAPL1234C|C|12/04/2026|R|3|8|1248000|15000000

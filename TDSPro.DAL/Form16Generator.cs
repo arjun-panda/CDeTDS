@@ -1,5 +1,7 @@
 using TDSPro.DAL.Models;
 using Microsoft.Data.Sqlite;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace TDSPro.DAL
 {
@@ -334,7 +336,7 @@ namespace TDSPro.DAL
             using var r3 = d3.ExecuteReader();
 
             var months = new[] { "", "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
-            double totGross=0, totTds=0, totHra=0, totStd=0, tot6a=0;
+            double totGross=0, totTds=0, totHra=0, totStd=0, tot6a=0, totPt=0;
 
             while (r3.Read())
             {
@@ -357,8 +359,9 @@ namespace TDSPro.DAL
                 totGross += gross;
                 totTds   += tds;
                 totHra   += Convert.ToDouble(r3["hra_exemption"] ?? 0);
-                totStd    = Math.Max(totStd, Convert.ToDouble(r3["standard_deduction"] ?? 0));
+                totStd    = Convert.ToDouble(r3["standard_deduction"] ?? 0);
                 tot6a    += Convert.ToDouble(r3["chapter6a_deduction"] ?? 0);
+                totPt    += Convert.ToDouble(r3["professional_tax"] ?? 0);
 
                 // Use last month's annual tax computation (most accurate)
                 data.TaxableIncome   = Convert.ToDouble(r3["taxable_income"] ?? 0);
@@ -379,6 +382,7 @@ namespace TDSPro.DAL
             data.HraExemption       = totHra;
             data.StandardDeduction  = totStd;
             data.Chapter6ADeduction = tot6a;
+            data.ProfessionalTax    = totPt;
             data.GeneratedDate      = DateTime.Today;
 
             // Quarter-wise summary
@@ -486,14 +490,15 @@ namespace TDSPro.DAL
                 sb.Append("<tr><td colspan='5' style='text-align:center;color:#888'>No payroll runs found for this FY</td></tr>");
             }
 
-            sb.Append($@"<tr class='tot'><td>Total</td><td class='right'>{d.GrossSalary:N0}</td><td class='right'>{d.TdsDeducted:N0}</td><td class='right'>{d.TdsDeducted:N0}</td><td></td></tr>
+            sb.Append($@"<tr class='tot'><td>Total</td><td class='right'>{d.GrossSalary:N0}</td><td class='right'>{d.TdsDeducted:N0}</td><td class='right'>{d.QuarterRows.Sum(q => q.TdsDeposited):N0}</td><td></td></tr>
 </table>
 
 <div class='hdr'>Part B — Annual Tax Computation ({d.TaxRegime} Regime)</div>
 <table>
   <tr><td class='lbl'>Gross Salary</td><td class='right bold'>{Rv(d.GrossSalary)}</td></tr>
-  <tr><td class='lbl'>Less: HRA Exemption</td><td class='right'>{(d.HraExemption == 0 ? "—" : "(" + d.HraExemption.ToString("N0") + ")")}</td></tr>
-  <tr><td class='lbl'>Less: Standard Deduction</td><td class='right'>{(d.StandardDeduction == 0 ? "—" : "(" + d.StandardDeduction.ToString("N0") + ")")}</td></tr>
+  <tr><td class='lbl'>Less: HRA Exemption u/s 10(13A)</td><td class='right'>{(d.HraExemption == 0 ? "—" : "(" + d.HraExemption.ToString("N0") + ")")}</td></tr>
+  <tr><td class='lbl'>Less: Professional Tax u/s 16(iii)</td><td class='right'>{(d.ProfessionalTax == 0 ? "—" : "(" + d.ProfessionalTax.ToString("N0") + ")")}</td></tr>
+  <tr><td class='lbl'>Less: Standard Deduction u/s 16(ia)</td><td class='right'>{(d.StandardDeduction == 0 ? "—" : "(" + d.StandardDeduction.ToString("N0") + ")")}</td></tr>
   <tr><td class='lbl'>Less: Chapter VI-A Deductions</td><td class='right'>{(d.Chapter6ADeduction == 0 ? "—" : "(" + d.Chapter6ADeduction.ToString("N0") + ")")}</td></tr>
   <tr class='tot'><td class='lbl'>Taxable Income</td><td class='right bold'>{Rv(d.TaxableIncome)}</td></tr>
   <tr><td class='lbl'>Tax on Income</td><td class='right'>{Rv(d.TaxOnIncome)}</td></tr>
@@ -532,6 +537,115 @@ namespace TDSPro.DAL
             File.WriteAllText(path, RenderForm16SalaryHtml(data), System.Text.Encoding.UTF8);
             Database.LogAction("System", "FORM16_SALARY_GEN", "Form16",
                 $"Generated {data.FormName} for {data.EmployeeName} FY {data.FinancialYear}");
+            return path;
+        }
+
+        /// <summary>Save Form 16 as a paginated PDF (QuestPDF) — proper A4 portrait, print-ready.</summary>
+        public static string SaveForm16SalaryPdf(Form16SalaryData data, string outputDir)
+        {
+            string Money(double v) => v == 0 ? "—" : v.ToString("N0");
+
+            byte[] pdf = PdfReports.BuildA4(
+                title:    $"{data.FormName} — Salary TDS Certificate",
+                subtitle: $"FY {data.FinancialYear} · AY {data.AssessmentYear} · {data.ActName}",
+                body:     c => c.Column(col =>
+                {
+                    // Deductor / Employee identity
+                    col.Item().PaddingBottom(8).Table(t =>
+                    {
+                        t.ColumnsDefinition(td => { td.RelativeColumn(); td.RelativeColumn(); });
+                        t.Cell().Element(PdfReports.HeaderCell).Text("Deductor").Bold();
+                        t.Cell().Element(PdfReports.HeaderCell).Text("Employee").Bold();
+                        t.Cell().Element(PdfReports.LabelCell).Column(cc =>
+                        {
+                            cc.Item().Text(data.DeductorName).Bold();
+                            cc.Item().Text(data.DeductorAddress).FontSize(9).FontColor(PdfReports.MutedColor);
+                            cc.Item().Text($"TAN: {data.DeductorTan}").FontSize(9);
+                            cc.Item().Text($"PAN: {data.DeductorPan}").FontSize(9);
+                        });
+                        t.Cell().Element(PdfReports.LabelCell).Column(cc =>
+                        {
+                            cc.Item().Text(data.EmployeeName).Bold();
+                            cc.Item().Text($"Code: {data.EmployeeCode}").FontSize(9).FontColor(PdfReports.MutedColor);
+                            cc.Item().Text($"PAN: {data.EmployeePan}").FontSize(9);
+                            cc.Item().Text($"Designation: {data.Designation}").FontSize(9);
+                            cc.Item().Text($"Regime: {data.TaxRegime}").FontSize(9);
+                        });
+                    });
+
+                    // Annual salary summary
+                    col.Item().Background("#cbd5e1").AlignCenter().Padding(4).Text("Annual Salary & Tax Summary").Bold();
+                    col.Item().Table(t =>
+                    {
+                        t.ColumnsDefinition(td => { td.RelativeColumn(3); td.RelativeColumn(1); });
+                        void Row(string label, double v, bool bold = false)
+                        {
+                            var lblText = t.Cell().Element(bold ? PdfReports.SubtotalCell : PdfReports.LabelCell).Text(label);
+                            if (bold) lblText.Bold();
+                            var amtText = t.Cell().Element(bold ? PdfReports.SubtotalCell : PdfReports.AmountCell).Text(Money(v));
+                            if (bold) amtText.Bold();
+                        }
+                        Row("Gross Salary",                        data.GrossSalary);
+                        Row("Less: HRA Exemption u/s 10(13A)",    data.HraExemption);
+                        Row("Less: Professional Tax u/s 16(iii)", data.ProfessionalTax);
+                        Row("Less: Standard Deduction u/s 16(ia)",data.StandardDeduction);
+                        Row("Less: Chapter VI-A Deductions",       data.Chapter6ADeduction);
+                        Row("Taxable Income",                   data.TaxableIncome, bold: true);
+                        Row("Tax on Income (Slab)",             data.TaxOnIncome);
+                        if (data.Rebate87A > 0) Row("Less: Rebate u/s 87A", data.Rebate87A);
+                        if (data.Surcharge   > 0) Row("Add: Surcharge",     data.Surcharge);
+                        Row("Add: Health & Education Cess @ 4%", data.Cess);
+                        Row("Total Tax Liability",              data.TotalAnnualTax, bold: true);
+                        Row("TDS Deducted",                     data.TdsDeducted, bold: true);
+                    });
+
+                    // Quarterly TDS breakup
+                    if (data.QuarterRows.Any())
+                    {
+                        col.Item().PaddingTop(12).Background("#cbd5e1").AlignCenter().Padding(4).Text("Quarterly TDS Breakup").Bold();
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(td => { td.RelativeColumn(); td.RelativeColumn(); td.RelativeColumn(); td.RelativeColumn(); });
+                            t.Header(h =>
+                            {
+                                h.Cell().Element(PdfReports.HeaderCell).Text("Quarter").Bold();
+                                h.Cell().Element(PdfReports.HeaderCell).AlignRight().Text("Amount Paid").Bold();
+                                h.Cell().Element(PdfReports.HeaderCell).AlignRight().Text("TDS Deducted").Bold();
+                                h.Cell().Element(PdfReports.HeaderCell).AlignRight().Text("TDS Deposited").Bold();
+                            });
+                            foreach (var q in data.QuarterRows)
+                            {
+                                t.Cell().Element(PdfReports.LabelCell).Text(q.Quarter);
+                                t.Cell().Element(PdfReports.AmountCell).Text(Money(q.AmountPaid));
+                                t.Cell().Element(PdfReports.AmountCell).Text(Money(q.TdsDeducted));
+                                t.Cell().Element(PdfReports.AmountCell).Text(Money(q.TdsDeposited));
+                            }
+                        });
+                    }
+
+                    // Signature
+                    col.Item().PaddingTop(30).Row(r =>
+                    {
+                        r.RelativeItem().Column(cc =>
+                        {
+                            cc.Item().Text("Place: _______________").FontSize(9);
+                            cc.Item().PaddingTop(4).Text($"Date: {data.GeneratedDate:dd-MMM-yyyy}").FontSize(9);
+                        });
+                        r.RelativeItem().AlignRight().Column(cc =>
+                        {
+                            cc.Item().Text("For " + data.DeductorName).FontSize(9);
+                            cc.Item().PaddingTop(30).BorderTop(1).BorderColor(PdfReports.BorderColor).Width(220).PaddingTop(2).AlignRight().Text("Authorized Signatory").FontSize(9).FontColor(PdfReports.MutedColor);
+                        });
+                    });
+                }));
+
+            Directory.CreateDirectory(outputDir);
+            var safe = string.Concat(data.EmployeeName.Split(Path.GetInvalidFileNameChars()));
+            var fn   = $"{data.FormName}_{data.EmployeeCode}_{safe}_{data.FinancialYear}.pdf";
+            var path = Path.Combine(outputDir, fn);
+            File.WriteAllBytes(path, pdf);
+            Database.LogAction("System", "FORM16_SALARY_PDF_GEN", "Form16",
+                $"Generated PDF {data.FormName} for {data.EmployeeName} FY {data.FinancialYear}");
             return path;
         }
 
@@ -671,6 +785,7 @@ namespace TDSPro.DAL
         public double TotalAnnualTax       { get; set; }
         public double TdsDeducted          { get; set; }
         public double Rebate87A            { get; set; }
+        public double ProfessionalTax      { get; set; }
 
         // Quarter-wise TDS summary
         public List<Form16QuarterRow> QuarterRows { get; set; } = new();

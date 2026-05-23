@@ -53,6 +53,14 @@
                                StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
                     <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download16"
                                StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Download16Pdf"
+                               StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="_generating">📄 Save PDF</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="Generate12BA"
+                               StartIcon="@Icons.Material.Filled.AttachFile" Disabled="_generating">Form 12BA (Perquisites)</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="GenerateComputation"
+                               StartIcon="@Icons.Material.Filled.Calculate" Disabled="_generating">Computation HTML</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="GenerateComputationPdf"
+                               StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="_generating">📄 Computation PDF</MudButton>
                 </MudItem>
             </MudGrid>
         </MudTabPanel>
@@ -130,7 +138,7 @@
                 return Form16Generator.RenderHtml(data);
             });
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _generating = false;
     }
 
@@ -155,7 +163,7 @@
                 return Form16Generator.RenderForm16SalaryHtml(data);
             });
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _generating = false;
     }
 
@@ -179,7 +187,7 @@
             FolderManager.OpenFolder(folder);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
     async Task Download16()
@@ -197,7 +205,80 @@
             FolderManager.OpenFolder(folder);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }
-        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+    }
+
+    async Task Download16Pdf()
+    {
+        if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return; }
+        if (_employeeId == 0) { Snackbar.Add("Select an employee.", Severity.Warning); return; }
+        _generating = true; StateHasChanged();
+        try
+        {
+            var data = await Task.Run(() => Form16Generator.BuildForm16Salary(AppState.CurrentDeductorId, _employeeId, AppState.CurrentFY));
+            var folder = FolderManager.Form16ForFyFolder(AppState.CurrentFY);
+            var path = Form16Generator.SaveForm16SalaryPdf(data, folder);
+            FolderManager.OpenFolder(folder);
+            Snackbar.Add($"📄 PDF saved: {Path.GetFileName(path)}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _generating = false;
+    }
+
+    async Task GenerateComputationPdf()
+    {
+        if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return; }
+        if (_employeeId == 0) { Snackbar.Add("Select an employee.", Severity.Warning); return; }
+        _generating = true; StateHasChanged();
+        try
+        {
+            var data = await Task.Run(() => IncomeComputationGenerator.Build(AppState.CurrentDeductorId, _employeeId, AppState.CurrentFY));
+            var folder = FolderManager.Form16ForFyFolder(AppState.CurrentFY);
+            var path = IncomeComputationGenerator.SavePdf(data, folder);
+            FolderManager.OpenFolder(folder);
+            Snackbar.Add($"📄 Computation PDF saved: {Path.GetFileName(path)} — Total tax ₹{data.TotalTax:N0}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _generating = false;
+    }
+
+    async Task Generate12BA()
+    {
+        if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return; }
+        if (_employeeId == 0) { Snackbar.Add("Select an employee.", Severity.Warning); return; }
+        _generating = true; StateHasChanged();
+        try
+        {
+            var data = await Task.Run(() => Form12BAGenerator.Build(AppState.CurrentDeductorId, _employeeId, AppState.CurrentFY));
+            if (data.Perquisites.Count == 0)
+            {
+                Snackbar.Add("No perquisites recorded for this employee in this FY. Add perq line items in Salary Data first.", Severity.Warning);
+                _generating = false; return;
+            }
+            var folder = FolderManager.Form16ForFyFolder(AppState.CurrentFY);
+            var path = Form12BAGenerator.SaveHtml(data, folder);
+            FolderManager.OpenFolder(folder);
+            Snackbar.Add($"Form 12BA saved: {Path.GetFileName(path)} — Total perq taxable ₹{data.TotalChargeable:N0}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _generating = false;
+    }
+
+    async Task GenerateComputation()
+    {
+        if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return; }
+        if (_employeeId == 0) { Snackbar.Add("Select an employee.", Severity.Warning); return; }
+        _generating = true; StateHasChanged();
+        try
+        {
+            var data = await Task.Run(() => IncomeComputationGenerator.Build(AppState.CurrentDeductorId, _employeeId, AppState.CurrentFY));
+            var folder = FolderManager.Form16ForFyFolder(AppState.CurrentFY);
+            var path = IncomeComputationGenerator.SaveHtml(data, folder);
+            FolderManager.OpenFolder(folder);
+            Snackbar.Add($"Computation saved: {Path.GetFileName(path)} — Total tax ₹{data.TotalTax:N0}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _generating = false;
     }
 
     async Task BulkGenerate16()
@@ -232,7 +313,7 @@
             _bulkResult = $"Generated {ok} / {emps.Count} Form 16 files → {folder}";
             if (fail > 0) _bulkResult += $"\n\nFailed ({fail}):\n{errors}";
         }
-        catch (Exception ex) { _bulkResult = "Error: " + ex.Message; _bulkSeverity = Severity.Error; }
+        catch (Exception ex) { _bulkResult = "Error: " + ErrorTranslator.UserFriendly(ex); _bulkSeverity = Severity.Error; }
         _generating = false;
     }
 

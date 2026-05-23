@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TDSPro.DAL\TDSPro.DAL.csproj" />
-    <ProjectReference Include="..\TDSPro.Common\TDSPro.Common.csproj" />
+    <ProjectReference Include="..\TDSPro.DAL\TDSPro.DAL.csproj" Private="false" />
+    <ProjectReference Include="..\TDSPro.Common\TDSPro.Common.csproj" Private="false" />
   </ItemGroup>
 </Project>

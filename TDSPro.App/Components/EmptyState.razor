@@ -1,0 +1,56 @@
+@*
+    Reusable empty-state card. Use anywhere a table/list would be empty.
+
+    Usage:
+        <EmptyState Icon="@Icons.Material.Filled.People"
+                    Title="No employees yet"
+                    Subtitle="Add your first employee to start running payroll."
+                    PrimaryCta="+ Add Employee"
+                    PrimaryAction="@OpenAddEmployee"
+                    SecondaryCta="Import from Excel"
+                    SecondaryAction="@OpenExcelImport" />
+*@
+
+<div style="text-align:center;padding:48px 24px;color:#475569;
+            background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;
+            margin:12px 0">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <MudIcon Icon="@Icon" Style="font-size:56px;color:#94a3b8;margin-bottom:14px" />
+    }
+    else
+    {
+        <div style="font-size:48px;margin-bottom:14px">@(IconText ?? "📭")</div>
+    }
+    <div style="font-size:18px;font-weight:600;color:#1e293b;margin-bottom:8px">@Title</div>
+    @if (!string.IsNullOrEmpty(Subtitle))
+    {
+        <div style="font-size:13px;max-width:420px;margin:0 auto 18px;line-height:1.5">@Subtitle</div>
+    }
+    @if (!string.IsNullOrEmpty(PrimaryCta) && PrimaryAction.HasDelegate)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium"
+                   OnClick="PrimaryAction">@PrimaryCta</MudButton>
+    }
+    @if (!string.IsNullOrEmpty(SecondaryCta) && SecondaryAction.HasDelegate)
+    {
+        <MudButton Variant="Variant.Outlined" Size="Size.Medium" Class="ml-2"
+                   OnClick="SecondaryAction">@SecondaryCta</MudButton>
+    }
+    @if (!string.IsNullOrEmpty(HelpText))
+    {
+        <div style="font-size:11px;color:#94a3b8;margin-top:14px;font-style:italic">@HelpText</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string?               Icon            { get; set; }
+    [Parameter] public string?               IconText        { get; set; }   // emoji fallback if no MudIcon
+    [Parameter] public string                Title           { get; set; } = "Nothing here yet";
+    [Parameter] public string?               Subtitle        { get; set; }
+    [Parameter] public string?               PrimaryCta      { get; set; }
+    [Parameter] public EventCallback         PrimaryAction   { get; set; }
+    [Parameter] public string?               SecondaryCta    { get; set; }
+    [Parameter] public EventCallback         SecondaryAction { get; set; }
+    [Parameter] public string?               HelpText        { get; set; }
+}

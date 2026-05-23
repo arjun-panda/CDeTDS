@@ -1,5 +1,7 @@
 using System.Globalization;
 using ClosedXML.Excel;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 using TDSPro.DAL.Models;
 
 namespace TDSPro.DAL
@@ -27,7 +29,6 @@ namespace TDSPro.DAL
         {
             var sb = new System.Text.StringBuilder();
             string monthLabel  = MonthYear(entry.Month, entry.Year);
-            string daysInMonth = DateTime.DaysInMonth(entry.Year, entry.Month).ToString();
             var chosen = annual.ChosenRegime == "New" ? annual.NewRegime : annual.OldRegime;
 
             // Always recompute from fields — don't trust stored GrossPayment
@@ -54,8 +55,14 @@ namespace TDSPro.DAL
             var earnings = allEarnings.Where(x => x.Amount != 0 || x.Label == "Basic Salary").ToList();
 
             // ── Deduction rows — only non-zero ───────────────────────────────
+            int    htmlLopDays   = entry.LopDays;
+            double htmlLopAmount = htmlLopDays > 0 ? Math.Round(entry.Basic * htmlLopDays / 30.0, 0) : 0;
+            int    htmlDim       = DateTime.DaysInMonth(entry.Year, entry.Month);
+            int    htmlDaysPaid  = entry.DaysWorked > 0 ? entry.DaysWorked : htmlDim;
+
             var allDeductions = new List<(string Label, double Amount)>
             {
+                ("Loss of Pay",               htmlLopAmount),
                 ("Provident Fund (Employee)", entry.PfEmployee),
                 ("VPF / Extra PF",            entry.VPF),
                 ("Professional Tax",          entry.ProfessionalTax),
@@ -65,9 +72,9 @@ namespace TDSPro.DAL
             var deductions = allDeductions.Where(x => x.Amount != 0).ToList();
 
             double grossEarnings   = entry.GrossPayment;
-            double totalDeductions = entry.PfEmployee + entry.VPF + entry.ProfessionalTax
+            double totalDeductions = htmlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
                                    + entry.EsiEmployee + entry.TdsDeducted;
-            double netSalary       = entry.NetSalary;
+            double netSalary       = grossEarnings - totalDeductions;
 
             // Pad both lists to equal length for side-by-side layout
             int maxRows = Math.Max(earnings.Count, deductions.Count);
@@ -165,9 +172,9 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 
 <!-- DAYS -->
 <div class='days-bar'>
-  <span><strong>{daysInMonth}</strong>Days in Month</span>
-  <span><strong>{daysInMonth}</strong>Days Present</span>
-  <span><strong>0</strong>Loss of Pay Days</span>
+  <span><strong>{htmlDim}</strong>Days in Month</span>
+  <span><strong>{htmlDaysPaid}</strong>Days Present</span>
+  <span><strong>{htmlLopDays}</strong>Loss of Pay Days</span>
   <span><strong>{monthLabel}</strong>Pay Period</span>
 </div>
 
@@ -248,6 +255,189 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 
         private static string TaxRow(string label, double oldVal, double newVal)
             => $"<tr><td>{Esc(label)}</td><td class='num'>{R(oldVal)}</td><td class='num'>{R(newVal)}</td></tr>";
+
+        // ════════════════════════════════════════════════════════════════════
+        // PDF — proper paginated A4 portrait via QuestPDF
+        // ════════════════════════════════════════════════════════════════════
+        public static string GeneratePdf(
+            MonthlySalaryEntry entry,
+            AnnualComputation  annual,
+            Employee           emp,
+            Deductor           deductor,
+            string             outputFolder)
+        {
+            entry.RecalcGross();
+            string monthLabel = MonthYear(entry.Month, entry.Year);
+
+            var earnings = new List<(string Label, double Amount)>
+            {
+                ("Basic Salary",                  entry.Basic),
+                ("House Rent Allowance",           entry.HRA),
+                ("Dearness Allowance",             entry.DaAmount),
+                ("Special Allowance",              entry.SpecialAllowance),
+                ("Medical Allowance",              entry.MedicalAllowance),
+                ("Leave Travel Allowance (LTA)",   entry.Lta),
+                ("Bonus",                          entry.Bonus),
+                ("Commission",                     entry.Commission),
+                ("Advance Salary",                 entry.AdvanceSalary),
+                ("Arrears",                        entry.Arrears),
+                ("Other Allowances",               entry.OtherAllowances),
+                ("NPS (Employer)",                 entry.NpsEmployer),
+                ("Perquisites [taxable]",          entry.PerqTaxable),
+                ("Leave Encashment [taxable]",     entry.LeaveEncTaxable),
+            }.Where(x => x.Amount != 0 || x.Label == "Basic Salary").ToList();
+
+            int lopDays       = entry.LopDays;
+            double lopAmount  = lopDays > 0 ? Math.Round(entry.Basic * lopDays / 30.0, 0) : 0;
+
+            var deductions = new List<(string Label, double Amount)>
+            {
+                ("Loss of Pay",               lopAmount),
+                ("Provident Fund (Employee)", entry.PfEmployee),
+                ("VPF / Extra PF",            entry.VPF),
+                ("Professional Tax",          entry.ProfessionalTax),
+                ("ESI (Employee)",            entry.EsiEmployee),
+                ("Income Tax (TDS)",          entry.TdsDeducted),
+            }.Where(x => x.Amount != 0).ToList();
+
+            double grossTotal = earnings.Sum(e => e.Amount);
+            double dedTotal   = deductions.Sum(d => d.Amount);
+            double netPay     = grossTotal - dedTotal;
+
+            // Compose deductor address line + pay period
+            var dedAddrParts = new[] { deductor.Address, deductor.City, deductor.State, deductor.Pincode }
+                .Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+            var dedAddress   = string.Join(", ", dedAddrParts);
+            int dim         = DateTime.DaysInMonth(entry.Year, entry.Month);
+            int daysPaid    = entry.DaysWorked > 0 ? entry.DaysWorked : dim;
+            var periodStart  = new DateTime(entry.Year, entry.Month, 1).ToString("dd-MMM-yyyy");
+            var periodEnd    = new DateTime(entry.Year, entry.Month, dim).ToString("dd-MMM-yyyy");
+            string netInWords = TDSPro.Common.AmountInWords.Rupees(netPay);
+            bool draft       = !entry.IsLocked;
+
+            byte[] pdf = PdfReports.BuildA4(
+                title:    $"Salary Slip — {monthLabel}  |  Pay Period: {periodStart} to {periodEnd}",
+                subtitle: deductor.CompanyName + (string.IsNullOrEmpty(dedAddress) ? "" : "  ·  " + dedAddress),
+                body:     c => c.Column(col =>
+                {
+                    // Employer identity strip (TAN / PAN)
+                    if (!string.IsNullOrEmpty(deductor.Tan) || !string.IsNullOrEmpty(deductor.Pan))
+                    {
+                        col.Item().PaddingBottom(6).Row(r =>
+                        {
+                            if (!string.IsNullOrEmpty(deductor.Tan))
+                                r.RelativeItem().Text(t => { t.Span("Employer TAN: ").FontColor(PdfReports.MutedColor).FontSize(9); t.Span(deductor.Tan).FontSize(9).Bold(); });
+                            if (!string.IsNullOrEmpty(deductor.Pan))
+                                r.RelativeItem().Text(t => { t.Span("Employer PAN: ").FontColor(PdfReports.MutedColor).FontSize(9); t.Span(deductor.Pan).FontSize(9).Bold(); });
+                        });
+                    }
+
+                    // Employee header block
+                    col.Item().PaddingBottom(10).Table(t =>
+                    {
+                        t.ColumnsDefinition(d => { d.RelativeColumn(); d.RelativeColumn(); d.RelativeColumn(); d.RelativeColumn(); });
+                        t.Cell().Element(PdfReports.LabelCell).Text("Employee Code").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().Element(PdfReports.LabelCell).Text(emp.EmployeeCode).Bold();
+                        t.Cell().Element(PdfReports.LabelCell).Text("PAN").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().Element(PdfReports.LabelCell).Text(emp.Pan).Bold();
+
+                        t.Cell().Element(PdfReports.LabelCell).Text("Name").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().ColumnSpan(3).Element(PdfReports.LabelCell).Text(emp.Name).Bold();
+
+                        t.Cell().Element(PdfReports.LabelCell).Text("Designation").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().Element(PdfReports.LabelCell).Text(string.IsNullOrEmpty(emp.Designation) ? "—" : emp.Designation);
+                        t.Cell().Element(PdfReports.LabelCell).Text("Bank A/c").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().Element(PdfReports.LabelCell).Text(string.IsNullOrEmpty(emp.BankAccount) ? "—" : emp.BankAccount);
+
+                        // Days row
+                        t.Cell().Element(PdfReports.LabelCell).Text("Days in Month").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().Element(PdfReports.LabelCell).Text(dim.ToString());
+                        t.Cell().Element(PdfReports.LabelCell).Text("Paid Days").FontColor(PdfReports.MutedColor).FontSize(9);
+                        t.Cell().Element(PdfReports.LabelCell).Text(daysPaid.ToString() + (lopDays > 0 ? $"  |  LOP: {lopDays}" : ""));
+                    });
+
+                    // Earnings / Deductions side-by-side
+                    col.Item().Row(row =>
+                    {
+                        row.RelativeItem().Column(cc =>
+                        {
+                            cc.Item().Element(PdfReports.HeaderCell).Text("EARNINGS").Bold().FontColor(PdfReports.PrimaryColor);
+                            cc.Item().Table(t =>
+                            {
+                                t.ColumnsDefinition(d => { d.RelativeColumn(2); d.RelativeColumn(1); });
+                                foreach (var (label, amt) in earnings)
+                                {
+                                    t.Cell().Element(PdfReports.LabelCell).Text(label);
+                                    t.Cell().Element(PdfReports.AmountCell).Text(R(amt));
+                                }
+                                t.Cell().Element(PdfReports.SubtotalCell).Text("Gross Earnings").Bold();
+                                t.Cell().Element(PdfReports.SubtotalCell).AlignRight().Text(R(grossTotal)).Bold().FontColor(PdfReports.AccentColor);
+                            });
+                        });
+                        row.ConstantItem(20);
+                        row.RelativeItem().Column(cc =>
+                        {
+                            cc.Item().Element(PdfReports.HeaderCell).Text("DEDUCTIONS").Bold().FontColor(PdfReports.ErrorColor);
+                            cc.Item().Table(t =>
+                            {
+                                t.ColumnsDefinition(d => { d.RelativeColumn(2); d.RelativeColumn(1); });
+                                if (deductions.Count == 0)
+                                {
+                                    t.Cell().ColumnSpan(2).Element(PdfReports.LabelCell).Text("(none)").FontColor(PdfReports.MutedColor).Italic();
+                                }
+                                foreach (var (label, amt) in deductions)
+                                {
+                                    t.Cell().Element(PdfReports.LabelCell).Text(label);
+                                    t.Cell().Element(PdfReports.AmountCell).Text(R(amt));
+                                }
+                                t.Cell().Element(PdfReports.SubtotalCell).Text("Total Deductions").Bold();
+                                t.Cell().Element(PdfReports.SubtotalCell).AlignRight().Text(R(dedTotal)).Bold().FontColor(PdfReports.ErrorColor);
+                            });
+                        });
+                    });
+
+                    // Net Pay block (highlighted)
+                    col.Item().PaddingTop(12).Background("#dcfce7").Padding(10).Column(cc =>
+                    {
+                        cc.Item().Row(r =>
+                        {
+                            r.RelativeItem().Text("NET PAY").Bold().FontColor(PdfReports.AccentColor).FontSize(14);
+                            r.ConstantItem(150).AlignRight().Text(R(netPay)).Bold().FontSize(16).FontColor(PdfReports.AccentColor);
+                        });
+                        cc.Item().PaddingTop(2).Text(netInWords).FontSize(9).Italic().FontColor("#166534");
+                    });
+
+                    // Draft watermark (only when entry not approved/locked)
+                    if (draft)
+                    {
+                        col.Item().PaddingTop(10).Background("#fef2f2").Border(1).BorderColor("#fca5a5").Padding(6).AlignCenter()
+                            .Text("⚠ DRAFT — NOT YET APPROVED. Approve the month in Salary Data → Approve & Lock before issuing.").FontSize(9).Bold().FontColor("#991b1b");
+                    }
+
+                    // Signature block
+                    col.Item().PaddingTop(40).Row(r =>
+                    {
+                        r.RelativeItem().Column(cc =>
+                        {
+                            cc.Item().Text("Received the above amount.").FontSize(9).FontColor(PdfReports.MutedColor);
+                            cc.Item().PaddingTop(20).BorderTop(1).BorderColor(PdfReports.BorderColor).Width(180).PaddingTop(2).Text("Employee Signature").FontSize(9).FontColor(PdfReports.MutedColor);
+                        });
+                        r.RelativeItem().Column(cc =>
+                        {
+                            cc.Item().AlignRight().Text("For " + deductor.CompanyName).FontSize(9).FontColor(PdfReports.MutedColor);
+                            cc.Item().PaddingTop(20).AlignRight().BorderTop(1).BorderColor(PdfReports.BorderColor).Width(180).PaddingTop(2).AlignRight().Text("Authorized Signatory").FontSize(9).FontColor(PdfReports.MutedColor);
+                        });
+                    });
+
+                    col.Item().PaddingTop(10).AlignCenter().Text("This is a computer-generated salary slip and does not require a physical signature.").FontSize(8).Italic().FontColor(PdfReports.MutedColor);
+                }));
+
+            Directory.CreateDirectory(outputFolder);
+            var safeName = string.Concat((emp.Name ?? "employee").Split(Path.GetInvalidFileNameChars()));
+            var path = Path.Combine(outputFolder, $"SalarySlip_{safeName}_{monthLabel.Replace(' ', '_')}.pdf");
+            File.WriteAllBytes(path, pdf);
+            return path;
+        }
 
         // ════════════════════════════════════════════════════════════════════
         // EXCEL (.xlsx) — professional styled payslip
@@ -398,9 +588,11 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 
             // ── Rows 12+: Side-by-side earnings / deductions ─────────────────
             entry.RecalcGross();
+            int    xlLopDays   = entry.LopDays;
+            double xlLopAmount = xlLopDays > 0 ? Math.Round(entry.Basic * xlLopDays / 30.0, 0) : 0;
             double gross = entry.GrossPayment;
-            double ded   = entry.PfEmployee + entry.VPF + entry.ProfessionalTax + entry.EsiEmployee + entry.TdsDeducted;
-            double net   = entry.NetSalary;
+            double ded   = xlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax + entry.EsiEmployee + entry.TdsDeducted;
+            double net   = gross - ded;
 
             var earns = new List<(string, double)> {
                 ("Basic Salary",               entry.Basic),
@@ -420,6 +612,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             }.Where(x => x.Item2 != 0 || x.Item1 == "Basic Salary").ToList();
 
             var deds = new List<(string, double)> {
+                ("Loss of Pay",          xlLopAmount),
                 ("Provident Fund",       entry.PfEmployee),
                 ("VPF / Extra PF",       entry.VPF),
                 ("Professional Tax",     entry.ProfessionalTax),

@@ -3,6 +3,7 @@
 // ║  Reads FH/BH/CD/DD records from a TRACES correction file (.tds/.txt)    ║
 // ║  and imports deductor, deductees, challans, and TDS entries into DB.    ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
+using ICSharpCode.SharpZipLib.Zip;
 using TDSPro.DAL.Models;
 
 namespace TDSPro.DAL
@@ -28,9 +29,10 @@ namespace TDSPro.DAL
     {
         /// <summary>
         /// Import a TRACES conso file (.tds or .txt) into the database.
+        /// If the file is a password-protected ZIP (.tds), pass the password (TAN_RequestNumber).
         /// Returns a result summary.
         /// </summary>
-        public static ConsoImportResult Import(string filePath, bool overwriteExisting = false)
+        public static ConsoImportResult Import(string filePath, bool overwriteExisting = false, string? zipPassword = null)
         {
             var result = new ConsoImportResult();
             try
@@ -38,9 +40,24 @@ namespace TDSPro.DAL
                 if (!File.Exists(filePath))
                     throw new FileNotFoundException($"File not found: {filePath}");
 
-                var lines = File.ReadAllLines(filePath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l))
-                    .ToList();
+                List<string> lines;
+
+                if (IsZipFile(filePath))
+                {
+                    if (string.IsNullOrWhiteSpace(zipPassword))
+                        throw new Exception(
+                            "This is a password-protected TRACES conso file.\n" +
+                            "Password format: TAN_RequestNumber  (e.g. DELI03886B_86528)\n" +
+                            "Find the Request Number in TRACES → Downloads → Requested Downloads.");
+
+                    lines = ExtractLinesFromZip(filePath, zipPassword);
+                }
+                else
+                {
+                    lines = File.ReadAllLines(filePath)
+                        .Where(l => !string.IsNullOrWhiteSpace(l))
+                        .ToList();
+                }
 
                 if (lines.Count == 0)
                     throw new Exception("File is empty.");
@@ -167,12 +184,17 @@ namespace TDSPro.DAL
                         if (currentTotal <= 0) currentTotal = currentTdsAmt + currentCess + currentInterest + currentLateFee;
                         currentStatus    = DetermineStatus(Safe(cd, 12, ""));
 
-                        // Insert challan
+                        // Upsert challan — natural key: bsr_code + challan_no + challan_date + deductor_id
                         using var cins = conn.CreateCommand();
-                        cins.CommandText = @"INSERT OR IGNORE INTO challans
+                        cins.CommandText = @"INSERT INTO challans
                             (deductor_id,challan_no,bsr_code,challan_date,financial_year,quarter,
                              section,tds_amount,surcharge,cess,interest,late_fee,total_amount,status)
-                            VALUES(@did,@no,@bsr,@dt,@fy,@qtr,@sec,@tds,0,@cess,@int,@lf,@tot,@st)";
+                            VALUES(@did,@no,@bsr,@dt,@fy,@qtr,@sec,@tds,0,@cess,@int,@lf,@tot,@st)
+                            ON CONFLICT(bsr_code,challan_no,challan_date,deductor_id) DO UPDATE SET
+                            tds_amount=excluded.tds_amount, cess=excluded.cess,
+                            interest=excluded.interest, late_fee=excluded.late_fee,
+                            total_amount=excluded.total_amount, status=excluded.status,
+                            section=excluded.section, quarter=excluded.quarter";
                         cins.Parameters.AddWithValue("@did",  deductorId);
                         cins.Parameters.AddWithValue("@no",   currentChallanNo);
                         cins.Parameters.AddWithValue("@bsr",  currentBsr);
@@ -180,19 +202,20 @@ namespace TDSPro.DAL
                         cins.Parameters.AddWithValue("@fy",   result.FY);
                         cins.Parameters.AddWithValue("@qtr",  result.Quarter);
                         cins.Parameters.AddWithValue("@sec",  currentSection);
-                        cins.Parameters.AddWithValue("@tds",  currentTdsAmt);
-                        cins.Parameters.AddWithValue("@cess", currentCess);
-                        cins.Parameters.AddWithValue("@int",  currentInterest);
-                        cins.Parameters.AddWithValue("@lf",   currentLateFee);
-                        cins.Parameters.AddWithValue("@tot",  currentTotal);
+                        cins.Parameters.AddWithValue("@tds",  Math.Round(currentTdsAmt,  MidpointRounding.AwayFromZero));
+                        cins.Parameters.AddWithValue("@cess", Math.Round(currentCess,     MidpointRounding.AwayFromZero));
+                        cins.Parameters.AddWithValue("@int",  Math.Round(currentInterest, MidpointRounding.AwayFromZero));
+                        cins.Parameters.AddWithValue("@lf",   Math.Round(currentLateFee,  MidpointRounding.AwayFromZero));
+                        cins.Parameters.AddWithValue("@tot",  Math.Round(currentTotal,    MidpointRounding.AwayFromZero));
                         cins.Parameters.AddWithValue("@st",   currentStatus);
                         cins.ExecuteNonQuery();
 
                         using var cid = conn.CreateCommand();
-                        cid.CommandText = "SELECT id FROM challans WHERE deductor_id=@did AND challan_no=@no AND financial_year=@fy LIMIT 1";
-                        cid.Parameters.AddWithValue("@did", deductorId);
+                        cid.CommandText = "SELECT id FROM challans WHERE bsr_code=@bsr AND challan_no=@no AND challan_date=@dt AND deductor_id=@did LIMIT 1";
+                        cid.Parameters.AddWithValue("@bsr", currentBsr);
                         cid.Parameters.AddWithValue("@no",  currentChallanNo);
-                        cid.Parameters.AddWithValue("@fy",  result.FY);
+                        cid.Parameters.AddWithValue("@dt",  currentDate);
+                        cid.Parameters.AddWithValue("@did", deductorId);
                         currentChallanId = (long)(cid.ExecuteScalar() ?? 0L);
                         result.ChallansImported++;
                         challanSeq++;
@@ -251,14 +274,19 @@ namespace TDSPro.DAL
                             }
                         }
 
-                        // Insert TDS entry
+                        // Upsert TDS entry — natural key: deductor_id + deductee_id + entry_date + section + amount + quarter
                         string entryNo2 = $"TDS{entrySeq:D5}";
                         using var eins = conn.CreateCommand();
-                        eins.CommandText = @"INSERT OR IGNORE INTO tds_entries
+                        eins.CommandText = @"INSERT INTO tds_entries
                             (entry_no,deductor_id,deductee_id,entry_date,financial_year,quarter,
                              section,amount,rate,tds_amount,surcharge,cess,interest,late_fee,
                              total_tds,status,challan_id,remarks)
-                            VALUES(@en,@did,@deid,@dt,@fy,@qtr,@sec,@amt,@rate,@tds,0,@cess,0,0,@tot,@st,@cid,'Imported from TRACES conso file')";
+                            VALUES(@en,@did,@deid,@dt,@fy,@qtr,@sec,@amt,@rate,@tds,0,@cess,0,0,@tot,@st,@cid,'Imported from TRACES conso file')
+                            ON CONFLICT(deductor_id,deductee_id,entry_date,section,amount,quarter) DO UPDATE SET
+                            rate=excluded.rate, tds_amount=excluded.tds_amount,
+                            cess=excluded.cess, total_tds=excluded.total_tds,
+                            status=excluded.status,
+                            challan_id=COALESCE(excluded.challan_id, tds_entries.challan_id)";
                         eins.Parameters.AddWithValue("@en",   entryNo2);
                         eins.Parameters.AddWithValue("@did",  deductorId);
                         eins.Parameters.AddWithValue("@deid", deeId);
@@ -268,9 +296,9 @@ namespace TDSPro.DAL
                         eins.Parameters.AddWithValue("@sec",  section2);
                         eins.Parameters.AddWithValue("@amt",  grossAmt);
                         eins.Parameters.AddWithValue("@rate", rate2);
-                        eins.Parameters.AddWithValue("@tds",  tdsAmt);
-                        eins.Parameters.AddWithValue("@cess", cess2);
-                        eins.Parameters.AddWithValue("@tot",  total2);
+                        eins.Parameters.AddWithValue("@tds",  Math.Round(tdsAmt,  MidpointRounding.AwayFromZero));
+                        eins.Parameters.AddWithValue("@cess", Math.Round(cess2,   MidpointRounding.AwayFromZero));
+                        eins.Parameters.AddWithValue("@tot",  Math.Round(total2,  MidpointRounding.AwayFromZero));
                         eins.Parameters.AddWithValue("@st",   currentStatus);
                         eins.Parameters.AddWithValue("@cid",  currentChallanId > 0 ? currentChallanId : DBNull.Value);
                         eins.ExecuteNonQuery();
@@ -297,6 +325,51 @@ namespace TDSPro.DAL
             }
 
             return result;
+        }
+
+        // ── ZIP helpers ───────────────────────────────────────────────────────
+        private static bool IsZipFile(string path)
+        {
+            try
+            {
+                using var fs = File.OpenRead(path);
+                // ZIP magic bytes: PK (0x50 0x4B)
+                return fs.ReadByte() == 0x50 && fs.ReadByte() == 0x4B;
+            }
+            catch { return false; }
+        }
+
+        private static List<string> ExtractLinesFromZip(string zipPath, string password)
+        {
+            using var fs  = File.OpenRead(zipPath);
+            using var zip = new ZipFile(fs);
+            zip.Password = password;
+
+            foreach (ZipEntry entry in zip)
+            {
+                if (!entry.IsFile) continue;
+
+                // Accept any .txt or file without extension inside the ZIP
+                var name = entry.Name.ToLower();
+                if (!name.EndsWith(".txt") && !name.EndsWith(".tds") && Path.GetExtension(name) != "")
+                    continue;
+
+                using var stream = zip.GetInputStream(entry);
+                using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                var content = reader.ReadToEnd();
+
+                var lines = content
+                    .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(l => !string.IsNullOrWhiteSpace(l))
+                    .ToList();
+
+                if (lines.Any(l => l.StartsWith("FH|")))
+                    return lines;
+            }
+
+            throw new Exception(
+                "Could not find a valid conso data file inside the ZIP.\n" +
+                "Please verify the password is correct (TAN_RequestNumber).");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

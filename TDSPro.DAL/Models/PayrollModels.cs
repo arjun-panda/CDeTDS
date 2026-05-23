@@ -69,6 +69,7 @@ namespace TDSPro.DAL.Models
 
         // ── Salary / Tax settings ─────────────────────────────────────────────
         public string  TaxRegime       { get; set; } = "New";  // New / Old
+        public string  HraCityType     { get; set; } = "Non-Metro"; // Metro = 50% of Basic; Non-Metro = 40%
         public bool    HraMonthlyBasis { get; set; } = true;   // Calculate HRA on monthly basis
         public bool    DaForRetirement { get; set; } = true;   // DA forms part of retirement salary
         public bool    IsDifferentlyAbled { get; set; } = false;
@@ -101,8 +102,76 @@ namespace TDSPro.DAL.Models
         public string PtState        { get; set; } = ""; // e.g. "Maharashtra"
         public string EffectiveFrom  { get; set; } = "";
 
+        /// <summary>Target monthly CTC. When > 0, Special auto-balances = CTC − all other heads.</summary>
+        public double TargetCtc      { get; set; } = 0;
+        /// <summary>Include 4.81% Gratuity provision in CTC reconciliation + auto-balance.</summary>
+        public bool   IncludeGratuity { get; set; } = true;
+
+        // ── Reimbursements (bill-based, exempt heads — monthly) ──────────────
+        public double ReimbTelephone { get; set; } = 0;
+        public double ReimbFuel      { get; set; } = 0;
+        public double ReimbBooks     { get; set; } = 0;
+        public double ReimbMeal      { get; set; } = 0;  // food coupons ₹50/meal × 22 = ₹1,100/mo typical
+        public double ReimbUniform   { get; set; } = 0;
+
+        // ── Variable pay (annual, paid lump-sum) ─────────────────────────────
+        public double AnnualBonus      { get; set; } = 0; // performance / retention / joining
+        public double AnnualIncentive  { get; set; } = 0; // sales / commission target
+
+        // ── Employer contributions (CTC reconciliation only, not in take-home) ─
+        public double EmployerInsurance { get; set; } = 0; // monthly group insurance premium
+        public double EmployerNps       { get; set; } = 0; // monthly NPS employer share
+
+        // ── Named line items (replaces rigid Reimb*/AnnualBonus etc. as primary source) ──
+        // Each component: name, category (allowance/reimbursement/perquisite/variable),
+        // monthly received/paid/taxable amounts and an optional rule reference (e.g. "Sec 10(5)" for LTA).
+        public List<SalaryComponent> Components { get; set; } = new();
+
+        public double ComponentsReceived(string? category = null) =>
+            (category == null ? Components : Components.Where(c => c.Category == category)).Sum(c => c.Received);
+        public double ComponentsPaid(string? category = null) =>
+            (category == null ? Components : Components.Where(c => c.Category == category)).Sum(c => c.Paid);
+        public double ComponentsTaxable(string? category = null) =>
+            (category == null ? Components : Components.Where(c => c.Category == category)).Sum(c => c.Taxable);
+
+        // OtherAllowance is a UI mirror of ComponentsReceived (read-only). Lta is a dedicated editable field.
+        // To avoid double-counting OtherAllowance, gross uses ComponentsReceived directly (not OtherAllowance).
         public double GrossSalary =>
-            Basic + Hra + Da + SpecialAllowance + MedicalAllowance + Lta + OtherAllowance;
+            Basic + Hra + Da + SpecialAllowance + MedicalAllowance + Lta + ComponentsReceived();
+
+        public double MonthlyReimbursements =>
+            ReimbTelephone + ReimbFuel + ReimbBooks + ReimbMeal + ReimbUniform;
+
+        /// <summary>Approx monthly CTC = Gross + Reimb + Variable/12 + Employer PF (12% Basic, capped) + Gratuity (4.81% Basic) + Insurance + Employer NPS.</summary>
+        public double MonthlyCtcApprox
+        {
+            get
+            {
+                double employerPf = Basic > 15000 ? 1800 : Math.Round(Basic * 0.12);
+                double gratuity   = IncludeGratuity ? Math.Round(Basic * 0.0481) : 0;
+                return GrossSalary + MonthlyReimbursements
+                     + Math.Round((AnnualBonus + AnnualIncentive) / 12.0)
+                     + employerPf + gratuity + EmployerInsurance + EmployerNps;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A named monthly salary component with Received / Paid (bills) / Taxable amounts.
+    /// Categories: "allowance" (e.g. LTA, Conveyance), "reimbursement" (Telephone, Fuel),
+    /// "perquisite" (Car, ESOP), "variable" (Bonus, Incentive).
+    /// </summary>
+    public class SalaryComponent
+    {
+        public int    Id              { get; set; }
+        public int    SalaryStructureId { get; set; }
+        public string Category        { get; set; } = "allowance"; // allowance / reimbursement / perquisite / variable
+        public int    Ordinal         { get; set; }
+        public string Name            { get; set; } = "";
+        public double Received        { get; set; } // monthly amount paid in salary
+        public double Paid            { get; set; } // monthly amount substantiated with bills/proof
+        public double Taxable         { get; set; } // typically Received - Paid (auto, but user-editable)
+        public string RuleRef         { get; set; } = ""; // e.g. "Sec 10(5)", "Sec 17(2)"
     }
 
     public class TaxDeclaration
@@ -131,9 +200,24 @@ namespace TDSPro.DAL.Models
         public double Sec80U                { get; set; }   // self differently abled
         public double LtaExemption          { get; set; }   // LTA claimed
         // HRA details
-        public string LandlordPan           { get; set; } = ""; // mandatory if rent > ₹1L/yr
+        public string LandlordPan           { get; set; } = ""; // legacy single landlord (kept for compat)
         // 80D details
         public bool   IsParentSeniorCitizen { get; set; }   // 80D parent limit: ₹50K if true, ₹25K
+        // Multiple landlords (loaded separately)
+        [System.Text.Json.Serialization.JsonIgnore]
+        public List<LandlordRecord> Landlords { get; set; } = new();
+    }
+
+    public class LandlordRecord
+    {
+        public int    Id           { get; set; }
+        public int    EmployeeId   { get; set; }
+        public string FinancialYear{ get; set; } = "";
+        public string Name         { get; set; } = "";
+        public string Pan          { get; set; } = "";
+        public double AnnualRent   { get; set; }
+        public string FromDate     { get; set; } = ""; // dd-MM-yyyy
+        public string ToDate       { get; set; } = ""; // dd-MM-yyyy
     }
 
     public class PayrollRun

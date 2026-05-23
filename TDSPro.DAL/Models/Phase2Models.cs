@@ -76,7 +76,9 @@ namespace TDSPro.DAL.Models
         public string Gstin          { get; set; } = "";       // GST Identification Number (15 chars)
         // Correction return fields
         public bool   IsCorrection   { get; set; } = false;   // true = correction, false = original
-        public string PreviousPrn    { get; set; } = "";      // Provisional Receipt Number from original filing
+        public string PreviousPrn    { get; set; } = "";      // PRN from the immediately preceding filing (original or last correction)
+        public string OriginalPrn    { get; set; } = "";      // PRN of the very first original filing (C2/C3 need this in BH[8])
+        public string CorrectionType { get; set; } = "C1";    // C1 / C2 / C3
     }
 
     public class ReturnChallanDetail
@@ -114,6 +116,7 @@ namespace TDSPro.DAL.Models
         public string DeducteeType      { get; set; } = "01"; // 01=Company,02=Other
         public bool   IsResidentIndian  { get; set; } = true;
         public double Rate              { get; set; }
+        public string LowerDeductionCertNo { get; set; } = "";  // Section 197 cert number (when Remarks="A")
     }
 
     public class ReturnSalaryDetail

@@ -41,6 +41,60 @@ namespace TDSPro.BLL
                 Database.LogAction("system", "DELETE", "Deductor", d.CompanyName);
             return result;
         }
+
+        // Counts dependent records — used by the delete confirmation to show impact
+        public (int Entries, int Challans) GetImpactCounts(int deductorId)
+        {
+            using var conn = Database.GetConnection();
+            using var c1 = conn.CreateCommand();
+            c1.CommandText = "SELECT COUNT(*) FROM tds_entries WHERE deductor_id=@id";
+            c1.Parameters.AddWithValue("@id", deductorId);
+            var entries = Convert.ToInt32(c1.ExecuteScalar() ?? 0);
+
+            using var c2 = conn.CreateCommand();
+            c2.CommandText = "SELECT COUNT(*) FROM challans WHERE deductor_id=@id";
+            c2.Parameters.AddWithValue("@id", deductorId);
+            var challans = Convert.ToInt32(c2.ExecuteScalar() ?? 0);
+
+            return (entries, challans);
+        }
+
+        // Lists soft-deleted deductors (is_active=0) for restore UI
+        public List<Deductor> GetDeleted()
+        {
+            var list = new List<Deductor>();
+            using var conn = Database.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM deductors WHERE is_active=0 ORDER BY company_name";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                list.Add(new Deductor
+                {
+                    Id = r.GetInt32(r.GetOrdinal("id")),
+                    CompanyName = r.GetString(r.GetOrdinal("company_name")),
+                    Tan = r.GetString(r.GetOrdinal("tan")),
+                    Pan = r.GetString(r.GetOrdinal("pan")),
+                });
+            }
+            return list;
+        }
+
+        public (bool Ok, string Msg) Restore(int id)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "UPDATE deductors SET is_active=1 WHERE id=@id";
+                cmd.Parameters.AddWithValue("@id", id);
+                var rows = cmd.ExecuteNonQuery();
+                if (rows == 0) return (false, "Company not found.");
+                Database.LogAction("system", "RESTORE", "Deductor", id.ToString());
+                return (true, "Company restored.");
+            }
+            catch (Exception ex) { return (false, ex.Message); }
+        }
     }
 
     // ── Deductee Service ──────────────────────────────────────────────────────
@@ -120,9 +174,11 @@ namespace TDSPro.BLL
             if (e.TdsAmount <= 0 && e.Amount > 0 && e.Rate > 0)
                 e.TdsAmount = Validators.CalculateTds(e.Amount, e.Rate);
 
-            // Trust Surcharge/Cess from caller (set correctly by razor page using real deductee data)
-            // Only enforce cess=0 for non-salary/non-NR sections as a safety net
-            if (e.Section is not ("192" or "195"))
+            // Sec 192 salary TDS: cess is already baked into TdsAmount by the payroll engine.
+            // Never store cess as a separate field for salary — zero it out.
+            if (e.Section is "192" or "192A" or "192B")
+            { e.Surcharge = 0; e.Cess = 0; }
+            else if (e.Section is not "195")
                 e.Cess = 0;
 
             e.TotalTds = e.TdsAmount + e.Surcharge + e.Cess + e.Interest + e.LateFee;
@@ -140,6 +196,22 @@ namespace TDSPro.BLL
             if (result.Ok)
                 Database.LogAction("system", "DELETE", "TdsEntry", id.ToString());
             return result;
+        }
+
+        public (bool Ok, string Msg) MarkAdjusted(int id)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd  = conn.CreateCommand();
+                cmd.CommandText = "UPDATE tds_entries SET status='Adjusted' WHERE id=@id";
+                cmd.Parameters.AddWithValue("@id", id);
+                int rows = cmd.ExecuteNonQuery();
+                if (rows == 0) return (false, "Entry not found.");
+                Database.LogAction("system", "UPDATE", "TdsEntry", $"id={id} marked Adjusted");
+                return (true, "");
+            }
+            catch (Exception ex) { return (false, ex.Message); }
         }
 
         public List<TdsEntry> GetUnlinkedByQuarter(int deductorId, string fy, string quarter)
@@ -238,6 +310,6 @@ namespace TDSPro.BLL
     public class DashboardService
     {
         private readonly DashboardRepository _repo = new();
-        public DashboardStats GetStats(string fy) => _repo.GetStats(fy);
+        public DashboardStats GetStats(string fy, int? deductorId = null) => _repo.GetStats(fy, deductorId);
     }
 }

@@ -1,6 +1,6 @@
 {
-  "version"     : "3.0.2",
-  "releaseDate" : "2026-04-13",
-  "downloadUrl" : "https://tdspro.in/download/TDSPro_Setup_v3.0.2.exe",
-  "notes"       : "Dashboard rewritten — all KPI cards, bar chart, donut chart, sidebar fixed. All crash bugs resolved. Window starts maximized."
+  "version"     : "3.1.0",
+  "releaseDate" : "2026-05-23",
+  "downloadUrl" : "https://tdspro.in/download/TDSPro_Setup_v3.1.0.exe",
+  "notes"       : "Correction returns C1/C2/C3 with PRN chain. NIL return fixed. Filing history panel. Help section updated. Bundled JRE support. Crash logging."
 }

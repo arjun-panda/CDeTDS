@@ -31,14 +31,14 @@
 {
     <div id="challan-print-area" style="font-family:'Times New Roman',serif; max-width:740px; margin:0 auto; border:2px solid #000; padding:0;">
 
-        @* ── HEADER ── *@
+        @* â”€â”€ HEADER â”€â”€ *@
         <div style="background:#003087;color:#fff;text-align:center;padding:10px 0;">
             <div style="font-size:18px;font-weight:bold;letter-spacing:2px;">CHALLAN NO. 281</div>
             <div style="font-size:11px;margin-top:2px;">ITNS 281 — TDS / TCS Payable by Taxpayer</div>
         </div>
 
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            @* ── DEDUCTOR DETAILS ── *@
+            @* â”€â”€ DEDUCTOR DETAILS â”€â”€ *@
             <tr>
                 <td colspan="4" style="background:#e8eef7;font-weight:bold;padding:5px 8px;border-bottom:1px solid #000;">
                     DEDUCTOR DETAILS
@@ -71,7 +71,7 @@
                 <td style="@_tdValue">@GetAY(_selected.FinancialYear)</td>
             </tr>
 
-            @* ── CHALLAN DETAILS ── *@
+            @* â”€â”€ CHALLAN DETAILS â”€â”€ *@
             <tr>
                 <td colspan="4" style="background:#e8eef7;font-weight:bold;padding:5px 8px;border-top:1px solid #000;border-bottom:1px solid #000;">
                     CHALLAN DETAILS
@@ -100,7 +100,7 @@
                 <td colspan="3" style="@_tdValue">@_selected.AckNo</td>
             </tr>
 
-            @* ── AMOUNT DETAILS ── *@
+            @* â”€â”€ AMOUNT DETAILS â”€â”€ *@
             <tr>
                 <td colspan="4" style="background:#e8eef7;font-weight:bold;padding:5px 8px;border-top:1px solid #000;border-bottom:1px solid #000;">
                     AMOUNT DETAILS
@@ -108,32 +108,32 @@
             </tr>
             <tr>
                 <td style="@_tdLabel">TDS Amount</td>
-                <td style="@_tdValue">₹ @_selected.TdsAmount.ToString("N2")</td>
+                <td style="@_tdValue">₹ @_selected.TdsAmount.ToString("N0")</td>
                 <td style="@_tdLabel">Surcharge</td>
-                <td style="@_tdValue">₹ @_selected.Surcharge.ToString("N2")</td>
+                <td style="@_tdValue">₹ @_selected.Surcharge.ToString("N0")</td>
             </tr>
             <tr>
                 <td style="@_tdLabel">Education Cess</td>
-                <td style="@_tdValue">₹ @_selected.Cess.ToString("N2")</td>
+                <td style="@_tdValue">₹ @_selected.Cess.ToString("N0")</td>
                 <td style="@_tdLabel">Interest</td>
-                <td style="@_tdValue">₹ @_selected.Interest.ToString("N2")</td>
+                <td style="@_tdValue">₹ @_selected.Interest.ToString("N0")</td>
             </tr>
             <tr>
                 <td style="@_tdLabel">Late Fee</td>
-                <td style="@_tdValue">₹ @_selected.LateFee.ToString("N2")</td>
+                <td style="@_tdValue">₹ @_selected.LateFee.ToString("N0")</td>
                 <td style="@_tdLabel">Other Amount</td>
-                <td style="@_tdValue">₹ @_selected.Amount.ToString("N2")</td>
+                <td style="@_tdValue">₹ @_selected.Amount.ToString("N0")</td>
             </tr>
             <tr>
                 <td colspan="2" style="background:#003087;color:#fff;font-weight:bold;font-size:14px;padding:8px;text-align:right;border-top:2px solid #000;">
                     TOTAL AMOUNT PAID
                 </td>
                 <td colspan="2" style="background:#003087;color:#fff;font-weight:bold;font-size:16px;padding:8px;border-top:2px solid #000;">
-                    ₹ @_selected.TotalAmount.ToString("N2")
+                    ₹ @_selected.TotalAmount.ToString("N0")
                 </td>
             </tr>
 
-            @* ── REMARKS ── *@
+            @* â”€â”€ REMARKS â”€â”€ *@
             @if (!string.IsNullOrWhiteSpace(_selected.Remarks))
             {
                 <tr>
@@ -142,7 +142,7 @@
                 </tr>
             }
 
-            @* ── SIGNATURE ── *@
+            @* â”€â”€ SIGNATURE â”€â”€ *@
             <tr>
                 <td colspan="4" style="padding:24px 8px 8px;border-top:1px solid #ccc;">
                     <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;">
@@ -159,7 +159,7 @@
                 </td>
             </tr>
 
-            @* ── FOOTER NOTE ── *@
+            @* â”€â”€ FOOTER NOTE â”€â”€ *@
             <tr>
                 <td colspan="4" style="font-size:9px;color:#666;padding:6px 8px;border-top:1px solid #ccc;text-align:center;">
                     This challan is computer-generated. Please retain for records. TDS Pro v@AppConstants.AppVersion — @DateTime.Today.Year

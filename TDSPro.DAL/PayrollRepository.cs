@@ -23,7 +23,7 @@ namespace TDSPro.DAL
                        e.flat_door_block_no, e.premises_building_village,
                        e.road_street_post_office, e.area_locality,
                        e.town_city_district, e.pin_code, e.state,
-                       e.hra_monthly_basis, e.da_for_retirement, e.is_differently_abled,
+                       e.hra_monthly_basis, e.hra_city_type, e.da_for_retirement, e.is_differently_abled,
                        e.aadhaar_number, e.residential_status, e.marital_status,
                        e.blood_group, e.employment_type,
                        e.work_email, e.emergency_contact, e.emergency_mobile,
@@ -32,11 +32,14 @@ namespace TDSPro.DAL
                        e.prev_employer_name, e.prev_employer_income, e.prev_employer_tds,
                        s.id, s.basic, s.hra, s.da, s.special_allowance,
                        s.other_allowance, s.pf_applicable, s.pf_fixed_amount, s.esi_applicable,
-                       s.pt_state, s.effective_from, s.medical_allowance, s.lta
+                       s.pt_state, s.effective_from, s.medical_allowance, s.lta,
+                       s.reimb_telephone, s.reimb_fuel, s.reimb_books, s.reimb_meal, s.reimb_uniform,
+                       s.annual_bonus, s.annual_incentive, s.employer_insurance, s.employer_nps,
+                       s.target_ctc, s.include_gratuity
                 FROM employees e
                 LEFT JOIN salary_structures s ON s.employee_id = e.id
                     AND s.id = (SELECT MAX(id) FROM salary_structures WHERE employee_id = e.id)
-                WHERE (@did IS NULL OR e.deductor_id = @did)
+                WHERE e.is_active=1 AND (@did IS NULL OR e.deductor_id = @did)
                 ORDER BY e.name";
             cmd.Parameters.AddWithValue("@did", (deductorId == null || deductorId == 0) ? (object)DBNull.Value : deductorId);
             using var r = cmd.ExecuteReader();
@@ -74,46 +77,63 @@ namespace TDSPro.DAL
                     PinCode                = r.IsDBNull(27) ? "" : r.GetString(27),
                     State                  = r.IsDBNull(28) ? "" : r.GetString(28),
                     HraMonthlyBasis        = r.IsDBNull(29) ? true  : r.GetInt32(29) == 1,
-                    DaForRetirement        = r.IsDBNull(30) ? true  : r.GetInt32(30) == 1,
-                    IsDifferentlyAbled     = r.IsDBNull(31) ? false : r.GetInt32(31) == 1,
-                    // extended fields (32-47)
-                    AadhaarNumber      = r.IsDBNull(32) ? "" : r.GetString(32),
-                    ResidentialStatus  = r.IsDBNull(33) ? "Resident"  : r.GetString(33),
-                    MaritalStatus      = r.IsDBNull(34) ? "Single"    : r.GetString(34),
-                    BloodGroup         = r.IsDBNull(35) ? "" : r.GetString(35),
-                    EmploymentType     = r.IsDBNull(36) ? "Permanent" : r.GetString(36),
-                    WorkEmail          = r.IsDBNull(37) ? "" : r.GetString(37),
-                    EmergencyContact   = r.IsDBNull(38) ? "" : r.GetString(38),
-                    EmergencyMobile    = r.IsDBNull(39) ? "" : r.GetString(39),
-                    Uan                = r.IsDBNull(40) ? "" : r.GetString(40),
-                    EsiIpNumber        = r.IsDBNull(41) ? "" : r.GetString(41),
-                    BankName           = r.IsDBNull(42) ? "" : r.GetString(42),
-                    BankBranch         = r.IsDBNull(43) ? "" : r.GetString(43),
-                    BankAccountType    = r.IsDBNull(44) ? "Savings" : r.GetString(44),
-                    PrevEmployerName   = r.IsDBNull(45) ? "" : r.GetString(45),
-                    PrevEmployerIncome = r.IsDBNull(46) ? 0  : Convert.ToDouble(r[46]),
-                    PrevEmployerTds    = r.IsDBNull(47) ? 0  : Convert.ToDouble(r[47]),
+                    HraCityType            = r.IsDBNull(30) ? "Non-Metro" : r.GetString(30),
+                    DaForRetirement        = r.IsDBNull(31) ? true  : r.GetInt32(31) == 1,
+                    IsDifferentlyAbled     = r.IsDBNull(32) ? false : r.GetInt32(32) == 1,
+                    // extended fields (33-48)
+                    AadhaarNumber      = r.IsDBNull(33) ? "" : r.GetString(33),
+                    ResidentialStatus  = r.IsDBNull(34) ? "Resident"  : r.GetString(34),
+                    MaritalStatus      = r.IsDBNull(35) ? "Single"    : r.GetString(35),
+                    BloodGroup         = r.IsDBNull(36) ? "" : r.GetString(36),
+                    EmploymentType     = r.IsDBNull(37) ? "Permanent" : r.GetString(37),
+                    WorkEmail          = r.IsDBNull(38) ? "" : r.GetString(38),
+                    EmergencyContact   = r.IsDBNull(39) ? "" : r.GetString(39),
+                    EmergencyMobile    = r.IsDBNull(40) ? "" : r.GetString(40),
+                    Uan                = r.IsDBNull(41) ? "" : r.GetString(41),
+                    EsiIpNumber        = r.IsDBNull(42) ? "" : r.GetString(42),
+                    BankName           = r.IsDBNull(43) ? "" : r.GetString(43),
+                    BankBranch         = r.IsDBNull(44) ? "" : r.GetString(44),
+                    BankAccountType    = r.IsDBNull(45) ? "Savings" : r.GetString(45),
+                    PrevEmployerName   = r.IsDBNull(46) ? "" : r.GetString(46),
+                    PrevEmployerIncome = r.IsDBNull(47) ? 0  : Convert.ToDouble(r[47]),
+                    PrevEmployerTds    = r.IsDBNull(48) ? 0  : Convert.ToDouble(r[48]),
                 };
-                if (!r.IsDBNull(48))
+                if (!r.IsDBNull(49))
                     emp.Salary = new SalaryStructure
                     {
-                        Id               = r.GetInt32(48),
+                        Id               = r.GetInt32(49),
                         EmployeeId       = emp.Id,
-                        Basic            = r.IsDBNull(49) ? 0 : Convert.ToDouble(r[49]),
-                        Hra              = r.IsDBNull(50) ? 0 : Convert.ToDouble(r[50]),
-                        Da               = r.IsDBNull(51) ? 0 : Convert.ToDouble(r[51]),
-                        SpecialAllowance = r.IsDBNull(52) ? 0 : Convert.ToDouble(r[52]),
-                        OtherAllowance   = r.IsDBNull(53) ? 0     : Convert.ToDouble(r[53]),
-                        PfApplicable     = r.IsDBNull(54) ? true  : r.GetInt32(54) == 1,
-                        PfFixedAmount    = r.IsDBNull(55) ? 0     : Convert.ToDouble(r[55]),
-                        EsiApplicable    = r.IsDBNull(56) ? false : r.GetInt32(56) == 1,
-                        PtState          = r.IsDBNull(57) ? ""    : r.GetString(57),
-                        EffectiveFrom    = r.IsDBNull(58) ? ""    : r.GetString(58),
-                        MedicalAllowance = r.IsDBNull(59) ? 0     : Convert.ToDouble(r[59]),
-                        Lta              = r.IsDBNull(60) ? 0     : Convert.ToDouble(r[60]),
+                        Basic            = r.IsDBNull(50) ? 0 : Convert.ToDouble(r[50]),
+                        Hra              = r.IsDBNull(51) ? 0 : Convert.ToDouble(r[51]),
+                        Da               = r.IsDBNull(52) ? 0 : Convert.ToDouble(r[52]),
+                        SpecialAllowance = r.IsDBNull(53) ? 0 : Convert.ToDouble(r[53]),
+                        OtherAllowance   = r.IsDBNull(54) ? 0     : Convert.ToDouble(r[54]),
+                        PfApplicable     = r.IsDBNull(55) ? true  : r.GetInt32(55) == 1,
+                        PfFixedAmount    = r.IsDBNull(56) ? 0     : Convert.ToDouble(r[56]),
+                        EsiApplicable    = r.IsDBNull(57) ? false : r.GetInt32(57) == 1,
+                        PtState          = r.IsDBNull(58) ? ""    : r.GetString(58),
+                        EffectiveFrom    = r.IsDBNull(59) ? ""    : r.GetString(59),
+                        MedicalAllowance = r.IsDBNull(60) ? 0     : Convert.ToDouble(r[60]),
+                        Lta              = r.IsDBNull(61) ? 0     : Convert.ToDouble(r[61]),
+                        ReimbTelephone   = r.IsDBNull(62) ? 0     : Convert.ToDouble(r[62]),
+                        ReimbFuel        = r.IsDBNull(63) ? 0     : Convert.ToDouble(r[63]),
+                        ReimbBooks       = r.IsDBNull(64) ? 0     : Convert.ToDouble(r[64]),
+                        ReimbMeal        = r.IsDBNull(65) ? 0     : Convert.ToDouble(r[65]),
+                        ReimbUniform     = r.IsDBNull(66) ? 0     : Convert.ToDouble(r[66]),
+                        AnnualBonus      = r.IsDBNull(67) ? 0     : Convert.ToDouble(r[67]),
+                        AnnualIncentive  = r.IsDBNull(68) ? 0     : Convert.ToDouble(r[68]),
+                        EmployerInsurance= r.IsDBNull(69) ? 0     : Convert.ToDouble(r[69]),
+                        EmployerNps      = r.IsDBNull(70) ? 0     : Convert.ToDouble(r[70]),
+                        TargetCtc        = r.IsDBNull(71) ? 0     : Convert.ToDouble(r[71]),
+                        IncludeGratuity  = r.IsDBNull(72) ? true  : r.GetInt32(72) == 1,
                     };
                 list.Add(emp);
             }
+            r.Close();
+            // Load components for each salary structure
+            foreach (var e in list)
+                if (e.Salary != null && e.Salary.Id > 0)
+                    e.Salary.Components = GetComponents(e.Salary.Id);
             return list;
         }
 
@@ -133,7 +153,7 @@ namespace TDSPro.DAL
                              sex,pf_number,ward_circle_range,std_code,telephone_no,
                              flat_door_block_no,premises_building_village,road_street_post_office,
                              area_locality,town_city_district,pin_code,state,
-                             hra_monthly_basis,da_for_retirement,is_differently_abled,
+                             hra_monthly_basis,hra_city_type,da_for_retirement,is_differently_abled,
                              aadhaar_number,residential_status,marital_status,blood_group,employment_type,
                              work_email,emergency_contact,emergency_mobile,uan,esi_ip_number,
                              bank_name,bank_branch,bank_account_type,
@@ -141,7 +161,7 @@ namespace TDSPro.DAL
                         VALUES(@ec,@n,@p,@did,@des,@dep,@jd,@ld,@tr,@ia,@em,@ph,@ba,@bi,@fn,@dob,
                                @sx,@pfn,@wcr,@stdc,@teln,
                                @fdb,@pbv,@rspo,@al,@tcd,@pin,@st,
-                               @hmb,@dfr,@ida,
+                               @hmb,@hct,@dfr,@ida,
                                @aan,@rs,@ms,@bg,@et,
                                @we,@ec2,@em2,@uan,@esi2,
                                @bn,@bb,@bat,
@@ -160,7 +180,7 @@ namespace TDSPro.DAL
                             flat_door_block_no=@fdb,premises_building_village=@pbv,
                             road_street_post_office=@rspo,area_locality=@al,
                             town_city_district=@tcd,pin_code=@pin,state=@st,
-                            hra_monthly_basis=@hmb,da_for_retirement=@dfr,is_differently_abled=@ida,
+                            hra_monthly_basis=@hmb,hra_city_type=@hct,da_for_retirement=@dfr,is_differently_abled=@ida,
                             aadhaar_number=@aan,residential_status=@rs,marital_status=@ms,
                             blood_group=@bg,employment_type=@et,
                             work_email=@we,emergency_contact=@ec2,emergency_mobile=@em2,
@@ -199,6 +219,7 @@ namespace TDSPro.DAL
                 cmd.Parameters.AddWithValue("@pin",  e.PinCode);
                 cmd.Parameters.AddWithValue("@st",   e.State);
                 cmd.Parameters.AddWithValue("@hmb",  e.HraMonthlyBasis ? 1 : 0);
+                cmd.Parameters.AddWithValue("@hct",  string.IsNullOrEmpty(e.HraCityType) ? "Non-Metro" : e.HraCityType);
                 cmd.Parameters.AddWithValue("@dfr",  e.DaForRetirement ? 1 : 0);
                 cmd.Parameters.AddWithValue("@ida",  e.IsDifferentlyAbled ? 1 : 0);
                 cmd.Parameters.AddWithValue("@aan",  e.AadhaarNumber);
@@ -238,40 +259,26 @@ namespace TDSPro.DAL
         public void SaveSalaryStructure(int employeeId, SalaryStructure s)
         {
             using var conn = Database.GetConnection();
+            // Transactional: structure UPDATE/INSERT + Components delete + re-inserts
+            // must all succeed or all roll back. Prevents orphan Components on partial failure.
+            using var tx = conn.BeginTransaction();
+            try
+            {
 
             // Find the current latest row for this employee
             using var findCmd = conn.CreateCommand();
-            findCmd.CommandText = @"
-                SELECT id, basic, hra, da, special_allowance, other_allowance,
-                       pf_applicable, pf_fixed_amount, esi_applicable, pt_state,
-                       medical_allowance, lta
-                FROM salary_structures
-                WHERE employee_id=@eid
-                ORDER BY id DESC LIMIT 1";
+            findCmd.Transaction = tx;
+            findCmd.CommandText = @"SELECT id FROM salary_structures
+                                    WHERE employee_id=@eid
+                                    ORDER BY id DESC LIMIT 1";
             findCmd.Parameters.AddWithValue("@eid", employeeId);
 
             int existingId = 0;
-            bool identical = false;
             using (var r = findCmd.ExecuteReader())
-            {
-                if (r.Read())
-                {
-                    existingId = r.GetInt32(0);
-                    identical = Convert.ToDouble(r[1]) == s.Basic
-                             && Convert.ToDouble(r[2]) == s.Hra
-                             && Convert.ToDouble(r[3]) == s.Da
-                             && Convert.ToDouble(r[4]) == s.SpecialAllowance
-                             && Convert.ToDouble(r[5]) == s.OtherAllowance
-                             && (r.GetInt32(6) == 1) == s.PfApplicable
-                             && Convert.ToDouble(r[7]) == s.PfFixedAmount
-                             && (r.GetInt32(8) == 1) == s.EsiApplicable
-                             && r.GetString(9) == s.PtState
-                             && Convert.ToDouble(r[10]) == s.MedicalAllowance
-                             && Convert.ToDouble(r[11]) == s.Lta;
-                }
-            }
-            if (identical) return;
-
+                if (r.Read()) existingId = r.GetInt32(0);
+            // Note: previously short-circuited when base fields were unchanged, which
+            // caused Components/legacy-zero writes to be skipped. Always run the
+            // UPDATE + Components replace path so child rows stay in sync.
             string effectiveFrom = string.IsNullOrEmpty(s.EffectiveFrom)
                 ? DateTime.Today.ToString("yyyy-MM-dd")
                 : s.EffectiveFrom;
@@ -280,13 +287,19 @@ namespace TDSPro.DAL
             {
                 // Update the existing row in-place — preserves salary history row identity
                 using var upd = conn.CreateCommand();
+                upd.Transaction = tx;
                 upd.CommandText = @"
                     UPDATE salary_structures SET
                         basic=@b, hra=@h, da=@d,
                         special_allowance=@sa, other_allowance=@oa,
                         pf_applicable=@pf, pf_fixed_amount=@pfa,
                         esi_applicable=@esi, pt_state=@pt, effective_from=@ef,
-                        medical_allowance=@ma, lta=@lta
+                        medical_allowance=@ma, lta=@lta,
+                        reimb_telephone=@rt, reimb_fuel=@rf, reimb_books=@rb,
+                        reimb_meal=@rm, reimb_uniform=@ru,
+                        annual_bonus=@ab, annual_incentive=@ai,
+                        employer_insurance=@ei, employer_nps=@en,
+                        target_ctc=@tc, include_gratuity=@ig
                     WHERE id=@id";
                 upd.Parameters.AddWithValue("@id",  existingId);
                 upd.Parameters.AddWithValue("@b",   s.Basic);
@@ -301,17 +314,32 @@ namespace TDSPro.DAL
                 upd.Parameters.AddWithValue("@ef",  effectiveFrom);
                 upd.Parameters.AddWithValue("@ma",  s.MedicalAllowance);
                 upd.Parameters.AddWithValue("@lta", s.Lta);
+                upd.Parameters.AddWithValue("@rt",  s.ReimbTelephone);
+                upd.Parameters.AddWithValue("@rf",  s.ReimbFuel);
+                upd.Parameters.AddWithValue("@rb",  s.ReimbBooks);
+                upd.Parameters.AddWithValue("@rm",  s.ReimbMeal);
+                upd.Parameters.AddWithValue("@ru",  s.ReimbUniform);
+                upd.Parameters.AddWithValue("@ab",  s.AnnualBonus);
+                upd.Parameters.AddWithValue("@ai",  s.AnnualIncentive);
+                upd.Parameters.AddWithValue("@ei",  s.EmployerInsurance);
+                upd.Parameters.AddWithValue("@en",  s.EmployerNps);
+                upd.Parameters.AddWithValue("@tc",  s.TargetCtc);
+                upd.Parameters.AddWithValue("@ig",  s.IncludeGratuity ? 1 : 0);
                 upd.ExecuteNonQuery();
             }
             else
             {
                 using var ins = conn.CreateCommand();
+                ins.Transaction = tx;
                 ins.CommandText = @"
                     INSERT INTO salary_structures
                         (employee_id,basic,hra,da,special_allowance,other_allowance,
                          pf_applicable,pf_fixed_amount,esi_applicable,pt_state,effective_from,
-                         medical_allowance,lta)
-                    VALUES(@eid,@b,@h,@d,@sa,@oa,@pf,@pfa,@esi,@pt,@ef,@ma,@lta)";
+                         medical_allowance,lta,
+                         reimb_telephone,reimb_fuel,reimb_books,reimb_meal,reimb_uniform,
+                         annual_bonus,annual_incentive,employer_insurance,employer_nps,target_ctc,include_gratuity)
+                    VALUES(@eid,@b,@h,@d,@sa,@oa,@pf,@pfa,@esi,@pt,@ef,@ma,@lta,
+                           @rt,@rf,@rb,@rm,@ru,@ab,@ai,@ei,@en,@tc,@ig)";
                 ins.Parameters.AddWithValue("@eid", employeeId);
                 ins.Parameters.AddWithValue("@b",   s.Basic);
                 ins.Parameters.AddWithValue("@h",   s.Hra);
@@ -325,8 +353,122 @@ namespace TDSPro.DAL
                 ins.Parameters.AddWithValue("@ef",  effectiveFrom);
                 ins.Parameters.AddWithValue("@ma",  s.MedicalAllowance);
                 ins.Parameters.AddWithValue("@lta", s.Lta);
+                ins.Parameters.AddWithValue("@rt",  s.ReimbTelephone);
+                ins.Parameters.AddWithValue("@rf",  s.ReimbFuel);
+                ins.Parameters.AddWithValue("@rb",  s.ReimbBooks);
+                ins.Parameters.AddWithValue("@rm",  s.ReimbMeal);
+                ins.Parameters.AddWithValue("@ru",  s.ReimbUniform);
+                ins.Parameters.AddWithValue("@ab",  s.AnnualBonus);
+                ins.Parameters.AddWithValue("@ai",  s.AnnualIncentive);
+                ins.Parameters.AddWithValue("@ei",  s.EmployerInsurance);
+                ins.Parameters.AddWithValue("@en",  s.EmployerNps);
+                ins.Parameters.AddWithValue("@tc",  s.TargetCtc);
+                ins.Parameters.AddWithValue("@ig",  s.IncludeGratuity ? 1 : 0);
                 ins.ExecuteNonQuery();
             }
+
+            // Resolve current salary_structure id and replace components
+            using var idCmd = conn.CreateCommand();
+            idCmd.Transaction = tx;
+            idCmd.CommandText = "SELECT id FROM salary_structures WHERE employee_id=@e ORDER BY id DESC LIMIT 1";
+            idCmd.Parameters.AddWithValue("@e", employeeId);
+            var idObj = idCmd.ExecuteScalar();
+            int ssId = idObj == null ? 0 : Convert.ToInt32(idObj);
+            s.Id = ssId;
+
+            if (ssId > 0)
+            {
+                using var del = conn.CreateCommand();
+                del.Transaction = tx;
+                del.CommandText = "DELETE FROM salary_components WHERE salary_structure_id=@s";
+                del.Parameters.AddWithValue("@s", ssId);
+                del.ExecuteNonQuery();
+
+                int ord = 0;
+                foreach (var c in s.Components)
+                {
+                    using var insC = conn.CreateCommand();
+                    insC.Transaction = tx;
+                    insC.CommandText = @"INSERT INTO salary_components
+                        (salary_structure_id,category,ordinal,name,received,paid,taxable,rule_ref)
+                        VALUES(@s,@cat,@ord,@nm,@rc,@pd,@tx,@ru)";
+                    insC.Parameters.AddWithValue("@s",   ssId);
+                    insC.Parameters.AddWithValue("@cat", c.Category ?? "allowance");
+                    insC.Parameters.AddWithValue("@ord", ord++);
+                    insC.Parameters.AddWithValue("@nm",  c.Name ?? "");
+                    insC.Parameters.AddWithValue("@rc",  c.Received);
+                    insC.Parameters.AddWithValue("@pd",  c.Paid);
+                    insC.Parameters.AddWithValue("@tx",  c.Taxable);
+                    insC.Parameters.AddWithValue("@ru",  c.RuleRef ?? "");
+                    insC.ExecuteNonQuery();
+                }
+            }
+            tx.Commit();
+            }
+            catch
+            {
+                try { tx.Rollback(); } catch { }
+                throw;
+            }
+        }
+
+        public List<SalaryComponent> GetComponents(int salaryStructureId)
+        {
+            var list = new List<SalaryComponent>();
+            if (salaryStructureId <= 0) return list;
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"SELECT id,salary_structure_id,category,ordinal,name,received,paid,taxable,rule_ref
+                                FROM salary_components WHERE salary_structure_id=@s
+                                ORDER BY category, ordinal";
+            cmd.Parameters.AddWithValue("@s", salaryStructureId);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                list.Add(new SalaryComponent {
+                    Id = r.GetInt32(0), SalaryStructureId = r.GetInt32(1),
+                    Category = r.GetString(2), Ordinal = r.GetInt32(3),
+                    Name = r.IsDBNull(4) ? "" : r.GetString(4),
+                    Received = r.IsDBNull(5) ? 0 : Convert.ToDouble(r[5]),
+                    Paid     = r.IsDBNull(6) ? 0 : Convert.ToDouble(r[6]),
+                    Taxable  = r.IsDBNull(7) ? 0 : Convert.ToDouble(r[7]),
+                    RuleRef  = r.IsDBNull(8) ? "" : r.GetString(8),
+                });
+            return list;
+        }
+
+        /// <summary>
+        /// Find an existing deductee row by PAN, or create a minimal one keyed to the employee.
+        /// Used to link salary payroll to the TDS Entries module (Section 192).
+        /// </summary>
+        public int EnsureSalaryDeductee(Employee emp)
+        {
+            if (string.IsNullOrWhiteSpace(emp.Pan)) return 0;
+            using var conn = Database.GetConnection();
+
+            using var chk = conn.CreateCommand();
+            chk.CommandText = "SELECT id FROM deductees WHERE pan=@p LIMIT 1";
+            chk.Parameters.AddWithValue("@p", emp.Pan.ToUpper());
+            var obj = chk.ExecuteScalar();
+            if (obj != null && obj != DBNull.Value) return Convert.ToInt32(obj);
+
+            using var cnt = conn.CreateCommand();
+            cnt.CommandText = "SELECT COALESCE(MAX(id),0)+1 FROM deductees";
+            int newId = Convert.ToInt32(cnt.ExecuteScalar() ?? 1);
+
+            using var ins = conn.CreateCommand();
+            ins.CommandText = @"INSERT INTO deductees
+                (id,deductee_code,name,pan,section,rate,deductee_type,is_resident,remarks)
+                VALUES(@id,@cd,@n,@p,@s,@r,@t,1,@rm)";
+            ins.Parameters.AddWithValue("@id", newId);
+            ins.Parameters.AddWithValue("@cd", $"EMP-{emp.EmployeeCode}");
+            ins.Parameters.AddWithValue("@n",  emp.Name);
+            ins.Parameters.AddWithValue("@p",  emp.Pan.ToUpper());
+            ins.Parameters.AddWithValue("@s",  "192");
+            ins.Parameters.AddWithValue("@r",  0);   // salary TDS rate computed per-employee
+            ins.Parameters.AddWithValue("@t",  "Individual");
+            ins.Parameters.AddWithValue("@rm", "Auto-created from Payroll module");
+            ins.ExecuteNonQuery();
+            return newId;
         }
 
         public (bool ok, string msg) DeleteEmployee(int id)
@@ -441,6 +583,73 @@ namespace TDSPro.DAL
             cmd.Parameters.AddWithValue("@lta",   d.LtaExemption);
             cmd.Parameters.AddWithValue("@lpan",  d.LandlordPan);
             cmd.Parameters.AddWithValue("@ips",   d.IsParentSeniorCitizen ? 1 : 0);
+            cmd.ExecuteNonQuery();
+        }
+
+        // ── Landlord Records ──────────────────────────────────────────────────
+        public List<LandlordRecord> GetLandlords(int employeeId, string fy)
+        {
+            var list = new List<LandlordRecord>();
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "SELECT id,name,pan,annual_rent,from_date,to_date FROM landlord_records WHERE employee_id=@eid AND financial_year=@fy ORDER BY id";
+            cmd.Parameters.AddWithValue("@eid", employeeId);
+            cmd.Parameters.AddWithValue("@fy",  fy);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                list.Add(new LandlordRecord {
+                    Id           = r.GetInt32(0),
+                    EmployeeId   = employeeId,
+                    FinancialYear= fy,
+                    Name         = r.IsDBNull(1) ? "" : r.GetString(1),
+                    Pan          = r.IsDBNull(2) ? "" : r.GetString(2),
+                    AnnualRent   = r.IsDBNull(3) ? 0  : r.GetDouble(3),
+                    FromDate     = r.IsDBNull(4) ? "" : r.GetString(4),
+                    ToDate       = r.IsDBNull(5) ? "" : r.GetString(5),
+                });
+            return list;
+        }
+
+        public void SaveLandlord(LandlordRecord lr)
+        {
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            if (lr.Id == 0)
+            {
+                // Single round-trip: INSERT then fetch new rowid
+                cmd.CommandText = @"
+                    INSERT INTO landlord_records (employee_id,financial_year,name,pan,annual_rent,from_date,to_date)
+                    VALUES(@eid,@fy,@nm,@pan,@ar,@fd,@td);
+                    SELECT last_insert_rowid();";
+                cmd.Parameters.AddWithValue("@eid", lr.EmployeeId);
+                cmd.Parameters.AddWithValue("@fy",  lr.FinancialYear);
+                cmd.Parameters.AddWithValue("@nm",  lr.Name);
+                cmd.Parameters.AddWithValue("@pan", lr.Pan);
+                cmd.Parameters.AddWithValue("@ar",  lr.AnnualRent);
+                cmd.Parameters.AddWithValue("@fd",  lr.FromDate);
+                cmd.Parameters.AddWithValue("@td",  lr.ToDate);
+                lr.Id = Convert.ToInt32(cmd.ExecuteScalar());
+            }
+            else
+            {
+                cmd.CommandText = "UPDATE landlord_records SET name=@nm,pan=@pan,annual_rent=@ar,from_date=@fd,to_date=@td WHERE id=@id";
+                cmd.Parameters.AddWithValue("@id",  lr.Id);
+                cmd.Parameters.AddWithValue("@nm",  lr.Name);
+                cmd.Parameters.AddWithValue("@pan", lr.Pan);
+                cmd.Parameters.AddWithValue("@ar",  lr.AnnualRent);
+                cmd.Parameters.AddWithValue("@fd",  lr.FromDate);
+                cmd.Parameters.AddWithValue("@td",  lr.ToDate);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteLandlord(int id)
+        {
+            if (id <= 0) return; // unsaved row — nothing in DB to delete
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM landlord_records WHERE id=@id";
+            cmd.Parameters.AddWithValue("@id", id);
             cmd.ExecuteNonQuery();
         }
 
@@ -571,7 +780,7 @@ namespace TDSPro.DAL
             P("@sp", run.Special); P("@med", run.Medical); P("@lta", run.Lta);
             P("@ot", run.Other); P("@gr", run.GrossSalary);
             P("@pf", run.PfEmployee); P("@esi", run.EsiEmployee);
-            P("@pt", run.ProfessionalTax); P("@tds", run.TdsDeducted);
+            P("@pt", run.ProfessionalTax); P("@tds", Math.Round(run.TdsDeducted, MidpointRounding.AwayFromZero));
             P("@od", run.OtherDeductions); P("@tr", run.TaxRegimeUsed);
             P("@hraex", run.HraExemption); P("@std", run.StandardDeduction);
             P("@c6a", run.Chapter6ADeduction); P("@ti", run.TaxableIncome);
@@ -586,30 +795,6 @@ namespace TDSPro.DAL
                 using var lid = conn.CreateCommand();
                 lid.CommandText = "SELECT last_insert_rowid()";
                 run.Id = Convert.ToInt32(lid.ExecuteScalar());
-            }
-        }
-
-        public void MarkAsPushed(int runId, int tdsEntryId,
-            Microsoft.Data.Sqlite.SqliteTransaction? tx = null)
-        {
-            // When a transaction is passed, use its connection directly — do NOT dispose it (caller owns it)
-            if (tx != null)
-            {
-                using var cmd = tx.Connection!.CreateCommand();
-                cmd.Transaction = tx;
-                cmd.CommandText = "UPDATE payroll_runs SET status='Processed',tds_entry_id=@tei WHERE id=@id";
-                cmd.Parameters.AddWithValue("@tei", tdsEntryId);
-                cmd.Parameters.AddWithValue("@id",  runId);
-                cmd.ExecuteNonQuery();
-            }
-            else
-            {
-                using var conn = Database.GetConnection();
-                using var cmd  = conn.CreateCommand();
-                cmd.CommandText = "UPDATE payroll_runs SET status='Processed',tds_entry_id=@tei WHERE id=@id";
-                cmd.Parameters.AddWithValue("@tei", tdsEntryId);
-                cmd.Parameters.AddWithValue("@id",  runId);
-                cmd.ExecuteNonQuery();
             }
         }
 

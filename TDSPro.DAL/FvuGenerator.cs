@@ -14,7 +14,7 @@ namespace TDSPro.DAL
     ///   BC  — Batch Control        (one per batch — totals)
     ///   FC  — File Control         (one per file  — grand totals)
     ///
-    /// Delimiter: pipe  |  (NSDL RPU v9.x spec)
+    /// Delimiter: pipe  |  (Protean e-TDS RPU 5.6+ / FVU 9.4 spec)
     /// Amounts:   in paise (multiply Rs by 100, no decimal point)
     /// Dates:     dd-MM-yyyy
     /// </summary>
@@ -27,9 +27,10 @@ namespace TDSPro.DAL
             {
                 "26Q"  => Build(data, "26Q",  false),
                 "24Q"  => Build(data, "24Q",  false),
+                "27EQ" => Build27EQ(data),
                 "138"  => Build(data, "138",  true),   // IT Act 2025 salary — Form 138 = 24Q equivalent
                 "140"  => Build(data, "140",  true),   // IT Act 2025 non-salary — Form 140 = 26Q equivalent
-                "27Q"  => Build(data, "27Q",  false),
+                "27Q"  => throw new NotSupportedException("27Q (non-resident TDS) is not yet supported. Coming in a future release."),
                 _      => throw new ArgumentException($"Unknown form type: {data.Header.FormType}")
             };
         }
@@ -43,10 +44,47 @@ namespace TDSPro.DAL
             var ay    = AssessmentYear(h.FinancialYear);
             var today = DateTime.Today.ToString("dd-MM-yyyy");
 
-            // FVU/RPU version — 9.4 for current act; 10.0 placeholder for IT Act 2025 forms
-            string fvuVer = newAct ? "10.0" : "9.4";
-            // Normalised form type for NSDL records (138→24Q equivalent, 140→26Q equivalent)
+            // Normalised form type for NSDL records (138→24Q equivalent, 140→26Q equivalent).
+            // We always target FVU 9.4. IT Act 2025 forms (138/140) reuse the 24Q/26Q wire format
+            // until NSDL publishes a successor FVU; only the section codes change (392/393 vs 192/194).
             string nsdlForm = formType switch { "138" => "24Q", "140" => "26Q", _ => formType };
+
+            // Dedupe SD records by PAN: NSDL allows exactly ONE SD per unique PAN (T-FV-2127).
+            // If a caller hands us duplicate PANs, aggregate them into a single row.
+            if (data.SalaryDetails.Count > 1)
+            {
+                data.SalaryDetails = data.SalaryDetails
+                    .GroupBy(s => (s.Pan ?? "").Trim().ToUpper())
+                    .Select(g => g.Count() == 1 ? g.First() : new ReturnSalaryDetail
+                    {
+                        Pan              = g.Key,
+                        Name             = g.First().Name,
+                        Gender           = g.First().Gender,
+                        EmployeeCategory = g.First().EmployeeCategory,
+                        TaxRegime        = g.First().TaxRegime,
+                        EmploymentFrom   = g.Min(s => s.EmploymentFrom),
+                        EmploymentTo     = g.Max(s => s.EmploymentTo),
+                        Salary17_1       = g.Sum(s => s.Salary17_1),
+                        Perquisites17_2  = g.Sum(s => s.Perquisites17_2),
+                        ProfitSalary17_3 = g.Sum(s => s.ProfitSalary17_3),
+                        ExemptU10        = g.Sum(s => s.ExemptU10),
+                        ExemptU10Count   = g.Max(s => s.ExemptU10Count),
+                        StandardDeduction= g.Max(s => s.StandardDeduction),
+                        GrossTotalIncome = g.Sum(s => s.GrossTotalIncome),
+                        TaxableIncome    = g.Sum(s => s.TaxableIncome),
+                        TaxPayable       = g.Sum(s => s.TaxPayable),
+                        Surcharge        = g.Sum(s => s.Surcharge),
+                        Cess             = g.Sum(s => s.Cess),
+                        Rebate87A        = g.Sum(s => s.Rebate87A),
+                        TotalTaxPayable  = g.Sum(s => s.TotalTaxPayable),
+                        TdsDeducted      = g.Sum(s => s.TdsDeducted),
+                        PrevEmpSalary    = g.Sum(s => s.PrevEmpSalary),
+                        PrevEmpTds       = g.Sum(s => s.PrevEmpTds),
+                        Chapter6ATotal   = g.Sum(s => s.Chapter6ATotal),
+                        Chapter6ACount   = g.Max(s => s.Chapter6ACount),
+                        ChallanNo        = g.First().ChallanNo,
+                    }).ToList();
+            }
 
             // Every record in the NSDL e-TDS file starts with a sequential 1-based line number.
             // FormValidator (iload 16 tableswitch) maps field-1 → qgd (line number), field-2 → record type tag.
@@ -61,8 +99,6 @@ namespace TDSPro.DAL
             string returnType = data.Header.IsCorrection ? "C" : "R";
             var today8   = DateTime.Today.ToString("ddMMyyyy");
             var tanUpper = h.TanOfDeductor.PadRight(10).Trim().ToUpper();
-            string tzd   = (data.Header.IsCorrection && !string.IsNullOrEmpty(data.Header.PreviousPrn))
-                           ? data.Header.PreviousPrn.Trim() : "";
             // FH: exactly 15 fields after "FH" tag, with trailing "^" (verified vs FVU 9.4).
             // Fields 11-15 must be empty — non-empty hash fields trigger T-FV-1022.
             // PRN for correction returns goes in BH field 13, not in FH.
@@ -70,14 +106,14 @@ namespace TDSPro.DAL
             {
                 L(),          // field 1: line number
                 "FH",         // field 2: record type
-                "SL1",        // field 3
+                nsdlForm == "24Q" ? "SL1" : "NS1",  // field 3: file type (SL1=salary/24Q, NS1=non-salary/26Q/27Q)
                 returnType,   // field 4: R/C
                 today8,       // field 5: ddMMyyyy
                 "1",          // field 6
                 "D",          // field 7
                 tanUpper,     // field 8: TAN
                 "1",          // field 9: batch count
-                "NSDLRPU",    // field 10: RPU
+                "IITRETeTDS", // field 10: RPU identifier (NSDL e-TDS RPU tag)
                 "",           // field 11
                 "",           // field 12
                 "",           // field 13
@@ -99,8 +135,17 @@ namespace TDSPro.DAL
             //   42=RespEmail  43=RespMobile  44=RespSTD  45=RespPhone  46=RespAddrChange
             //   47=BatchTotalTDS  48=UnmatchedChallans  49=CountSD
             //   50-58=empty  59=RespPAN  60-71=empty
-            string prn = h.IsCorrection ? (h.PreviousPrn ?? "").Trim() : "";
-            double batchTds = data.Challans.Sum(c => c.TdsDeposited);
+            // Drop zero-TDS deductees BEFORE BH (its [49] count must match the SD-loop output;
+            // doing this after BH causes T-FV-2127 "Invalid count of salary detail record").
+            data.Deductees = data.Deductees.Where(d => d.TdsDeducted > 0 || d.TdsDeposited > 0).ToList();
+            for (int i = 0; i < data.Deductees.Count; i++) data.Deductees[i].SlNo = i + 1;
+
+            string prn     = h.IsCorrection ? (h.PreviousPrn ?? "").Trim() : "";
+            string origPrn = h.IsCorrection ? (string.IsNullOrEmpty(h.OriginalPrn) ? prn : h.OriginalPrn.Trim()) : "";
+            string corrType = h.IsCorrection ? (h.CorrectionType ?? "C1").Trim().ToUpper() : "";
+            // BH batch TDS: use max of challan deposited vs sum of linked deductees (avoids T-FV-3169)
+            double totalDeducteeTds = data.Deductees.Sum(d => Math.Round(d.TdsDeducted, MidpointRounding.AwayFromZero));
+            double batchTds = Math.Max(data.Challans.Sum(c => c.TdsDeposited), totalDeducteeTds);
             string batchTdsStr = batchTds.ToString("F2"); // rupees with .00, e.g. "500000.00"
             // Split deductor address into up to 4 lines, max 25 chars each (NSDL BH field limit)
             string addr = Safe(h.DeductorAddress, 100);
@@ -113,11 +158,11 @@ namespace TDSPro.DAL
                 "1",                                            //  3: Batch Number
                 data.Challans.Count.ToString(),                 //  4: Count of Challan Records
                 nsdlForm,                                       //  5: Form Number (24Q/26Q)
-                "",                                             //  6: Transaction Type (empty=Regular)
-                "",                                             //  7: Batch Updation Indicator (empty=Regular)
-                "",                                             //  8: Original PRN (empty=Regular)
-                h.PreviousPrn?.Trim() ?? "",                    //  9: Previous PRN (15-digit token from last quarter)
-                prn,                                            // 10: Current PRN / Token (empty=Regular)
+                corrType,                                       //  6: Transaction Type (empty=Regular; C1/C2/C3=Correction)
+                h.IsCorrection ? "C" : "",                      //  7: Batch Updation Indicator (C=Correction, empty=Regular)
+                origPrn,                                        //  8: Original PRN (PRN of first original filing; empty=Regular)
+                h.PreviousPrn?.Trim() ?? "",                    //  9: Previous PRN (token from last quarter for regular; preceding filing PRN for correction)
+                "",                                             // 10: Current PRN — always empty (assigned by NSDL after upload)
                 "",                                             // 11: PRN Date
                 "",                                             // 12: Last TAN (empty=Regular)
                 tanUpper,                                       // 13: TAN of Deductor
@@ -155,15 +200,20 @@ namespace TDSPro.DAL
                 "",                                             // 45: Responsible Person Phone
                 "N",                                            // 46: Change of Responsible Person Address
                 batchTdsStr,                                    // 47: Batch Total TDS Deposited (rupees.paise)
-                "0",                                            // 48: Unmatched Challan Count
-                nsdlForm == "24Q" && h.Quarter == "Q4"
-                    ? (data.SalaryDetails.Count > 0 ? data.SalaryDetails.Count : data.Deductees.Count).ToString() // 49: Count SD Records
-                    : "",                                       // 49: empty for Q1/Q2/Q3 and 26Q
+                "0",                                            // 48: Unmatched Challan Count (FVU 9.4 T-FV-2208 requires "0")
+                nsdlForm == "24Q"
+                    ? (h.Quarter == "Q4"
+                        ? (data.SalaryDetails.Count > 0                         // Q4: count of SD records
+                            ? data.SalaryDetails.Count
+                            : data.Deductees.Select(d => (d.Pan ?? "").Trim().ToUpper()).Distinct().Count()
+                          ).ToString()
+                        : "0")                                  // Q1/Q2/Q3: SD count = 0 (T-FV-2142 if non-zero, T-FV-2127 if empty)
+                    : "",                                       // 49: empty for 26Q
                 nsdlForm == "24Q" && h.Quarter == "Q4"
                     ? data.TotalGrossSalary.ToString("F2")      // 50: Batch Total Gross Income for SD (24Q Q4)
                     : "",                                       // 50
                 "N",                                            // 51: AO Approval (must be "N" for Regular)
-                !string.IsNullOrEmpty(h.PreviousPrn) ? "Y" : "N", // 52: Has regular statement filed earlier
+                (h.IsCorrection || h.Quarter != "Q1") ? "Y" : "N", // 52: Has regular statement filed earlier (Y for corrections and Q2/Q3/Q4; Q1 first filing = N)
                 "",                                             // 53: Last Deductor Type (empty for Regular)
                 // 54: State Name — mandatory for S/E/H/N; must be empty for K/M/P/J/B/Q/F/T
                 (new[]{"S","E","H","N"}.Contains(DeductorCategory(h.DeductorType)) ? stateCode : ""),
@@ -190,6 +240,23 @@ namespace TDSPro.DAL
             // NSDL spec: each DD must appear under exactly one CD.
             // Entries linked to a challan go under that challan.
             // Entries with no challan link (00000/0000000) go under the first challan only.
+            // (Zero-TDS deductees already filtered above, before BH emission.)
+
+            // PAN → SD-sequence map (24Q only, used for DD field [6]: employee sl no in Annexure II)
+            // Reference 4I03886B.txt shows DD[6] points at the employee's SD position, not the DD seq.
+            var panToSdSeq = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (nsdlForm == "24Q" && data.SalaryDetails.Any())
+            {
+                int s = 1;
+                foreach (var sd in data.SalaryDetails)
+                {
+                    var key = sd.Pan?.Trim().ToUpper() ?? "";
+                    if (!string.IsNullOrEmpty(key) && !panToSdSeq.ContainsKey(key))
+                        panToSdSeq[key] = s;
+                    s++;
+                }
+            }
+
             bool unlinkedAssigned = false;
             foreach (var ch in data.Challans)
             {
@@ -229,19 +296,23 @@ namespace TDSPro.DAL
                 //  37=ByBookEntryCash("N"=bank)  38=Remarks(empty=Regular)  39=Fee  40=MinorHeadCode
                 bool isSalary = nsdlForm == "24Q" || nsdlForm == "138";
                 double cdCess  = isSalary ? ch.Cess : 0;
-                // OLTAS amounts: what was reported to OLTAS (== actual challan amounts)
-                string oltasTds        = Rupees(ch.TdsDeposited);
-                string oltasSurcharge  = Rupees(ch.Surcharge);
-                string oltasCess       = Rupees(cdCess);
+                // Statement amounts: sum rounded-rupee values (mirrors what DD records write per Sec 288B)
+                double ddTds       = deds.Sum(d => Math.Round(d.TdsDeducted, MidpointRounding.AwayFromZero));
+                double ddSurcharge = deds.Sum(d => Math.Round(d.Surcharge,   MidpointRounding.AwayFromZero));
+                double ddCess      = isSalary ? deds.Sum(d => Math.Round(d.Cess, MidpointRounding.AwayFromZero)) : 0;
+                double ddTotal     = ddTds + ddSurcharge + ddCess;
+                // OLTAS amounts: use challan amounts from DB, but ensure they are >= DD totals
+                // (T-FV-3169 fires when OLTAS TDS < Statement TDS — e.g. challan not updated after entry edits)
+                double oltasTdsAmt       = Math.Max(ch.TdsDeposited, ddTds);
+                double oltasSurchargeAmt = Math.Max(ch.Surcharge, ddSurcharge);
+                double oltasCessAmt      = Math.Max(cdCess, ddCess);
+                string oltasTds        = Rupees(oltasTdsAmt);
+                string oltasSurcharge  = Rupees(oltasSurchargeAmt);
+                string oltasCess       = Rupees(oltasCessAmt);
                 string oltasInterest   = Rupees(ch.Interest);
-                string oltasOthers     = Rupees(ch.LateFee);  // LateFee → "Others" in OLTAS
-                double oltasTotal = ch.TdsDeposited + ch.Surcharge + cdCess + ch.Interest + ch.LateFee;
+                string oltasOthers     = Rupees(ch.LateFee);
+                double oltasTotal = oltasTdsAmt + oltasSurchargeAmt + oltasCessAmt + ch.Interest + ch.LateFee;
                 string totalPerChallan = Rupees(oltasTotal);
-                // Statement amounts (from deductee annexure): must match what DD records add up to
-                double ddTds = deds.Sum(d => d.TdsDeducted);
-                double ddSurcharge = deds.Sum(d => d.Surcharge);
-                double ddCess = isSalary ? deds.Sum(d => d.Cess) : 0;
-                double ddTotal = ddTds + ddSurcharge + ddCess;
                 string stmtTds        = Rupees(ddTds);
                 string stmtSurcharge  = Rupees(ddSurcharge);
                 string stmtCess       = Rupees(ddCess);
@@ -252,7 +323,7 @@ namespace TDSPro.DAL
                     ch.SlNo.ToString(),                             //  4: CD Sequential Record No
                     deds.Count.ToString(),                          //  5: Count of Deductee Records
                     "N",                                            //  6: NIL Challan Indicator (N=non-nil)
-                    "",                                             //  7: Update Indicator (empty for Regular)
+                    h.IsCorrection ? "O" : "",                      //  7: Update Indicator (O=Overwrite for Correction, empty=Regular)
                     "",                                             //  8: Filler 2 (must be empty)
                     "",                                             //  9: Filler 3 (must be empty)
                     "",                                             // 10: Filler 4 (must be empty)
@@ -266,8 +337,8 @@ namespace TDSPro.DAL
                     ch.ChallanDate.ToString("ddMMyyyy"),            // 18: Date of Bank Challan (ddmmyyyy, no dashes)
                     "",                                             // 19: Filler 5 (must be empty)
                     "",                                             // 20: Filler 6 (must be empty)
-                    // 21: Section code — must be EMPTY for 24Q (T-FV-3160); required for 26Q/27Q
-                    nsdlForm == "24Q" ? "" : ChallanSectionCode(ch.Section, nsdlForm, newAct),
+                    // 21: Section code — empty for 24Q (T-FV-3160) and 26Q (per FVU-validated reference)
+                    "",
                     oltasTds,                                       // 22: Oltas TDS/TCS-Income Tax
                     oltasSurcharge,                                 // 23: Oltas TDS/TCS-Surcharge
                     oltasCess,                                      // 24: Oltas TDS/TCS-Cess
@@ -275,7 +346,7 @@ namespace TDSPro.DAL
                     oltasOthers,                                    // 26: Oltas TDS/TCS-Others
                     totalPerChallan,                                // 27: Total of Deposit Amount as per Challan
                     "",                                             // 28: Last Total of Deposit (empty for Regular)
-                    Rupees(ddTds),                                  // 29: Total Tax Deposit as per deductee annexure
+                    Rupees(ddTotal),                                // 29: Total Tax Deposit as per deductee annexure (sum of DD[19] = tds+sur+cess)
                     stmtTds,                                        // 30: TDS/TCS-Income Tax (statement)
                     stmtSurcharge,                                  // 31: TDS/TCS-Surcharge (statement)
                     stmtCess,                                       // 32: Health and Education Cess (statement)
@@ -294,33 +365,41 @@ namespace TDSPro.DAL
                 foreach (var d in deds)
                 {
                     if (nsdlForm == "26Q")
-                        lines.Add(BuildDD26Q(d, ddSeq, newAct, L()));
+                        lines.Add(BuildDD26Q(d, ddSeq, newAct, L(), ch.SlNo.ToString()));
                     else
-                        lines.Add(BuildDD24Q(d, ddSeq, newAct, L()));
+                    {
+                        var pk = d.Pan?.Trim().ToUpper() ?? "";
+                        int empSlNo = panToSdSeq.TryGetValue(pk, out var p) ? p : ddSeq;
+                        lines.Add(BuildDD24Q(d, ddSeq, newAct, L(), ch.SlNo.ToString(), ch.ChallanDate, empSlNo));
+                    }
                     ddSeq++;
                 }
             }
 
             // ── SD — Salary Detail (Annexure II) — mandatory for 24Q Q4 ─────────
+            // FVU rule: exactly ONE SD per unique PAN (T-FV-2127 fires if duplicates emitted).
+            // When SalaryDetails isn't populated, aggregate DD rows by PAN to produce one SD each.
             if (nsdlForm == "24Q" && h.Quarter == "Q4")
             {
                 var sdList = data.SalaryDetails.Any()
                     ? data.SalaryDetails
-                    : data.Deductees.Select(d => new ReturnSalaryDetail
-                    {
-                        Pan             = d.Pan,
-                        Name            = d.Name,
-                        ChallanNo       = d.ChallanNo,
-                        Salary17_1      = d.AmountPaid,
-                        GrossTotalIncome= d.AmountPaid,
-                        TaxableIncome   = d.AmountPaid,
-                        TaxPayable      = d.TdsDeducted,
-                        TotalTaxPayable = d.TdsDeducted,
-                        TdsDeducted     = d.TdsDeducted,
-                        Cess            = 0,
-                        Surcharge       = 0,
-                        Chapter6ATotal  = 0,
-                    }).ToList();
+                    : data.Deductees
+                        .GroupBy(d => (d.Pan ?? "").Trim().ToUpper())
+                        .Select(g => new ReturnSalaryDetail
+                        {
+                            Pan             = g.Key,
+                            Name            = g.First().Name,
+                            ChallanNo       = g.First().ChallanNo,
+                            Salary17_1      = g.Sum(d => d.AmountPaid),
+                            GrossTotalIncome= g.Sum(d => d.AmountPaid),
+                            TaxableIncome   = g.Sum(d => d.AmountPaid),
+                            TaxPayable      = g.Sum(d => d.TdsDeducted),
+                            TotalTaxPayable = g.Sum(d => d.TdsDeducted),
+                            TdsDeducted     = g.Sum(d => d.TdsDeducted),
+                            Cess            = 0,
+                            Surcharge       = 0,
+                            Chapter6ATotal  = 0,
+                        }).ToList();
 
                 int sdSeq = 1;
                 foreach (var sd in sdList)
@@ -329,208 +408,315 @@ namespace TDSPro.DAL
                     var ch = data.Challans.FirstOrDefault(c => c.ChallanNo == sd.ChallanNo)
                           ?? data.Challans.FirstOrDefault();
                     string sdChallanSlNo = ch?.SlNo.ToString() ?? "1";
-                    lines.Add(BuildSD(sd, sdSeq, L(), sdChallanSlNo));
+                    lines.Add(BuildSD(sd, sdSeq, L(), sdChallanSlNo, h.FinancialYear));
                     if (sd.StandardDeduction > 0)
-                        lines.Add(BuildS16(sd, sdSeq, L(), sdChallanSlNo));
+                        lines.Add(BuildS16(sd, sdSeq, L()));
+                    // C6A: emit a consolidated row when Chapter VI-A total > 0 (NSDL spec v6.2 section "C6A").
+                    // Without this, SD field 21 (count) > 0 but no C6A line → FVU validator rejects.
+                    if (sd.Chapter6ATotal > 0)
+                        lines.Add(BuildC6A(sd, sdSeq, L()));
                     sdSeq++;
                 }
             }
 
-            // ── BC — Batch Control (totals for this batch) ────────────────────
-            bool isSalaryReturn = nsdlForm == "24Q";
-            double bcCess  = isSalaryReturn ? data.Challans.Sum(c => c.Cess) : 0;
-            double bcTotal = data.Challans.Sum(c => c.TdsDeposited)
-                           + data.Challans.Sum(c => c.Surcharge)
-                           + bcCess
-                           + data.Challans.Sum(c => c.Interest)
-                           + data.Challans.Sum(c => c.LateFee);
-            lines.Add(PipeL(L(), "BC",
-                data.Challans.Count.ToString(),                   // Total CD records
-                data.Deductees.Count.ToString(),                  // Total DD records
-                Paise(data.TotalAmountPaid),                      // BC[4] = gross amount paid to deductees
-                Paise(data.TotalTdsDeducted),                     // BC[5] = total TDS deducted
-                Paise(data.Challans.Sum(c => c.Surcharge)),       // Total surcharge
-                Paise(bcCess),                                    // Total cess (0 for 26Q)
-                Paise(data.Challans.Sum(c => c.Interest)),        // Total interest
-                Paise(data.Challans.Sum(c => c.LateFee)),         // Total late fee
-                Paise(bcTotal)                                    // Total deposited
-            ));
-
-            // ── FC — File Control (grand totals across all batches) ───────────
-            lines.Add(PipeL(L(), "FC",
-                "1",                                              // Total batches
-                data.Challans.Count.ToString(),                   // Total CD records
-                data.Deductees.Count.ToString(),                  // Total DD records
-                Paise(data.TotalAmountPaid),                      // FC[5] = gross amount paid
-                Paise(data.TotalTdsDeducted)                      // FC[6] = total TDS deducted
-            ));
-
-            return string.Join("\r\n", lines) + "\r\n";
+            // No BC/FC footer — NSDL FVU 9.4 doesn't expect Batch Control or File Control
+            // records. The .fvu output appends an FVU-computed hash; input file ends after
+            // the last DD/SD/S16 record.
+            return string.Join("\n", lines) + "\n";
         }
 
         // ── DD record for 26Q / Form 140 (non-salary) ────────────────────────
-        private static string BuildDD26Q(ReturnDeducteeDetail d, int seq, bool newAct, string lineNo)
+        // Field layout confirmed field-by-field from FVU-validated reference 4I03886B (26Q Q4):
+        //  [2]=batchNo [3]=challanSlNo [4]=ddSeq [5]=O(mode) [6]=blank
+        //  [7]=deducteeCode(1=Company,2=Other) [8]=blank
+        //  [9]=PAN [10,11]=blank [12]=Name
+        //  [13]=TDS [14]=sur [15]=cess [16]=totalTDS [17]=blank [18]=totalTDSDeposited
+        //  [19,20]=blank [21]=AmountPaid [22]=PaymentDate [23]=DeductionDate
+        //  [24]=blank(no challan date) [25]=Rate(F4) [26-28]=blank
+        //  [29]=blank or "A"(sec 197 lower-deduction cert) [30,31]=blank
+        //  [32]=NSDLSection(94C/4JB/94A) [33]=blank or 197CertNo [34-52]=blank(19) + trailing ^
+        private static string BuildDD26Q(ReturnDeducteeDetail d, int seq, bool newAct, string lineNo, string challanSlNo)
         {
+            // Section 288B: TDS amounts must be whole rupees (paise ignored)
+            string F(double v) => ((long)Math.Round(v, MidpointRounding.AwayFromZero)).ToString() + ".00";
+            string F4(double v) => v.ToString("F4");
             string section = newAct ? MapToNewActSection(d.Section) : d.Section;
-            // 192/192A (salary sections) are invalid in 26Q — remap to 194J as closest non-salary section
+            // 192/192A (salary) invalid in 26Q — remap to 194J as closest non-salary section
             if (!newAct && (section == "192" || section == "192A"))
                 section = "194J";
+            string nsdlSection = newAct ? section : NsdlNonSalarySection(section);
 
-            // TDS amount in DD must equal AmountPaid × Rate exactly (no cess rolled in)
-            double tdsAmt = Math.Round(d.AmountPaid * d.Rate / 100, 2);
-            if (tdsAmt <= 0 && d.TdsDeducted > 0) tdsAmt = d.TdsDeducted; // fallback
+            double tds = d.TdsDeducted;
+            double sur = d.Surcharge;
+            double cess = d.Cess;  // 26Q usually 0; keep value from data
+            double total = tds + sur + cess;
+            string payDate = d.PaymentDate.ToString("ddMMyyyy");
+            string deductDate = payDate;  // deduction date = payment date by default
 
-            // Cess is 0 in 26Q DD records (cess not applicable for non-salary)
-            // Surcharge only for specific high-value cases; keep as-is from data
-
-            // Numeric-only challan serial for DD (same as CD rule)
-            var numChallan = string.IsNullOrEmpty(d.ChallanNo) ? "00000" :
-                new string(d.ChallanNo.Where(char.IsDigit).ToArray()).PadLeft(5, '0')[^5..];
-            var bsrCode = string.IsNullOrEmpty(d.BsrCode) ? "0000000" :
-                d.BsrCode.PadLeft(7, '0').Trim();
+            // Section 197 lower-deduction certificate: Remarks="A" + cert no in [33]
+            bool has197 = !string.IsNullOrEmpty(d.Remarks) && d.Remarks.Trim().Equals("A", StringComparison.OrdinalIgnoreCase);
+            string remark = has197 ? "A" : "";
+            string certNo = has197 ? Safe(d.LowerDeductionCertNo ?? "", 10) : "";
 
             return PipeL(lineNo, "DD",
-                seq.ToString(),
-                d.Pan.PadRight(10).Trim().ToUpper(),
-                Safe(d.Name, 75),
-                DeducteeCode(d.DeducteeType),
-                section.PadRight(6).Trim(),
-                d.PaymentDate.ToString("dd-MM-yyyy"),
-                Paise(d.AmountPaid),
-                Paise(tdsAmt),             // TDS = Amount × Rate
-                Paise(tdsAmt),             // TDS deposited = same (cess not separate in 26Q)
-                Paise(d.Surcharge),
-                "0",                       // Cess = 0 for 26Q non-salary
-                d.Rate.ToString("F2"),
-                numChallan,
-                bsrCode,
-                d.IsResidentIndian ? "Y" : "N",
-                ""                         // Remarks: keep blank — no extra tokens
+                "1",                                        //  [2]: batch no
+                challanSlNo,                                //  [3]: challan sl no
+                seq.ToString(),                             //  [4]: dd seq
+                "O",                                        //  [5]: mode (Overwrite)
+                "",                                         //  [6]: blank
+                DeducteeCode(d.DeducteeType),               //  [7]: deductee code (1=Company, 2=Other)
+                "",                                         //  [8]: blank
+                d.Pan.PadRight(10).Trim().ToUpper(),        //  [9]: PAN
+                "",                                         // [10]: blank
+                "",                                         // [11]: blank
+                Safe(d.Name, 75),                           // [12]: Name
+                F(tds),                                     // [13]: TDS Income Tax
+                F(sur),                                     // [14]: Surcharge
+                F(cess),                                    // [15]: Cess
+                F(total),                                   // [16]: Total Tax
+                "",                                         // [17]: blank
+                F(total),                                   // [18]: Total Tax Deposited
+                "",                                         // [19]: blank
+                "",                                         // [20]: blank
+                F(d.AmountPaid),                            // [21]: Amount Paid
+                payDate,                                    // [22]: Payment Date
+                deductDate,                                 // [23]: Deduction Date
+                "",                                         // [24]: blank (challan date not in 26Q DD)
+                F4(d.Rate),                                 // [25]: Rate (4 decimals: 2.0000)
+                "",                                         // [26]: blank
+                "",                                         // [27]: blank
+                "",                                         // [28]: blank
+                remark,                                     // [29]: Remarks (A=sec 197 lower deduction)
+                "",                                         // [30]: blank
+                "",                                         // [31]: blank
+                nsdlSection,                                // [32]: Section (94C/4JB/94A)
+                certNo,                                     // [33]: 197 Cert No (when [29]=A)
+                "","","","","","","","","","","","","","","","","","","" // [34-52]: blank (19) + trailing ^
             );
         }
 
-        // ── DD record for 24Q / Form 138 (salary) ────────────────────────────
-        private static string BuildDD24Q(ReturnDeducteeDetail d, int seq, bool newAct, string lineNo)
+        // ── NSDL 26Q non-salary section codes (3-char codes used in DD field [32]) ────
+        // Source: NSDL e-TDS RPU 5.6 / FVU 9.4 spec
+        private static readonly Dictionary<string, string> NsdlNonSalarySectionMap =
+            new(StringComparer.OrdinalIgnoreCase)
         {
-            // FY-aware section code: 392(1) for IT Act 2025, 192 for old act
-            string section = newAct ? "392" : "192";
+            ["193"]="93",   ["194"]="94",   ["194A"]="94A",  ["194B"]="94B",
+            ["194BA"]="4BA",["194BB"]="4BB",["194C"]="94C",  ["194D"]="94D",
+            ["194DA"]="4DA",["194E"]="94E", ["194EE"]="4EE", ["194F"]="94F",
+            ["194G"]="94G", ["194H"]="94H", ["194I"]="94I",  ["194IA"]="4IA",
+            ["194IB"]="4IB",["194IC"]="4IC",["194J"]="4JB",  ["194K"]="94K",
+            ["194LA"]="4LA",["194LB"]="4LB",["194LC"]="4LC", ["194LD"]="4LD",
+            ["194M"]="94M", ["194N"]="94N", ["194O"]="94O",  ["194P"]="94P",
+            ["194Q"]="94Q", ["194R"]="94R", ["194S"]="94S",  ["194T"]="94T",
+            ["195"]="95",   ["196A"]="96A", ["196B"]="96B",  ["196C"]="96C",
+            ["196D"]="96D",
+        };
+
+        private static string NsdlNonSalarySection(string section)
+        {
+            if (string.IsNullOrEmpty(section)) return "94C";
+            var s = section.ToUpper().Trim();
+            return NsdlNonSalarySectionMap.TryGetValue(s, out var code) ? code : s;
+        }
+
+        // ── DD record for 24Q / Form 138 (salary) ────────────────────────────
+        // Field layout confirmed field-by-field from reference 4I03886B.txt (FVU-validated):
+        //  [2]=batchNo [3]=challanSlNo [4]=ddSeq [5]=O [6]=empSlNo
+        //  [7,8]=blank [9]=PAN [10,11]=blank [12]=Name
+        //  [13]=TDS [14]=sur [15]=cess [16]=totalTDS [17]=blank [18]=totalTDS
+        //  [19,20]=blank [21]=grossSalary [22]=payDate [23]=payDate [24]=chalDate
+        //  [25-31]=blank(7) [32]=92B [33-53]=blank(21)
+        private static string BuildDD24Q(ReturnDeducteeDetail d, int seq, bool newAct, string lineNo, string challanSlNo, DateTime challanDate, int empSlNo)
+        {
+            string F(double v) => ((long)Math.Round(v, MidpointRounding.AwayFromZero)).ToString() + ".00";
+            string payDate = d.PaymentDate.ToString("ddMMyyyy");
+            string chalDate = challanDate.ToString("ddMMyyyy");
+            double tds = d.TdsDeducted;
+            double sur = d.Surcharge;
+            double cess = d.Cess;
+            double total = tds + sur + cess;
+            string section = newAct ? "392(1)" : "92B";
             return PipeL(lineNo, "DD",
-                seq.ToString(),
-                d.Pan.PadRight(10).Trim().ToUpper(),
-                Safe(d.Name, 75),
-                DeducteeCode(d.DeducteeType),
-                section,
-                d.PaymentDate.ToString("dd-MM-yyyy"),
-                Paise(d.AmountPaid),           // Gross salary
-                Paise(d.AmountPaid),           // Taxable salary
-                "0",                           // Perquisites
-                "0",                           // Profits in lieu
-                Paise(d.TdsDeducted),
-                Paise(d.TdsDeposited),
-                Paise(d.Surcharge),
-                Paise(d.Cess),
-                "0",                           // Relief u/s 89
-                d.Rate.ToString("F2"),
-                d.ChallanNo.PadLeft(5, '0').Trim(),
-                d.BsrCode.PadLeft(7, '0').Trim(),
-                d.IsResidentIndian ? "Y" : "N",
-                Safe(d.Remarks, 10)
+                "1",                                        //  [2]: batch no
+                challanSlNo,                                //  [3]: challan sl no
+                seq.ToString(),                             //  [4]: dd seq
+                "O",                                        //  [5]: deductee category
+                empSlNo.ToString(),                         //  [6]: employee sl no (SD position in Annexure II)
+                "",                                         //  [7]
+                "",                                         //  [8]
+                d.Pan.PadRight(10).Trim().ToUpper(),        //  [9]: PAN
+                "",                                         // [10]
+                "",                                         // [11]
+                d.Name.Trim().ToUpper(),                    // [12]: Name
+                F(tds),                                     // [13]: TDS
+                F(sur),                                     // [14]: surcharge
+                F(cess),                                    // [15]: cess
+                F(total),                                   // [16]: total TDS
+                "",                                         // [17]
+                F(total),                                   // [18]: total TDS repeat
+                "",                                         // [19]
+                "",                                         // [20]
+                F(d.AmountPaid),                            // [21]: gross salary (rupees)
+                payDate,                                    // [22]: payment date ddMMyyyy
+                payDate,                                    // [23]: payment date repeat
+                chalDate,                                   // [24]: challan date ddMMyyyy
+                "","","","","","","",                       // [25-31]: blank (7)
+                section,                                    // [32]: 92B
+                "","","","","","","","","","","","","","","","","","","","" // [33-52]: blank (20) + trailing ^ from PipeL = 53 total
             );
         }
 
         // ── SD — Salary Detail record (Annexure II, 24Q Q4 only) ────────────────
-        // 88 fields. Layout confirmed from reference NSDL RPU output (4I03886B.txt).
-        private static string BuildSD(ReturnSalaryDetail sd, int seq, string lineNo, string challanSlNo)
+        // 88 fields. Layout confirmed field-by-field from reference 4I03886B.txt (FVU-validated).
+        // Key fields (0-indexed in split array):
+        //  [27]=NetTaxPayable(tax+sur+cess-rebate)  [28]=TDSDeducted  [29]=Shortfall(field27-field28, can be negative)
+        //  [30]=0.00  [35]=TDSCurrentEmployer  [77]=0.00
+        private static string BuildSD(ReturnSalaryDetail sd, int seq, string lineNo, string challanSlNo, string fy)
         {
             string F(double v) => v.ToString("F2");
+            string FS(double v) => v.ToString("F2"); // signed, allows negative
             double totalSal = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3;
             double balanceAfter10 = Math.Max(0, totalSal - sd.ExemptU10);
-            double stdDed = sd.StandardDeduction > 0 ? sd.StandardDeduction : 0;
-            // GTI = balanceAfter10 + entertainment (stdDed u/s 16(ia) is in S16 record, NOT subtracted from GTI)
             double gti = sd.GrossTotalIncome > 0 ? sd.GrossTotalIncome : balanceAfter10;
             double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
-            // field28 = tax liability - TDS deducted; T-FV-4202: field28 = field24+25+26-27-field78(TDS)
-            double taxLiability = tax + sd.Surcharge + sd.Cess - sd.Rebate87A;
-            double field28 = taxLiability - sd.TdsDeducted - sd.PrevEmpTds;
-            double shortfall = field28 - sd.Chapter6ATotal;
+            double grossTax = tax + sd.Surcharge + sd.Cess;
+            // FVU 9.4 formula: [27] NetTax = [23]ITax + [24]Sur + [25]Cess - [77]Rebate87A - [26]Relief89
+            // FVU reads [77] as Rebate u/s 87A (NSDL field 369), [26] as Relief89 (NSDL field 372)
+            double relief89 = 0;  // not currently tracked in model; default 0
+            double rebate87A = sd.Rebate87A;
+            // Auto-compute 87A rebate when caller didn't supply one but tax exists.
+            // Required for FVU [27]: low-income employees get full rebate eating tax.
+            if (rebate87A == 0 && tax > 0)
+            {
+                // NSDL TaxRegime codes: N = old (Normal), O = new (Opted u/s 115BAC).
+                // Treat default FY 2025-26+ as new regime when blank (new is default after Budget 2024).
+                bool isNew = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true
+                          || sd.TaxRegime?.Equals("New", StringComparison.OrdinalIgnoreCase) == true;
+                var rules = TaxRules.GetRules(fy ?? "", isNew);
+                double taxableBasis = sd.TaxableIncome > 0 ? sd.TaxableIncome
+                                    : Math.Max(0, gti - sd.StandardDeduction - sd.Chapter6ATotal);
+                if (rules.Rebate87AThreshold > 0 && taxableBasis <= rules.Rebate87AThreshold)
+                    rebate87A = Math.Min(tax, rules.Rebate87AMaxAmount);
+            }
+            // Confirmed against FVU-validated 4I03886B.txt (24Q Q4, FVU 9.4):
+            //   [28] = Net Tax Payable = grossTax − rebate87A − relief89  (post-rebate)
+            //   [30] = Shortfall/Excess = [28] − tdsDeducted (negative = excess deducted)
+            //   [78] = Tax Before Rebate = grossTax (pre-rebate)
+            //   [77] = blank/zero (it is NOT the 87A rebate as our older comment claimed)
+            double netTax = grossTax - rebate87A - relief89;
+            double tdsDeducted = sd.TdsDeducted + sd.PrevEmpTds;
+            double shortfall = netTax - tdsDeducted;
 
             return PipeL(lineNo, "SD",
-                challanSlNo,                                //  3: Challan Sl No
-                seq.ToString(),                             //  4: Employee Sl No
-                sd.EmployeeCategory,                        //  5: Employee Category (A/W/S/G/O)
-                "",                                         //  6: PAN Ref (blank when PAN present)
-                sd.Pan.Trim().ToUpper(),                    //  7: PAN
-                "",                                         //  8: blank
-                Safe(sd.Name, 75),                          //  9: Name
-                sd.Gender,                                  // 10: Gender (M/F/T/G/S)
-                sd.EmploymentFrom.ToString("ddMMyyyy"),     // 11: Period From
-                sd.EmploymentTo.ToString("ddMMyyyy"),       // 12: Period To
-                F(sd.Salary17_1),                           // 13: Salary u/s 17(1)
-                sd.Perquisites17_2 == 0 ? "" : F(sd.Perquisites17_2), // 14: Perquisites (blank if zero)
-                sd.ExemptU10Count.ToString(),               // 15: Count of u/s 10 allowances
-                F(sd.ExemptU10),                            // 16: Total exempt u/s 10
-                F(balanceAfter10),                          // 17: Balance after u/s 10 (13+14-16)
-                "0.00",                                     // 18: Entertainment allowance u/s 16(ii) (Govt only)
-                F(gti),                                     // 19: GTI (= field17 + field18; stdDed is in S16, not here)
-                "",                                         // 20: blank
-                "0",                                        // 21: Chapter VI-A count (int)
-                "0.00",                                     // 22: Chapter VI-A total
-                F(gti),                                     // 23: Gross Total Income
-                F(tax),                                     // 24: Income Tax on total income
-                F(sd.Surcharge),                            // 25: Surcharge
-                F(sd.Cess),                                 // 26: Health & Education Cess
-                F(sd.Rebate87A),                            // 27: Rebate u/s 87A
-                F(field28),                                 // 28: Net tax after TDS (24+25+26-27-field78)
-                F(sd.Chapter6ATotal),                       // 29: Chapter VI-A deductions
-                F(shortfall),                               // 30: Shortfall(+)/Excess(-)
-                "0.00",                                     // 31: 0.00
-                "",                                         // 32: blank
-                "",                                         // 33: blank
-                F(totalSal),                                // 34: Gross Salary
-                F(sd.PrevEmpSalary),                        // 35: Previous employer salary
-                F(sd.Chapter6ATotal),                       // 36: Chapter VI-A total (repeat)
-                "0.00",                                     // 37: 0.00
-                sd.TaxRegime,                               // 38: Tax Regime (N/O)
-                "N",                                        // 39: N
-                sd.Chapter6ACount.ToString(),               // 40: Count of Chapter VI-A sub-records
-                "", "", "", "", "", "", "", "",             // 41-48: blank (8)
-                "N",                                        // 49: N
-                "0",                                        // 50: 0 (int)
-                "", "", "", "", "", "", "", "",             // 51-58: blank (8)
-                "N",                                        // 59: N
-                "", "", "", "", "", "", "",                 // 60-66: blank (7)
-                F(totalSal),                                // 67: Total salary
-                F(sd.PrevEmpSalary),                        // 68: Previous employer salary (repeat)
-                "0.00",                                     // 69: 0.00
-                "",                                         // 70: blank
-                "0.00",                                     // 71: TDS cur emp (per-challan; 0 for annual SD)
-                "0.00",                                     // 72: TDS previous employer
-                "0.00",                                     // 73: TDS other
-                "",                                         // 74: blank
-                "0.00",                                     // 75: 0.00
-                "0.00",                                     // 76: 0.00
-                "0.00",                                     // 77: 0.00
-                F(sd.TdsDeducted + sd.PrevEmpTds),          // 78: Total TDS (annual, used in T-FV-4202)
-                sd.TaxRegime,                               // 79: Tax Regime (repeat)
-                "0.00",                                     // 80: 0.00
-                "0.00",                                     // 81: 0.00
-                "", "", "", "", "", ""                      // 82-87: blank (6)
+                "1",                                        //  [2]: Batch Number (always 1)
+                seq.ToString(),                             //  [3]: Employee Sl No
+                sd.EmployeeCategory,                        //  [4]: Employee Category (A/W/S/G/O)
+                "",                                         //  [5]: PAN Ref (blank when PAN present)
+                sd.Pan.Trim().ToUpper(),                    //  [6]: PAN
+                "",                                         //  [7]: blank
+                Safe(sd.Name, 75),                          //  [8]: Name
+                sd.Gender,                                  //  [9]: Gender (M/F/T/G/S/W)
+                sd.EmploymentFrom.ToString("ddMMyyyy"),     // [10]: Period From
+                sd.EmploymentTo.ToString("ddMMyyyy"),       // [11]: Period To
+                F(sd.Salary17_1),                           // [12]: Salary u/s 17(1)
+                sd.Perquisites17_2 == 0 ? "" : F(sd.Perquisites17_2), // [13]: Perquisites (blank if zero)
+                sd.ExemptU10Count.ToString(),               // [14]: Count of u/s 10 allowances
+                F(sd.ExemptU10),                            // [15]: Total exempt u/s 10
+                F(balanceAfter10),                          // [16]: Balance after u/s 10
+                "0.00",                                     // [17]: Entertainment allowance (Govt only)
+                F(gti),                                     // [18]: GTI (stdDed is in S16, not subtracted here)
+                "",                                         // [19]: blank
+                sd.Chapter6ACount.ToString(),               // [20]: Chapter VI-A count
+                F(sd.Chapter6ATotal),                       // [21]: Chapter VI-A total
+                F(gti),                                     // [22]: Gross Total Income
+                F(tax),                                     // [23]: Income Tax on total income
+                F(sd.Surcharge),                            // [24]: Surcharge
+                F(sd.Cess),                                 // [25]: Health & Education Cess
+                F(relief89),                                // [26]: Income Tax Relief u/s 89 (NSDL field 372 — NOT rebate 87A)
+                F(netTax),                                  // [27]: Net Income Tax Payable = [23]+[24]+[25]-[26]
+                F(tdsDeducted),                             // [28]: TDS Deducted (annual total)
+                FS(shortfall),                              // [29]: Shortfall(+)/Excess(-) = field27-field28
+                "0.00",                                     // [30]: 0.00
+                "",                                         // [31]: blank
+                "",                                         // [32]: blank
+                F(totalSal),                                // [33]: Gross Salary
+                F(sd.PrevEmpSalary),                        // [34]: Previous employer salary
+                F(sd.TdsDeducted),                          // [35]: TDS current employer only
+                F(sd.PrevEmpTds),                           // [36]: Previous employer TDS (FVU: [28]=[35]+[36])
+                sd.TaxRegime ?? "N",                        // [37]: Tax Regime (N/O)
+                "N",                                        // [38]: HRA claim exceeds ₹1L (Y/N)
+                "0",                                        // [39]: integer
+                "", "", "", "", "", "", "", "",             // [40-47]: blank (8) — landlord PAN/Name slots
+                "N",                                        // [48]: Whether interest paid to lender (Y/N)
+                "0",                                        // [49]: integer
+                "", "", "", "", "", "", "", "",             // [50-57]: blank (8)
+                "N",                                        // [58]: Whether superannuation contributions (Y/N)
+                "", "", "", "", "", "", "",                 // [59-65]: blank (7)
+                F(totalSal),                                // [66]: Total salary
+                F(sd.PrevEmpSalary),                        // [67]: Previous employer salary (repeat)
+                "0.00",                                     // [68]: 0.00
+                "",                                         // [69]: blank
+                "0.00",                                     // [70]: 0.00
+                "0.00",                                     // [71]: 0.00
+                "0.00",                                     // [72]: 0.00
+                "",                                         // [73]: blank
+                "0.00",                                     // [74]: 0.00
+                "0.00",                                     // [75]: 0.00
+                "0.00",                                     // [76]: 0.00
+                "0.00",                                     // [77]: filler (NSDL field 369 — not 87A rebate)
+                F(grossTax),                                // [78]: Tax before rebate (= tax + sur + cess)
+                // [79]: 115BAC opt-in flag (T_FV_6198 — Y if opted to new regime, else N)
+                // NSDL: TaxRegime "O" = opted u/s 115BAC, "N" = old regime
+                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N",
+                "0.00",                                     // [80]: 0.00
+                "0.00",                                     // [81]: 0.00
+                "", "", "", "", "", ""                      // [82-87]: filler blank
             );
         }
 
-        // S16 sub-record — one per employee after SD. Reference: lineNo^S16^challanSlNo^empSlNo^1^16(ia)^amount^
-        private static string BuildS16(ReturnSalaryDetail sd, int seq, string lineNo, string challanSlNo)
+        // S16 sub-record — one per employee after SD. Reference: lineNo^S16^1^empSlNo^1^16(ia)^amount^
+        // Field[2] = Batch Number (always "1"), NOT challan SlNo
+        private static string BuildS16(ReturnSalaryDetail sd, int seq, string lineNo)
         {
             string F(double v) => v.ToString("F2");
             double stdDed = sd.StandardDeduction > 0 ? sd.StandardDeduction : 75000;
             return PipeL(lineNo, "S16",
-                challanSlNo,            // 3: Challan Sl No
-                seq.ToString(),         // 4: Employee Sl No
-                "1",                    // 5: S16 sequential number within employee
-                "16(ia)",               // 6: Section code (standard deduction)
-                F(stdDed)               // 7: Deductible amount
+                "1",                    // [2]: Batch Number (always 1)
+                seq.ToString(),         // [3]: Employee Sl No
+                "1",                    // [4]: S16 sequential number within employee
+                "16(ia)",               // [5]: Section code (standard deduction)
+                F(stdDed)               // [6]: Deductible amount
             );
         }
+
+        // C6A sub-record — Chapter VI-A details. Spec v6.2 section C6A.
+        // 9 carets = 10 fields. Confirmed against FVU-validated 24QRQ4.txt reference:
+        //   lineNo^C6A^batch^empSeq^c6aSeq^SectionId^GrossAmt^DeductibleAmt^QualifyingAmt^
+        // Section IDs include: 80C, 80CCC, 80CCD(1), 80CCD(1B), 80CCD(2), 80CCE, 80D,
+        // 80E, 80G, 80TTA, 80CCG, OTHERS, etc.
+        // We consolidate Chapter6ATotal under "OTHERS" since we don't yet split declared
+        // deductions by sub-section. SD field [20] (Chapter6ACount) must match # of C6A rows.
+        private static string BuildC6A(ReturnSalaryDetail sd, int seq, string lineNo)
+        {
+            string F(double v) => v.ToString("F2");
+            return PipeL(lineNo, "C6A",
+                "1",                            // [3]: Batch Number (always 1)
+                seq.ToString(),                 // [4]: Employee Sl No (matches parent SD)
+                "1",                            // [5]: C6A sequential number within employee
+                "OTHERS",                       // [6]: Section ID
+                F(sd.Chapter6ATotal),           // [7]: Gross amount
+                F(sd.Chapter6ATotal),           // [8]: Deductible amount (same as gross for OTHERS)
+                ""                              // [9]: Qualifying amount (blank — used for 80G splits)
+            );
+        }
+
+        // ── 27EQ (TCS) generator ─────────────────────────────────────────────
+        // 27EQ uses the same FVU 9.4 wire format as 26Q (NS1, same BH/CD/DD layout)
+        // The only differences: FormType field = "27EQ", section codes are 206C-family,
+        // and the terminology is "Collector/Collectee" instead of "Deductor/Deductee".
+        // NSDL FVU accepts 27EQ through the same validator as 26Q.
+        private static string Build27EQ(ReturnData data)
+            => Build(data, "27EQ", false);
 
         // ── Validation (pre-generation) ───────────────────────────────────────
         public static List<FvuValidationError> Validate(ReturnData data)
@@ -588,10 +774,13 @@ namespace TDSPro.DAL
                 if (!IsKnownSection(d.Section))
                     errors.Add(new("DEDUCTEE", "E024", $"Deductee '{d.Name}': Unknown section '{d.Section}'.", false));
 
-                // 192 (salary) is invalid in 26Q — warn user
                 var formT = data.Header.FormType.ToUpper();
+                // 192 (salary) is invalid in 26Q
                 if ((formT == "26Q" || formT == "140") && (d.Section == "192" || d.Section == "192A"))
-                    errors.Add(new("DEDUCTEE", "W025", $"Deductee '{d.Name}': Section 192 (salary) is invalid in {formT}. Remapped to 194J. Move to 24Q if this is a salary payment.", false));
+                    errors.Add(new("DEDUCTEE", "W025", $"Deductee '{d.Name}': Section 192 (salary) is invalid in {formT}. Move to 24Q if this is a salary payment.", false));
+                // 27EQ must only contain 206C sections
+                if (formT == "27EQ" && !d.Section.StartsWith("206C", StringComparison.OrdinalIgnoreCase))
+                    errors.Add(new("DEDUCTEE", "W026", $"Collectee '{d.Name}': Section '{d.Section}' is not a TCS section. 27EQ only allows 206C-family sections.", false));
             }
 
             // Reconciliation check
@@ -611,7 +800,7 @@ namespace TDSPro.DAL
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"// Sample NSDL FVU file structure — {formType}");
-            sb.AppendLine($"// Generated by TDS Pro | Format: NSDL RPU v9.0 | Delimiter: |");
+            sb.AppendLine($"// Generated by TDS Pro | Format: Protean RPU 5.6+ / FVU 9.4 | Delimiter: ^");
             sb.AppendLine();
             sb.AppendLine("FH|T|26Q|9.0|1|0");
             sb.AppendLine("BH|DELA12345A|202627|26Q|1|AAAPL1234C|C|12/04/2026|R|2|5|1248000|15000000");
@@ -624,6 +813,80 @@ namespace TDSPro.DAL
             return sb.ToString();
         }
 
+        // ── NIL return generator (FVU 9.4 compliant) ─────────────────────────
+        // NSDL spec: NIL return = BH with 1 challan, CD with NilChallanInd="Y", no DD records.
+        public static string GenerateNil(ReturnHeader h)
+        {
+            string nsdlForm = h.FormType.ToUpper() switch { "138"=>"24Q","140"=>"26Q",_=>h.FormType.ToUpper() };
+            var lines = new List<string>();
+            int lineNo = 0;
+            string L() => (++lineNo).ToString();
+            var fy  = FormatFY(h.FinancialYear);
+            var ay  = AssessmentYear(h.FinancialYear);
+            var today8 = DateTime.Today.ToString("ddMMyyyy");
+            var tanUpper = h.TanOfDeductor.PadRight(10).Trim().ToUpper();
+            string addr  = Safe(h.DeductorAddress, 100);
+            string addr1 = addr.Length > 25 ? addr[..25] : addr;
+            string addr2 = addr.Length > 25 ? (addr.Length > 50 ? addr[25..50] : addr[25..]) : "";
+            string stateCode = NsdlStateCode(h.DeductorState);
+
+            // FH
+            lines.Add(string.Join("^", new[]
+            {
+                L(), "FH",
+                nsdlForm == "24Q" ? "SL1" : "NS1",
+                "R", today8, "1", "D", tanUpper, "1", "IITRETeTDS",
+                "","","","","","","",
+            }) + "^");
+
+            // BH — 1 challan (the NIL CD below), 0 deductees, batch TDS = 0
+            lines.Add(PipeL(L(), "BH",
+                "1", "1", nsdlForm,
+                "","","","","","","","",
+                tanUpper, "",
+                h.PanOfDeductor.PadRight(10).Trim().ToUpper(),
+                ay, fy, h.Quarter.ToUpper(),
+                Safe(h.DeductorName, 75), "NA",
+                addr1, addr2, "", "", "",
+                stateCode, h.DeductorPin.Trim(), h.Email.Trim(),
+                "","","N",
+                DeductorCategory(h.DeductorType),
+                Safe(h.ResponsibleName, 75), Safe(h.Designation, 20),
+                addr1, addr2, "", "", "",
+                stateCode, h.DeductorPin.Trim(), h.Email.Trim(), h.Phone.Trim(),
+                "","","N",
+                "0.00", "0",
+                nsdlForm == "24Q" ? "0" : "",
+                nsdlForm == "24Q" ? "0.00" : "",
+                "N",
+                h.Quarter != "Q1" ? "Y" : "N",
+                "","","","","","","",
+                h.ResponsiblePan.PadRight(10).Trim().ToUpper(),
+                "","","","","","","","","",
+                h.Gstin.Trim().ToUpper(),
+                nsdlForm == "24Q" ? "0" : "",
+                nsdlForm == "24Q" ? "0.00" : ""
+            ));
+
+            // CD — NIL challan (BSR 0000000, date today, amount 0)
+            lines.Add(PipeL(L(), "CD",
+                "1", "1", "0", "Y",   // NIL challan indicator = Y
+                "","","","","",
+                "00000",               // bank challan no (zero for NIL)
+                "","",
+                "0000000",             // BSR code (zero for NIL)
+                "", today8,            // challan date
+                "","","",
+                "0.00","0.00","0.00","0.00","0.00",
+                "0.00","","0.00",
+                "0.00","0.00","0.00","0.00","0.00","0.00",
+                "","N","","0.00","200"
+            ));
+
+            // No DD records for NIL return
+            return string.Join("\n", lines) + "\n";
+        }
+
         // ── File name ────────────────────────────────────────────────────────
         public static string GetFileName(ReturnData data)
         {
@@ -632,21 +895,33 @@ namespace TDSPro.DAL
         }
 
         // ── IT Act 2025 section mapping (old → new) ────────────────────────
+        // IT Act 2025 mapping (CBDT section-picker dialog reference):
+        //   192/192A → 392(1)            (salary)
+        //   393(1) — general TDS: 193, 194, 194A, 194C, 194D, 194DA, 194G, 194H, 194I, 194IA,
+        //            194IB, 194IC, 194J, 194K, 194LA, 194M, 194N, 194O, 194Q, 195
+        //   393(3) — specific: 194B (winnings), 194BA (online games), 194BB (horse race),
+        //            194R (perquisites), 194S (virtual digital assets), 194T (partner payments)
+        //   397    — 206AB (higher-rate for non-filers, withdrawn FY 2025-26 onwards)
         private static readonly Dictionary<string, string> OldToNewSection =
             new(StringComparer.OrdinalIgnoreCase)
         {
-            ["192"]="392",["192A"]="393",["193"]="393",["194"]="393",
-            ["194A"]="393",["194B"]="393",["194BA"]="393",["194BB"]="393",
-            ["194C"]="393",["194D"]="393",["194DA"]="393",["194G"]="393",
-            ["194H"]="393",["194I"]="393",["194IA"]="393",["194IB"]="393",
-            ["194IC"]="393",["194J"]="393",["194K"]="393",["194LA"]="393",
-            ["194M"]="393",["194N"]="393",["194O"]="393",["194Q"]="393",
-            ["194R"]="393",["194S"]="393",["195"]="393",["206AB"]="397",
+            ["192"]="392(1)",  ["192A"]="392(1)",
+            ["193"]="393(1)",  ["194"]="393(1)",   ["194A"]="393(1)",
+            ["194C"]="393(1)", ["194D"]="393(1)",  ["194DA"]="393(1)",
+            ["194G"]="393(1)", ["194H"]="393(1)",  ["194I"]="393(1)",
+            ["194IA"]="393(1)",["194IB"]="393(1)", ["194IC"]="393(1)",
+            ["194J"]="393(1)", ["194K"]="393(1)",  ["194LA"]="393(1)",
+            ["194M"]="393(1)", ["194N"]="393(1)",  ["194O"]="393(1)",
+            ["194Q"]="393(1)", ["195"]="393(1)",
+            ["194B"]="393(3)", ["194BA"]="393(3)", ["194BB"]="393(3)",
+            ["194R"]="393(3)", ["194S"]="393(3)",  ["194T"]="393(3)",
+            ["206AB"]="397",
         };
 
         private static readonly HashSet<string> NewActSectionCodes =
             new(StringComparer.OrdinalIgnoreCase)
-            { "392","392(1)","393","393(1)","393(2)","394","395","396","397","397(3)","398","398(3)" };
+            { "392","392(1)","393","393(1)","393(2)","393(3)",
+              "394","395","396","397","397(3)","398","398(3)" };
 
         private static bool IsKnownSection(string s) =>
             string.IsNullOrEmpty(s) ||
@@ -661,7 +936,7 @@ namespace TDSPro.DAL
 
         private static string ChallanSectionCode(string section, string nsdlForm, bool newAct)
         {
-            if (nsdlForm == "24Q") return newAct ? "392" : "192";
+            if (nsdlForm == "24Q") return newAct ? "392(1)" : "192";
             if (newAct) return MapToNewActSection(section);
             return string.IsNullOrEmpty(section) ? "194C" : section.ToUpper().Trim();
         }
@@ -738,62 +1013,69 @@ namespace TDSPro.DAL
         // Note: code "08" (old Daman & Diu) is invalid in FVU >= 9.4; use "07" for Dadra+Daman.
         private static string NsdlStateCode(string state)
         {
-            if (string.IsNullOrWhiteSpace(state)) return "09"; // Default to Delhi if unknown
+            if (string.IsNullOrWhiteSpace(state)) return "07"; // Default to Delhi
             var s = state.Trim().ToUpper();
-            // If already a valid 2-digit code 01-37 (excluding 08), return as-is
-            if (int.TryParse(s, out int code) && code >= 1 && code <= 37 && code != 8)
+            // If already a valid 2-digit NSDL code, return as-is (zero-padded)
+            if (int.TryParse(s, out int code) && code >= 1 && code <= 38)
                 return s.PadLeft(2, '0');
+            // NSDL state codes — verified against FVU 9.4 FormValidator
             return s switch
             {
-                "ANDAMAN AND NICOBAR" or "A&N"     => "01",
-                "ANDHRA PRADESH" or "AP"            => "02",
-                "ARUNACHAL PRADESH"                 => "03",
-                "ASSAM"                             => "04",
-                "BIHAR"                             => "05",
-                "CHANDIGARH"                        => "06",
-                "DADRA AND NAGAR HAVELI" or "DAMAN AND DIU" or "DADRA" => "07",
-                "DELHI" or "DEL" or "DELI" or "NEW DELHI" => "09",
-                "GOA"                               => "10",
-                "GUJARAT"                           => "11",
-                "HARYANA"                           => "12",
-                "HIMACHAL PRADESH" or "HP"          => "13",
-                "JAMMU AND KASHMIR" or "J&K" or "J AND K" => "14",
-                "KARNATAKA"                         => "15",
-                "KERALA"                            => "16",
-                "LAKSHADWEEP" or "LAKSHWADEEP"      => "17",
-                "MADHYA PRADESH" or "MP"            => "18",
-                "MAHARASHTRA"                       => "19",
-                "MANIPUR"                           => "20",
-                "MEGHALAYA"                         => "21",
-                "MIZORAM"                           => "22",
-                "NAGALAND"                          => "23",
-                "ODISHA" or "ORISSA"                => "24",
-                "PUDUCHERRY" or "PONDICHERRY"       => "25",
-                "PUNJAB"                            => "26",
-                "RAJASTHAN"                         => "27",
-                "SIKKIM"                            => "28",
-                "TAMIL NADU" or "TAMILNADU" or "TN" => "29",
-                "TRIPURA"                           => "30",
-                "UTTAR PRADESH" or "UP"             => "31",
-                "WEST BENGAL" or "WB"               => "32",
-                "CHHATTISGARH" or "CHATTISGARH"     => "33",
-                "UTTARAKHAND" or "UTTARANCHAL"      => "34",
-                "JHARKHAND"                         => "35",
-                "TELANGANA"                         => "36",
-                "LADAKH"                            => "37",
-                _                                   => "09" // Default to Delhi
+                "JAMMU AND KASHMIR" or "JAMMU & KASHMIR" or "J&K" => "01",
+                "HIMACHAL PRADESH" or "HP"                         => "02",
+                "PUNJAB"                                           => "03",
+                "CHANDIGARH"                                       => "04",
+                "UTTARAKHAND" or "UTTARANCHAL"                     => "05",
+                "HARYANA"                                          => "06",
+                "DELHI" or "DEL" or "NEW DELHI" or "NCT OF DELHI" => "07",
+                "RAJASTHAN"                                        => "08",
+                "UTTAR PRADESH" or "UP"                            => "09",
+                "BIHAR"                                            => "10",
+                "SIKKIM"                                           => "11",
+                "ARUNACHAL PRADESH"                                => "12",
+                "NAGALAND"                                         => "13",
+                "MANIPUR"                                          => "14",
+                "MIZORAM"                                          => "15",
+                "TRIPURA"                                          => "16",
+                "MEGHALAYA"                                        => "17",
+                "ASSAM"                                            => "18",
+                "WEST BENGAL" or "WB"                              => "19",
+                "JHARKHAND"                                        => "20",
+                "ODISHA" or "ORISSA"                               => "21",
+                "CHHATTISGARH" or "CHATTISGARH"                    => "22",
+                "MADHYA PRADESH" or "MP"                           => "23",
+                "GUJARAT"                                          => "24",
+                "DAMAN AND DIU" or "DAMAN & DIU"                   => "25",
+                "DADRA AND NAGAR HAVELI" or "DADRA & NAGAR HAVELI" => "26",
+                "MAHARASHTRA"                                      => "27",
+                "ANDHRA PRADESH" or "AP"                           => "28",
+                "KARNATAKA"                                        => "29",
+                "GOA"                                              => "30",
+                "LAKSHADWEEP" or "LAKSHWADEEP"                     => "31",
+                "KERALA"                                           => "32",
+                "TAMIL NADU" or "TAMILNADU" or "TN"                => "33",
+                "PUDUCHERRY" or "PONDICHERRY"                      => "34",
+                "ANDAMAN AND NICOBAR" or "ANDAMAN & NICOBAR"       => "35",
+                "TELANGANA"                                        => "36",
+                "ANDHRA PRADESH (NEW)" or "AP (NEW)"               => "37",
+                "LADAKH"                                           => "38",
+                _                                                  => "07" // Default to Delhi
             };
         }
 
+        // NSDL Deductee Code: 1=Company, 2=Other (Individual/HUF/etc)
         private static string DeducteeCode(string type) => (type ?? "") switch
         {
-            "01"            => "01",   // Individual/HUF
-            "02"            => "02",   // Company / Non-Individual
-            "Company"       => "02",   // Company → code 02
-            "NRI - Company" => "02",   // NRI Company → code 02
-            "Individual"    => "01",
-            "NRI"           => "01",
-            _               => "01"    // default to Individual
+            "01"            => "1",    // legacy "01" → Company (code 1)
+            "02"            => "2",    // legacy "02" → Other (code 2)
+            "1"             => "1",
+            "2"             => "2",
+            "Company"       => "1",
+            "NRI - Company" => "1",
+            "Individual"    => "2",
+            "HUF"           => "2",
+            "NRI"           => "2",
+            _               => "2"     // default to Other
         };
     }  // end FvuGenerator
 

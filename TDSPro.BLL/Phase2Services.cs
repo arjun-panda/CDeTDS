@@ -9,17 +9,17 @@ namespace TDSPro.BLL
     {
         private readonly ReportsRepository _repo = new();
 
-        public List<QuarterSummary>    GetQuarterSummary(string fy)
-            => _repo.GetQuarterSummary(fy);
+        public List<QuarterSummary>    GetQuarterSummary(string fy, int? deductorId = null)
+            => _repo.GetQuarterSummary(fy, deductorId);
 
-        public List<DeducteeReport>    GetDeducteeReport(string fy, string? quarter = null)
-            => _repo.GetDeducteeReport(fy, quarter);
+        public List<DeducteeReport>    GetDeducteeReport(string fy, string? quarter = null, int? deductorId = null)
+            => _repo.GetDeducteeReport(fy, quarter, deductorId);
 
-        public List<SectionReport>     GetSectionReport(string fy, string? quarter = null)
-            => _repo.GetSectionReport(fy, quarter);
+        public List<SectionReport>     GetSectionReport(string fy, string? quarter = null, int? deductorId = null)
+            => _repo.GetSectionReport(fy, quarter, deductorId);
 
-        public ChallanReconciliation   GetChallanRecon(string fy, string? quarter = null)
-            => _repo.GetChallanReconciliation(fy, quarter);
+        public ChallanReconciliation   GetChallanRecon(string fy, string? quarter = null, int? deductorId = null)
+            => _repo.GetChallanReconciliation(fy, quarter, deductorId);
     }
 
     // ── Return / FVU Service ──────────────────────────────────────────────────
@@ -48,7 +48,8 @@ namespace TDSPro.BLL
         /// Generate the .txt input file for NSDL FVU utility.
         /// Returns (ok, path, error).
         /// </summary>
-        public (bool Ok, string Path, string Error) GenerateTxtFile(ReturnData data, string outputDir)
+        public (bool Ok, string Path, string Error) GenerateTxtFile(
+            ReturnData data, string outputDir, int deductorId = 0)
         {
             try
             {
@@ -65,6 +66,14 @@ namespace TDSPro.BLL
 
                 Database.LogAction("system", "FVU_TXT_GENERATE", "Return",
                     $"{data.Header.FormType}/{data.Header.TanOfDeductor}/{data.Header.Quarter}");
+
+                // Save to filing history (PRN is empty until uploaded to portal — user updates later)
+                if (deductorId > 0)
+                    Database.SaveFilingHistory(
+                        deductorId, data.Header.FormType, data.Header.FinancialYear, data.Header.Quarter,
+                        data.Header.IsCorrection, data.Header.IsCorrection ? data.Header.CorrectionType : "",
+                        prn: "", txtPath: fullPath);
+
                 return (true, fullPath, "");
             }
             catch (Exception ex)
@@ -76,8 +85,9 @@ namespace TDSPro.BLL
         /// <summary>
         /// Legacy alias kept for ReturnForm.
         /// </summary>
-        public (bool Ok, string Path, string Error) GenerateFvu(ReturnData data, string outputDir)
-            => GenerateTxtFile(data, outputDir);
+        public (bool Ok, string Path, string Error) GenerateFvu(
+            ReturnData data, string outputDir, int deductorId = 0)
+            => GenerateTxtFile(data, outputDir, deductorId);
 
         /// <summary>
         /// Run NSDL FVU Java utility on the generated .txt file.

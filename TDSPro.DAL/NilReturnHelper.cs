@@ -11,9 +11,8 @@ namespace TDSPro.DAL
         public static string GenerateNilReturn(
             Deductor deductor, string fy, string quarter, string formType = "26Q")
         {
-            bool   newAct   = TDSPro.Common.TaxRules.IsNewAct(fy);
             string nsdlForm = formType switch { "138"=>"24Q","140"=>"26Q",_=>formType };
-            string fvuVer   = newAct ? "10.0" : "9.0";
+            string fvuVer   = "9.4";   // current target; IT Act 2025 reuses same FVU until NSDL publishes successor
             string ay       = AssessmentYear(fy);
             string today    = System.DateTime.Today.ToString("dd/MM/yyyy");
             string tan      = (deductor.Tan ?? "").ToUpper();

@@ -38,27 +38,54 @@ namespace TDSPro.DAL
             DateTime transactionDate)
         {
             using var conn = Database.GetConnection();
-            using var cmd  = conn.CreateCommand();
+            var dt   = NormalizeDeducteeType(deducteeType);
+            var sc   = sectionCode.ToUpper();
+            var td   = transactionDate.ToString("yyyy-MM-dd");
+            var ir   = isResident ? 1 : 0;
 
-            // Priority: exact deductee type match > "All" match
-            cmd.CommandText = @"
-                SELECT * FROM tds_rules
-                WHERE section_code   = @sc
-                  AND is_active      = 1
-                  AND is_resident    = @ir
-                  AND (deductee_type = @dt OR deductee_type = 'All')
-                  AND effective_from <= @td
-                  AND (effective_to  IS NULL OR effective_to >= @td)
-                ORDER BY
-                    CASE WHEN deductee_type = @dt THEN 0 ELSE 1 END,
-                    effective_from DESC
-                LIMIT 1";
-            cmd.Parameters.AddWithValue("@sc", sectionCode.ToUpper());
-            cmd.Parameters.AddWithValue("@dt", NormalizeDeducteeType(deducteeType));
-            cmd.Parameters.AddWithValue("@ir", isResident ? 1 : 0);
-            cmd.Parameters.AddWithValue("@td", transactionDate.ToString("yyyy-MM-dd"));
-            using var r = cmd.ExecuteReader();
-            return r.Read() ? MapRule(r) : null;
+            // Pass 1: exact date-range match
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    SELECT * FROM tds_rules
+                    WHERE section_code   = @sc
+                      AND is_active      = 1
+                      AND is_resident    = @ir
+                      AND (deductee_type = @dt OR deductee_type = 'All')
+                      AND effective_from <= @td
+                      AND (effective_to  IS NULL OR effective_to >= @td)
+                    ORDER BY
+                        CASE WHEN deductee_type = @dt THEN 0 ELSE 1 END,
+                        effective_from DESC
+                    LIMIT 1";
+                cmd.Parameters.AddWithValue("@sc", sc);
+                cmd.Parameters.AddWithValue("@dt", dt);
+                cmd.Parameters.AddWithValue("@ir", ir);
+                cmd.Parameters.AddWithValue("@td", td);
+                using var r = cmd.ExecuteReader();
+                if (r.Read()) return MapRule(r);
+            }
+
+            // Pass 2: fallback — return nearest rule ignoring date bounds
+            // (handles historical entries where rules predate the effective_from)
+            using (var cmd2 = conn.CreateCommand())
+            {
+                cmd2.CommandText = @"
+                    SELECT * FROM tds_rules
+                    WHERE section_code   = @sc
+                      AND is_active      = 1
+                      AND is_resident    = @ir
+                      AND (deductee_type = @dt OR deductee_type = 'All')
+                    ORDER BY
+                        CASE WHEN deductee_type = @dt THEN 0 ELSE 1 END,
+                        effective_from ASC
+                    LIMIT 1";
+                cmd2.Parameters.AddWithValue("@sc", sc);
+                cmd2.Parameters.AddWithValue("@dt", dt);
+                cmd2.Parameters.AddWithValue("@ir", ir);
+                using var r2 = cmd2.ExecuteReader();
+                return r2.Read() ? MapRule(r2) : null;
+            }
         }
 
         // ── Full TDS calculation with all 2026 rules applied ─────────────────
@@ -133,16 +160,17 @@ namespace TDSPro.DAL
             }
 
             // ── Step 4: Compute TDS, surcharge, cess ─────────────────────────
-            double tdsAmount     = Math.Round(grossAmount * applicableRate / 100, 2);
-            double surcharge     = Math.Round(tdsAmount * rule.SurchargeRate / 100, 2);
-            double cess          = Math.Round((tdsAmount + surcharge) * rule.CessRate / 100, 2);
-            double totalTds      = tdsAmount + surcharge + cess;
+            // Section 288B: TDS, surcharge, cess all rounded to nearest rupee
+            double tdsAmount = Math.Round(grossAmount * applicableRate / 100, MidpointRounding.AwayFromZero);
+            double surcharge = Math.Round(tdsAmount * rule.SurchargeRate / 100, MidpointRounding.AwayFromZero);
+            double cess      = Math.Round((tdsAmount + surcharge) * rule.CessRate / 100, MidpointRounding.AwayFromZero);
+            double totalTds  = tdsAmount + surcharge + cess;
 
             result.ApplicableRate   = applicableRate;
             result.TdsAmount        = tdsAmount;
             result.SurchargeAmount  = surcharge;
             result.CessAmount       = cess;
-            result.TotalTds         = Math.Round(totalTds, 2);
+            result.TotalTds         = totalTds;
             result.HigherRateApplied= higherRate;
             result.HigherRateReason = higherReason;
 

@@ -80,7 +80,7 @@ if exist "%PUBLISH_DIR%" rmdir /s /q "%PUBLISH_DIR%"
 
 if "%FAST_BUILD%"=="1" (
     REM ── FAST: skip compression and ReadyToRun — ~60 seconds ──
-    dotnet publish TDSPro.UI\TDSPro.UI.csproj ^
+    dotnet publish TDSPro.App\TDSPro.App.csproj ^
         -c Release ^
         -r win-x64 ^
         --self-contained true ^
@@ -94,7 +94,7 @@ if "%FAST_BUILD%"=="1" (
         --nologo --no-restore
 ) else (
     REM ── FULL: compression, no ReadyToRun (requires runtime pack) — ~3-5 min
-    dotnet publish TDSPro.UI\TDSPro.UI.csproj ^
+    dotnet publish TDSPro.App\TDSPro.App.csproj ^
         -c Release ^
         -r win-x64 ^
         --self-contained true ^
