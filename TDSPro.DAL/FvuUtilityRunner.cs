@@ -1108,7 +1108,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
             ["T-FV-2007"] = "Challan deposit date is after the end of the quarter (or after filing date)",
             ["T-FV-2008"] = "Duplicate challan (same BSR + serial + date already appears in this return)",
             ["T-FV-2009"] = "Number of deductee records linked to this challan is zero",
-            ["T-FV-2010"] = "Oltas challan not found in CSI file for the given BSR + serial + date",
+            ["T-FV-2010"] = "Challan not found in CSI file — BSR code, date or serial number mismatch",
             ["T-FV-2011"] = "Challan TDS amount in return does not match CSI amount",
             ["T-FV-2012"] = "Challan minor head code is invalid",
             ["T-FV-2013"] = "Challan major head code is invalid",
@@ -1137,6 +1137,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
             ["T-FV-3020"] = "Lower deduction certificate (section 197) number is missing or invalid",
             ["T-FV-3021"] = "Amount on which TDS not deducted is non-zero but reason code is blank",
             ["T-FV-3022"] = "Deduction reason code is invalid",
+            ["T-FV-3169"] = "Challan reconciliation failed — sum of TDS in entries does not match challan deposit amount",
             // Salary / 24Q
             ["T-FV-4001"] = "Salary detail records missing for 24Q return",
             ["T-FV-4002"] = "Salary breakup (gross, allowances, perquisites) totals do not match",
@@ -1146,6 +1147,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
             ["T-FV-4006"] = "Tax on total income is invalid",
             ["T-FV-4007"] = "Education cess is incorrectly calculated",
             ["T-FV-4008"] = "Previous employer tax details are invalid",
+            ["T-FV-4301"] = "Tax regime flag (115BAC) is invalid — must be Y or N",
             // Structural / count
             ["T-FV-6001"] = "Total number of challans in the return does not match the batch header count",
             ["T-FV-6002"] = "Total number of deductee records does not match the batch header count",
@@ -1153,6 +1155,53 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
             ["T-FV-6004"] = "File is corrupted or not in the expected FVU text format",
             ["T-FV-6005"] = "Duplicate PAN in deductee records for the same challan",
         };
+
+        private static readonly Dictionary<string, string> _fvuFixHints = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["T-FV-1001"] = "Go to Settings → Deductor and verify TAN matches the TAN on the CSI file. Download a fresh CSI file from TRACES if needed.",
+            ["T-FV-1002"] = "Check the FY selected on the Returns page matches the CSI file FY.",
+            ["T-FV-1007"] = "Go to Settings → Deductor → enter the correct 10-character company PAN.",
+            ["T-FV-1010"] = "Go to Settings → Deductor → Responsible Person section and enter a valid 10-character PAN.",
+            ["T-FV-1011"] = "Go to Settings → Deductor → enter the responsible person's full name.",
+            ["T-FV-1012"] = "Go to Settings → Deductor → enter the responsible person's designation (e.g. Director, CA).",
+            ["T-FV-1015"] = "Go to Settings → Deductor → select the correct state from the dropdown.",
+            ["T-FV-2001"] = "Open Challans → edit the challan → verify BSR code is exactly 7 digits (no letters, no spaces).",
+            ["T-FV-2002"] = "Open Challans → edit the challan → correct the deposit date. Date cannot be in the future.",
+            ["T-FV-2003"] = "Open Challans → edit the challan → verify the challan serial number is correct (from ITNS 281 receipt).",
+            ["T-FV-2005"] = "Open Challans → edit the challan → check TDS + Surcharge + Cess + Interest + Others equals the total deposited.",
+            ["T-FV-2006"] = "The challan deposit date is before the quarter started. Check that you assigned the challan to the correct quarter.",
+            ["T-FV-2007"] = "The challan deposit date is after the quarter ended. Either the date is wrong or this challan belongs to the next quarter.",
+            ["T-FV-2008"] = "A challan with the same BSR + Serial + Date already exists. Remove the duplicate from Challans.",
+            ["T-FV-2009"] = "This challan has no TDS entries linked to it. Either add entries for this challan or delete the challan.",
+            ["T-FV-2010"] = "Go to TRACES → Statements / Payments → Oltas Challan Status and verify BSR code, deposit date and serial number. Download fresh CSI file after verifying. Update the challan in TDS Pro to match exactly.",
+            ["T-FV-2011"] = "The TDS amount in your challan does not match the CSI file. Download a fresh CSI file from TRACES or correct the challan amount.",
+            ["T-FV-2015"] = "Sum of TDS across all entries linked to this challan exceeds the challan amount. Reduce entry TDS amounts or deposit an additional challan.",
+            ["T-FV-3000"] = "Go to TDS Entries → edit the entry → verify the deductee PAN. Format: 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F). Update in Deductees master too.",
+            ["T-FV-3001"] = "If PAN is genuinely unavailable: use PANNOTAVBL. If applied but not received: use PANAPPLIED. If invalid/incorrect: use PANINVALID. Note: 20% TDS applies (Section 206AA).",
+            ["T-FV-3003"] = "The payment amount for this entry is zero. Go to TDS Entries → edit the entry → enter the correct gross payment amount.",
+            ["T-FV-3004"] = "TDS amount is zero. Either enter the correct TDS amount or delete this entry if no TDS applies.",
+            ["T-FV-3005"] = "The section code used is not valid for this form type. 24Q accepts only salary sections (192 family). 26Q accepts non-salary non-TCS sections. 27EQ accepts only 206C sections.",
+            ["T-FV-3006"] = "The TDS rate is outside the allowed range for this section. Check the applicable rate under TDS Rules → Section Rates.",
+            ["T-FV-3008"] = "The deduction date falls outside the quarter being filed. Correct the date in TDS Entries or move the entry to the correct quarter.",
+            ["T-FV-3015"] = "Gross salary must be at least as much as the TDS deducted. Check Payroll → Salary Data for this employee.",
+            ["T-FV-3016"] = "Salary entries (section 192) must not be in 26Q — use 24Q. Non-salary entries must not be in 24Q — use 26Q.",
+            ["T-FV-3019"] = "When PAN is PANNOTAVBL/PANINVALID, TDS rate must be at least 20% (Section 206AA). Update the TDS rate in TDS Entries.",
+            ["T-FV-3169"] = "Open Reports → Challan Reconciliation to see the mismatch. Either add more TDS entries to utilise the full challan amount, or reduce entry amounts to match what was deposited.",
+            ["T-FV-4003"] = "Go to Payroll → Employees → edit the employee → enter a valid 10-character PAN.",
+            ["T-FV-4004"] = "Employee PAN is mandatory for 24Q. Go to Payroll → Employees → edit the employee → enter PAN.",
+            ["T-FV-4301"] = "Go to Payroll → Employees → edit the employee → set the Tax Regime to New or Old. This sets the 115BAC flag in the FVU file.",
+            ["T-FV-6001"] = "Regenerate the return from the Returns page. If the error persists, check that no challans were added or deleted after the last generation.",
+            ["T-FV-6002"] = "Regenerate the return from the Returns page. If the error persists, check for orphan TDS entries without a challan.",
+            ["T-FV-6003"] = "Regenerate the return. If it persists, open Reports → Challan Reconciliation to find the mismatched challan.",
+            ["T-FV-6004"] = "Delete the generated .txt file and regenerate from the Returns page. If it still fails, contact TDS Pro support.",
+            ["T-FV-6005"] = "Two TDS entries for the same PAN are mapped to the same challan. Each deductee can appear only once per challan. Merge or split entries.",
+        };
+
+        public static string GetFvuFixHint(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "";
+            return _fvuFixHints.TryGetValue(code.Trim(), out var hint) ? hint : "";
+        }
 
         /// <summary>Returns a friendly explanation for a T-FV-xxxx error code, or the code itself if unknown.</summary>
         public static string GetFvuErrorDescription(string code)

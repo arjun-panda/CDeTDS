@@ -172,14 +172,16 @@
                 <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1" Color="Color.Error">
                     FVU Validation Errors (@_fvuErrors.Count)
                 </MudText>
-                <MudSimpleTable Dense="true" Bordered="true" Style="font-size:12px">
+                <div style="overflow-x:auto">
+                <MudSimpleTable Dense="true" Bordered="true" Style="font-size:12px;min-width:700px">
                     <thead>
                         <tr style="background:#ffebee">
                             <th style="width:90px">Code</th>
-                            <th>What to Fix</th>
-                            <th style="color:#888;font-weight:400">NSDL Detail</th>
+                            <th style="width:200px">What Went Wrong</th>
+                            <th>How to Fix</th>
                             <th style="width:80px">Record</th>
-                            <th style="width:60px">Seq</th>
+                            <th style="width:80px">Field</th>
+                            <th style="width:50px">Seq</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -188,17 +190,28 @@
                             var desc = e.Description ?? "";
                             var bracketIdx = desc.LastIndexOf('[');
                             var friendly = bracketIdx > 0 ? desc[..bracketIdx].Trim() : desc;
-                            var raw = bracketIdx > 0 ? desc[(bracketIdx + 1)..].TrimEnd(']') : "";
+                            var hint = TDSPro.DAL.FvuUtilityRunner.GetFvuFixHint(e.Code);
                             <tr>
-                                <td style="font-weight:600;color:#c62828;white-space:nowrap">@e.Code</td>
-                                <td style="color:#1e3a8a;font-weight:600">@friendly</td>
-                                <td style="color:#6b7280;font-size:10px">@raw</td>
-                                <td>@e.RecordType</td>
-                                <td>@e.SeqNo</td>
+                                <td style="font-weight:600;color:#c62828;white-space:nowrap;vertical-align:top">@e.Code</td>
+                                <td style="color:#1e3a8a;font-weight:600;vertical-align:top">@friendly</td>
+                                <td style="vertical-align:top">
+                                    @if (!string.IsNullOrEmpty(hint))
+                                    {
+                                        <span style="color:#166534">@hint</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#6b7280;font-size:10px">Refer to NSDL FVU error code documentation.</span>
+                                    }
+                                </td>
+                                <td style="vertical-align:top">@e.RecordType</td>
+                                <td style="color:#6b7280;font-size:10px;vertical-align:top">@e.FieldName</td>
+                                <td style="vertical-align:top">@e.SeqNo</td>
                             </tr>
                         }
                     </tbody>
                 </MudSimpleTable>
+                </div>
             }
         </MudPaper>
 
