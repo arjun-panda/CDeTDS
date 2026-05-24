@@ -184,11 +184,35 @@ namespace TDSPro.DAL.Repositories
             if (quarter != null)
                 challanList = challanList.Where(c => c.Quarter == quarter).ToList();
 
+            // Section-wise payable from entries
+            using var c3 = conn.CreateCommand();
+            c3.CommandText = $"SELECT section, COALESCE(SUM(total_tds),0) FROM tds_entries WHERE financial_year=@fy{qc}{didF} GROUP BY section ORDER BY section";
+            c3.Parameters.AddWithValue("@fy", fy);
+            if (quarter != null) c3.Parameters.AddWithValue("@qt", quarter);
+            if (deductorId.HasValue && deductorId.Value > 0) c3.Parameters.AddWithValue("@did", deductorId.Value);
+            var sectionPayable = new Dictionary<string, double>();
+            using (var r3 = c3.ExecuteReader())
+                while (r3.Read()) sectionPayable[r3.GetString(0)] = r3.GetDouble(1);
+
+            // Section-wise deposited from challans
+            var sectionDeposited = challanList
+                .GroupBy(c => c.Section ?? "")
+                .ToDictionary(g => g.Key, g => g.Sum(c => c.TdsAmount));
+
+            var allSections = sectionPayable.Keys.Union(sectionDeposited.Keys).OrderBy(s => s).ToList();
+            var breakdown = allSections.Select(s => new ChallanReconSection
+            {
+                Section          = s,
+                TdsPayable       = sectionPayable.GetValueOrDefault(s),
+                ChallanDeposited = sectionDeposited.GetValueOrDefault(s),
+            }).ToList();
+
             return new ChallanReconciliation
             {
                 TdsPayable       = payable,
                 ChallanDeposited = deposited,
                 Challans         = challanList,
+                SectionBreakdown = breakdown,
             };
         }
 

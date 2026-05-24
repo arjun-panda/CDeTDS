@@ -383,39 +383,67 @@
         @if (_recon != null)
         {
             @* Reconciliation banner *@
-            <MudPaper Class="pa-4 mb-4" Elevation="2"
-                      Style="@(_recon.IsReconciled ? "background:#e8f5e9;border-left:6px solid #4CAF50" : "background:#fff3e0;border-left:6px solid #FF9800")">
-                <MudGrid>
-                    <MudItem xs="12" sm="3">
-                        <div style="font-size:11px;color:#666">TDS Payable (Entries)</div>
-                        <div style="font-size:22px;font-weight:700;color:#1565C0">₹@_recon.TdsPayable.ToString("N0")</div>
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <div style="font-size:11px;color:#666">Challan Deposited</div>
-                        <div style="font-size:22px;font-weight:700;color:#2e7d32">₹@_recon.ChallanDeposited.ToString("N0")</div>
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <div style="font-size:11px;color:#666">Difference</div>
-                        <div style="font-size:22px;font-weight:700;color:@(_recon.IsReconciled?"#4CAF50":"#FF9800")">
-                            ₹@_recon.Difference.ToString("N0")
+            <div style="border-left:5px solid @(_recon.IsReconciled?"#4CAF50":"#FF9800");background:@(_recon.IsReconciled?"#e8f5e9":"#fff3e0");border-radius:8px;padding:16px 20px;margin-bottom:16px">
+
+                @* ── Top row: totals + status ── *@
+                <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap">
+                    <div>
+                        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666;margin-bottom:2px">TDS Payable (Entries)</div>
+                        <div style="font-size:24px;font-weight:800;color:#1565C0;font-family:monospace">₹@_recon.TdsPayable.ToString("N0")</div>
+                    </div>
+                    <div style="font-size:20px;color:#aaa">→</div>
+                    <div>
+                        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666;margin-bottom:2px">Challan Deposited</div>
+                        <div style="font-size:24px;font-weight:800;color:#2e7d32;font-family:monospace">₹@_recon.ChallanDeposited.ToString("N0")</div>
+                    </div>
+                    <div style="font-size:20px;color:#aaa">=</div>
+                    <div>
+                        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666;margin-bottom:2px">Difference</div>
+                        <div style="font-size:24px;font-weight:800;color:@(_recon.IsReconciled?"#4CAF50":"#FF9800");font-family:monospace">
+                            @(_recon.Difference >= 0 ? "+" : "")₹@_recon.Difference.ToString("N0")
                         </div>
-                    </MudItem>
-                    <MudItem xs="12" sm="3" Class="d-flex align-center">
+                    </div>
+                    <div style="margin-left:auto">
                         @if (_recon.IsReconciled)
                         {
-                            <MudChip T="string" Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large">
-                                RECONCILED
-                            </MudChip>
+                            <div style="display:flex;align-items:center;gap:6px;background:#4CAF50;color:#fff;border-radius:20px;padding:6px 16px;font-weight:700;font-size:13px">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"/>RECONCILED
+                            </div>
                         }
                         else
                         {
-                            <MudChip T="string" Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large">
-                                MISMATCH
-                            </MudChip>
+                            <div style="display:flex;align-items:center;gap:6px;background:#FF9800;color:#fff;border-radius:20px;padding:6px 16px;font-weight:700;font-size:13px">
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small"/>MISMATCH
+                            </div>
                         }
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
+                    </div>
+                </div>
+
+                @* ── Section breakdown strip ── *@
+                @if (_recon.SectionBreakdown.Any())
+                {
+                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid @(_recon.IsReconciled?"#c8e6c9":"#ffe0b2");display:flex;gap:0;flex-wrap:wrap">
+                        @foreach (var sb in _recon.SectionBreakdown)
+                        {
+                            var sbOk  = Math.Abs(sb.Difference) < 1.0;
+                            var sbClr = sbOk ? "#2e7d32" : "#e65100";
+                            <div style="min-width:160px;padding:6px 16px;border-right:1px solid @(_recon.IsReconciled?"#c8e6c9":"#ffe0b2")">
+                                <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:3px">Sec @sb.Section</div>
+                                <div style="display:flex;gap:12px;font-size:12px;font-family:monospace">
+                                    <span title="Payable" style="color:#1565C0">P: ₹@sb.TdsPayable.ToString("N0")</span>
+                                    <span title="Deposited" style="color:#2e7d32">D: ₹@sb.ChallanDeposited.ToString("N0")</span>
+                                </div>
+                                @if (!sbOk)
+                                {
+                                    <div style="font-size:11px;color:@sbClr;font-weight:600;margin-top:2px">
+                                        Diff: @(sb.Difference>=0?"+":"")₹@sb.Difference.ToString("N0")
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
 
             @* Challan details table *@
             <MudText Typo="Typo.subtitle2" Class="mb-2">Challan Details</MudText>
