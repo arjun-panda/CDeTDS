@@ -21,25 +21,85 @@ namespace TDSPro.DAL
         {
             _dbPath = Path.Combine(appDataPath, AppConstants.DbFileName);
             CreateTables();
-            // Fast-path column additions — safe to run every startup (no-op if column exists)
-            try
-            {
-                using var c0 = new SqliteConnection($"Data Source={_dbPath}");
-                c0.Open();
-                using var chk = c0.CreateCommand();
-                chk.CommandText = "SELECT COUNT(*) FROM pragma_table_info('landlord_records') WHERE name='city_type'";
-                if (Convert.ToInt32(chk.ExecuteScalar()) == 0)
-                {
-                    using var alt = c0.CreateCommand();
-                    alt.CommandText = "ALTER TABLE landlord_records ADD COLUMN city_type TEXT DEFAULT 'Non-Metro'";
-                    alt.ExecuteNonQuery();
-                }
-            }
-            catch { }
+            // Fast-path column additions — runs every startup, no-op if column already exists.
+            // Must cover every column added after initial release so existing DBs don't crash on page load.
+            EnsureColumns();
             SeedTdsRules2026();
             SeedFvuConfig();
             SeedDefaultAdmin();
             SeedSampleData();
+        }
+
+        /// <summary>
+        /// Idempotent — adds any column that may be missing on existing DBs.
+        /// Called at startup before any page loads, so pages never crash with "no such column".
+        /// </summary>
+        private static void EnsureColumns()
+        {
+            try
+            {
+                using var conn = new SqliteConnection($"Data Source={_dbPath}");
+                conn.Open();
+
+                void Add(string table, string col, string def)
+                {
+                    using var chk = conn.CreateCommand();
+                    chk.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{col}'";
+                    if (Convert.ToInt32(chk.ExecuteScalar()) == 0)
+                    {
+                        using var alt = conn.CreateCommand();
+                        alt.CommandText = $"ALTER TABLE {table} ADD COLUMN {col} {def}";
+                        alt.ExecuteNonQuery();
+                    }
+                }
+
+                // monthly_salary_entries
+                Add("monthly_salary_entries", "special_allowance", "REAL DEFAULT 0");
+                Add("monthly_salary_entries", "medical_allowance",  "REAL DEFAULT 0");
+                Add("monthly_salary_entries", "lta",                "REAL DEFAULT 0");
+                Add("monthly_salary_entries", "days_worked",        "INTEGER DEFAULT 0");
+                Add("monthly_salary_entries", "lop_days",           "INTEGER DEFAULT 0");
+                Add("monthly_salary_entries", "working_days",       "INTEGER DEFAULT 30");
+                Add("monthly_salary_entries", "status",             "TEXT DEFAULT 'Draft'");
+                Add("monthly_salary_entries", "is_locked",          "INTEGER DEFAULT 0");
+                Add("monthly_salary_entries", "approved_at",        "TEXT DEFAULT ''");
+                Add("monthly_salary_entries", "approved_by",        "TEXT DEFAULT ''");
+                Add("monthly_salary_entries", "surcharge_amt",      "REAL DEFAULT 0");
+                Add("monthly_salary_entries", "cess_amt",           "REAL DEFAULT 0");
+                Add("monthly_salary_entries", "tax_computed",       "REAL DEFAULT 0");
+
+                // landlord_records
+                Add("landlord_records", "city_type", "TEXT DEFAULT 'Non-Metro'");
+
+                // tax_declarations
+                Add("tax_declarations", "income_other_sources",  "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80e",                "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80eea",              "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80tta",              "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80ttb",              "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80dd",               "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80u",                "REAL DEFAULT 0");
+                Add("tax_declarations", "lta_exemption",         "REAL DEFAULT 0");
+                Add("tax_declarations", "landlord_pan",          "TEXT DEFAULT ''");
+                Add("tax_declarations", "is_parent_senior",      "INTEGER DEFAULT 0");
+                Add("tax_declarations", "hra_city_type",         "TEXT DEFAULT 'Non-Metro'");
+                Add("tax_declarations", "other_deductions",      "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80ccd_employee",     "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80ccd_employer",     "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80g",                "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80d_self",           "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80d_parents",        "REAL DEFAULT 0");
+                Add("tax_declarations", "sec80c",                "REAL DEFAULT 0");
+                Add("tax_declarations", "rent_paid",             "REAL DEFAULT 0");
+
+                // employees
+                Add("employees", "hra_city_type",       "TEXT DEFAULT 'Non-Metro'");
+                Add("employees", "hra_monthly_basis",   "INTEGER DEFAULT 0");
+                Add("employees", "da_for_retirement",   "INTEGER DEFAULT 0");
+                Add("employees", "is_differently_abled","INTEGER DEFAULT 0");
+                Add("employees", "tax_regime",          "TEXT DEFAULT 'New'");
+            }
+            catch { }
         }
 
         /// <summary>
