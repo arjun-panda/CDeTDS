@@ -57,3 +57,7 @@ installer/Output/
 
 # Bundled JRE (large binary — download separately)
 installer/bundled_jre/
+
+# Velopack build artifacts
+publish_velopack/
+releases_velopack/
