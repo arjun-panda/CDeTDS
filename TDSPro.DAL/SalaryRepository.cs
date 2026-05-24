@@ -26,7 +26,8 @@ namespace TDSPro.DAL
                      perq_total,perq_exempted,leave_enc_total,leave_enc_exempted,
                      pf_employee,vpf,professional_tax,esi_employee,
                      tds_deducted,gross_payment,gross_taxable,net_salary,saved_at,
-                     days_worked,lop_days,working_days,status,is_locked,approved_at,approved_by)
+                     days_worked,lop_days,working_days,status,is_locked,approved_at,approved_by,
+                     surcharge_amt,cess_amt,tax_computed)
                 VALUES(@eid,@did,@fy,@m,@y,
                        @bas,@gp,@hra,@dap,@daa,
                        @spa,@mda,@lta,
@@ -34,7 +35,8 @@ namespace TDSPro.DAL
                        @ptot,@pex,@ltot,@lex,
                        @pf,@vpf,@pt,@esi,
                        @tds,@gp2,@gt,@net,@sa,
-                       @dw,@lop,@wd,@st,@il,@aa,@ab)
+                       @dw,@lop,@wd,@st,@il,@aa,@ab,
+                       @sc,@ce,@tc)
                 ON CONFLICT(employee_id,financial_year,month) DO UPDATE SET
                     basic=@bas,grade_pay=@gp,hra=@hra,da_percent=@dap,da_amount=@daa,
                     special_allowance=@spa,medical_allowance=@mda,lta=@lta,
@@ -46,7 +48,8 @@ namespace TDSPro.DAL
                     tds_deducted=@tds,gross_payment=@gp2,gross_taxable=@gt,net_salary=@net,
                     saved_at=@sa,deductor_id=@did,
                     days_worked=@dw,lop_days=@lop,working_days=@wd,
-                    status=@st,is_locked=@il,approved_at=@aa,approved_by=@ab";
+                    status=@st,is_locked=@il,approved_at=@aa,approved_by=@ab,
+                    surcharge_amt=@sc,cess_amt=@ce,tax_computed=@tc";
 
             void P(string n, object v) => cmd.Parameters.AddWithValue(n, v);
             P("@eid",e.EmployeeId); P("@did",e.DeductorId); P("@fy",e.FinancialYear);
@@ -66,6 +69,7 @@ namespace TDSPro.DAL
             P("@dw", e.DaysWorked); P("@lop", e.LopDays); P("@wd", e.WorkingDays);
             P("@st", e.Status ?? "Draft"); P("@il", e.IsLocked ? 1 : 0);
             P("@aa", e.ApprovedAt ?? ""); P("@ab", e.ApprovedBy ?? "");
+            P("@sc", e.SurchargeAmt); P("@ce", e.CessAmt); P("@tc", e.TaxComputed);
             cmd.ExecuteNonQuery();
 
             // Resolve entry id (upsert may have inserted or updated)
@@ -225,6 +229,9 @@ namespace TDSPro.DAL
                 IsLocked      = TryI(r, "is_locked") == 1,
                 ApprovedAt    = TryS(r, "approved_at"),
                 ApprovedBy    = TryS(r, "approved_by"),
+                SurchargeAmt  = TryD(r, "surcharge_amt"),
+                CessAmt       = TryD(r, "cess_amt"),
+                TaxComputed   = TryD(r, "tax_computed"),
             };
             return ent;
         }
@@ -233,5 +240,7 @@ namespace TDSPro.DAL
         { try { int o = r.GetOrdinal(col); return r.IsDBNull(o) ? 0 : r.GetInt32(o); } catch { return 0; } }
         private static string TryS(Microsoft.Data.Sqlite.SqliteDataReader r, string col)
         { try { int o = r.GetOrdinal(col); return r.IsDBNull(o) ? "" : r.GetString(o); } catch { return ""; } }
+        private static double TryD(Microsoft.Data.Sqlite.SqliteDataReader r, string col)
+        { try { int o = r.GetOrdinal(col); return r.IsDBNull(o) ? 0 : Convert.ToDouble(r[o]); } catch { return 0; } }
     }
 }

@@ -756,6 +756,28 @@ namespace TDSPro.DAL
                     errors.Add(new("CHALLAN", "E014", $"Challan {ch.ChallanNo}: Future date {ch.ChallanDate:dd-MM-yyyy} not allowed.", true));
             }
 
+            // Duplicate PAN check — NSDL T-FV-2127: each PAN must appear exactly once.
+            // Warn now so the user fixes employee records before generation fails silently.
+            var dupPans = data.Deductees
+                .GroupBy(d => (d.Pan ?? "").Trim().ToUpper())
+                .Where(g => g.Count() > 1 && !string.IsNullOrWhiteSpace(g.Key))
+                .Select(g => $"{g.Key} ({g.Count()}×)")
+                .ToList();
+            if (dupPans.Count > 0)
+                errors.Add(new("DEDUCTEE", "W027",
+                    $"Duplicate PANs detected — each PAN must appear once in the return. Fix employee records before generating FVU: {string.Join(", ", dupPans)}",
+                    false));
+
+            var dupSdPans = data.SalaryDetails
+                .GroupBy(s => (s.Pan ?? "").Trim().ToUpper())
+                .Where(g => g.Count() > 1 && !string.IsNullOrWhiteSpace(g.Key))
+                .Select(g => $"{g.Key} ({g.Count()}×)")
+                .ToList();
+            if (dupSdPans.Count > 0)
+                errors.Add(new("SALARY", "W028",
+                    $"Duplicate employee PANs in 24Q SD records — each employee must appear once. Fix employee records before generating FVU: {string.Join(", ", dupSdPans)}",
+                    false));
+
             // Deductee checks
             if (data.Deductees.Count == 0)
                 errors.Add(new("DEDUCTEE", "E020", "No TDS entries found for selected quarter.", true));

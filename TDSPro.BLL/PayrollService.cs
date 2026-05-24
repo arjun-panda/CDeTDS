@@ -210,7 +210,7 @@ namespace TDSPro.BLL
                               - annualPt
                               - chap6a                             // includes PF inside 80C — do NOT subtract annualPf separately
                               - npsEmployer
-                              - decl.LtaExemption                  // LTA — old regime only
+                              - decl.LtaExemption                  // LTA u/s 10(5)
                               - annualComponentsPaid               // bills-substantiated portion of components
                               + decl.IncomeOtherSources;
             taxableOld = Math.Max(0, Math.Round(taxableOld));
@@ -227,6 +227,7 @@ namespace TDSPro.BLL
             double taxableNew = annualGross
                               - stdDedNew
                               - npsEmployerNew
+                              - decl.LtaExemption                  // LTA u/s 10(5) exempt in both regimes
                               - annualComponentsPaid               // bills reimbursements exempt both regimes u/s 10(14)(i)
                               + decl.IncomeOtherSources;
             taxableNew = Math.Max(0, Math.Round(taxableNew));
@@ -453,15 +454,5 @@ namespace TDSPro.BLL
             return Math.Max(1, diff);
         }
 
-        private static string MonthToQuarter(int month)
-        {
-            return month switch
-            {
-                4 or 5 or 6  => "Q1",
-                7 or 8 or 9  => "Q2",
-                10 or 11 or 12 => "Q3",
-                _            => "Q4",
-            };
-        }
     }
 }

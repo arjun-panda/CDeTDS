@@ -445,6 +445,9 @@ namespace TDSPro.DAL
             AddColumnIfMissing("monthly_salary_entries", "is_locked",       "INTEGER DEFAULT 0");
             AddColumnIfMissing("monthly_salary_entries", "approved_at",     "TEXT DEFAULT ''");
             AddColumnIfMissing("monthly_salary_entries", "approved_by",     "TEXT DEFAULT ''");
+            AddColumnIfMissing("monthly_salary_entries", "surcharge_amt",   "REAL DEFAULT 0");
+            AddColumnIfMissing("monthly_salary_entries", "cess_amt",        "REAL DEFAULT 0");
+            AddColumnIfMissing("monthly_salary_entries", "tax_computed",    "REAL DEFAULT 0");
             // PF fixed amount — 0 = auto 12%, >0 = employee-chosen fixed amount
             AddColumnIfMissing("salary_structures", "pf_fixed_amount", "REAL DEFAULT 0");
             // Reimbursements, variable pay, employer contributions (Pass 1 — May 2026)

@@ -347,9 +347,9 @@ namespace TDSPro.BLL
             // HRA u/s 10(13A)
             if (hraExemption > 0)
                 sec10Items.Add(new TDSPro.DAL.Models.Sec10Item { Name = "HRA", RuleRef = "Sec 10(13A)", OldRegime = hraExemption, NewRegime = 0 });
-            // LTA u/s 10(5) from declaration (old regime only)
+            // LTA u/s 10(5) — exempt in BOTH regimes (Sec 10(5) applies regardless of regime choice)
             if (ltaExemption > 0)
-                sec10Items.Add(new TDSPro.DAL.Models.Sec10Item { Name = "LTA", RuleRef = "Sec 10(5)", OldRegime = ltaExemption, NewRegime = 0 });
+                sec10Items.Add(new TDSPro.DAL.Models.Sec10Item { Name = "LTA", RuleRef = "Sec 10(5)", OldRegime = ltaExemption, NewRegime = ltaExemption });
             // Named line items from actual months + project remaining.
             // Use projectionLineBasis (current month if it has line items, else last saved month with exempts)
             // so recurring exemptions like Conveyance project correctly even when current month not yet entered.
@@ -392,7 +392,8 @@ namespace TDSPro.BLL
             // ── NEW REGIME — FY-aware std deduction and slabs ─────────────────
             // annualOtherExempts = bills-reimbursement exempts ("other" cat) — exempt in BOTH regimes u/s 10(14)(i)
             // newRegimeAddBack = perq exempts — taxable in new regime, so do NOT deduct them here
-            double taxableNew = Math.Max(0, trueAnnualGross - annualOtherExempts - stdDedNew - nps80CCD2New + decl.IncomeOtherSources);
+            // ltaExemption u/s 10(5) applies in BOTH regimes
+            double taxableNew = Math.Max(0, trueAnnualGross - annualOtherExempts - ltaExemption - stdDedNew - nps80CCD2New + decl.IncomeOtherSources);
 
             var newR = BuildRegime("New Regime", taxableNew, trueAnnualGross, stdDedNew, 0, 0, 0, nps80CCD2New, decl.IncomeOtherSources, true, fy, TDSPro.Common.AgeCategory.Below60, 0, sec10Items);
 

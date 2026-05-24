@@ -221,14 +221,22 @@ namespace TDSPro.BLL
             _salRepo.Save(entry);
             row.EntryId = entry.Id;
 
-            // Auto-create Sec 192 TDS entry
+            // Auto-create Sec 192 TDS entry — if this fails, roll back the lock so the DB stays consistent.
             if (entry.TdsDeducted > 0)
             {
                 var emp = _empRepo.GetAllEmployees(deductorId).FirstOrDefault(e => e.Id == row.EmployeeId);
                 if (emp != null)
                 {
                     var r = _salSvc.UpsertSec192Entry(entry, emp, deductorId);
-                    if (!r.ok) return (true, $"Locked. Sec 192 link warning: {r.msg}");
+                    if (!r.ok)
+                    {
+                        // Undo the lock — restore to Draft so the user can retry
+                        entry.Status   = "Draft";
+                        entry.IsLocked = false;
+                        entry.ApprovedAt = ""; entry.ApprovedBy = "";
+                        _salRepo.Save(entry);
+                        return (false, $"Approve failed — Sec 192 entry could not be created: {r.msg}. Row has been unlocked.");
+                    }
                 }
             }
             return (true, "Locked & Sec 192 entry created.");

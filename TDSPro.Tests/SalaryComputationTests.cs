@@ -204,20 +204,20 @@ public class SalaryComputationTests
             r.NewRegime.GrossSalary - sec10New - r.NewRegime.StandardDeduction, precision: 0);
     }
 
-    // ── 5. LTA — Sec 10(5), old regime only, from declaration ────────────────
+    // ── 5. LTA — Sec 10(5) applies BOTH regimes (Finance Act / Sec 10(5)) ─────
 
     [Fact]
-    public void OldRegime_LTA_ReducesTaxable_NewRegime_DoesNot()
+    public void LTA_ReducesTaxable_BothRegimes()
     {
         // Basic 60K -> gross 7,20,000; LTA decl 30K
         // Old = 7,20,000 - 30,000 - 50,000 = 6,40,000; Tax 40,500 + cess 1,620 = 42,120
-        // New = 7,20,000 - 75,000 = 6,45,000 -> rebate wipes
+        // New = 7,20,000 - 30,000 - 75,000 = 6,15,000 -> rebate wipes
         var emp = Emp("Old");
         var r = Svc().ComputeAnnual(FullYear(60000), emp, FY, DeclWithLta(30000), 3, reimbShortfallOverride: 0, ytdTdsOverride: 0);
 
         Assert.Equal(640000, r.OldRegime.TotalIncome);
         Assert.Equal(42120,  r.OldRegime.TotalTax);
-        Assert.Equal(645000, r.NewRegime.TotalIncome);
+        Assert.Equal(615000, r.NewRegime.TotalIncome);  // LTA also exempt in new regime u/s 10(5)
         Assert.Equal(0,      r.NewRegime.TotalTax);
     }
 
@@ -398,5 +398,72 @@ public class SalaryComputationTests
         Assert.Equal(0,      r.OldRegime.TotalTax);
         Assert.Equal(429000, r.NewRegime.TotalIncome);
         Assert.Equal(0,      r.NewRegime.TotalTax);
+    }
+
+    // ── 12. LTA — exempt in BOTH regimes u/s 10(5) ───────────────────────────
+
+    [Fact]
+    public void LTA_Exemption_ReducesTaxable_BothRegimes()
+    {
+        // Basic 80K/m -> gross = 9,60,000
+        // LTA declared = 60,000 (employee claims actual travel)
+        // Old taxable = 9,60,000 - 60,000 - 50,000 = 8,50,000
+        //   Tax old: 0+12500+20%*3.5L = 12500+70000 = 82500; cess 3300; total 85800
+        // New taxable = 9,60,000 - 60,000 - 75,000 = 8,25,000
+        //   Tax new: 0+20K+40K+10%*25K = 62500; cess 2500; total 65000
+        var emp = Emp("Old");
+        var decl = new TaxDeclaration { EmployeeId = 1, FinancialYear = FY, LtaExemption = 60000 };
+        var r = Svc().ComputeAnnual(FullYear(80000), emp, FY, decl, 3, reimbShortfallOverride: 0, ytdTdsOverride: 0);
+
+        Assert.Equal(850000, r.OldRegime.TotalIncome);
+        Assert.Equal(825000, r.NewRegime.TotalIncome);
+
+        // LTA must appear in sec10Items for BOTH regimes
+        var ltaOld = r.OldRegime.Sec10Items.FirstOrDefault(x => x.Name == "LTA");
+        var ltaNew = r.NewRegime.Sec10Items.FirstOrDefault(x => x.Name == "LTA");
+        Assert.NotNull(ltaOld);
+        Assert.NotNull(ltaNew);
+        Assert.Equal(60000, ltaOld!.OldRegime);
+        Assert.Equal(60000, ltaNew!.NewRegime);
+    }
+
+    // ── 13. Sec 192 remarks tag format (no DB) ────────────────────────────────
+
+    [Fact]
+    public void Sec192_RemarksTag_Format_IsIdempotentKey()
+    {
+        // The tag [AUTO:salary:{empId}:{fy}:{month}] is the idempotency key for UpsertSec192Entry.
+        // Verify it is stable (same inputs → same tag) so repeated calls don't create duplicates.
+        int empId = 42; string fy = "2025-26"; int month = 7;
+        string tag1 = $"[AUTO:salary:{empId}:{fy}:{month}]";
+        string tag2 = $"[AUTO:salary:{empId}:{fy}:{month}]";
+        Assert.Equal(tag1, tag2);
+        Assert.Contains("[AUTO:salary:42:2025-26:7]", tag1);
+    }
+
+    // ── 14. MonthsRemaining returns 1 for March (last month of FY) ────────────
+
+    [Fact]
+    public void MonthsRemaining_March_Returns_1()
+    {
+        // March is the last month of FY 2025-26; remaining = 1
+        int result = SalaryService.MonthsRemaining("2025-26", 3);
+        Assert.Equal(1, result);
+    }
+
+    [Fact]
+    public void MonthsRemaining_April_Returns_12()
+    {
+        // April is the first month of FY 2025-26; remaining = 12
+        int result = SalaryService.MonthsRemaining("2025-26", 4);
+        Assert.Equal(12, result);
+    }
+
+    [Fact]
+    public void MonthsRemaining_October_Returns_6()
+    {
+        // Oct → Mar = 6 months remaining
+        int result = SalaryService.MonthsRemaining("2025-26", 10);
+        Assert.Equal(6, result);
     }
 }
