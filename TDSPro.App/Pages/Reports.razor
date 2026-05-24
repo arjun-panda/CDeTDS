@@ -382,6 +382,8 @@
     <MudTabPanel Text='Challan Recon' Icon=@Icons.Material.Filled.CompareArrows>
         @if (_recon != null)
         {
+            @* Sticky banner wrapper *@
+            <div style="position:sticky;top:0;z-index:10;background:#fff;padding-bottom:4px">
             @* Reconciliation banner *@
             <div style="border-left:5px solid @(_recon.IsReconciled?"#4CAF50":"#FF9800");background:@(_recon.IsReconciled?"#e8f5e9":"#fff3e0");border-radius:8px;padding:16px 20px;margin-bottom:16px">
 
@@ -474,11 +476,14 @@
                 }
             </div>
 
-            @* Challan details table *@
+            </div>@* /sticky *@
+
+            @* Challan details table — scrollable *@
             <MudText Typo="Typo.subtitle2" Class="mb-2">Challan Details</MudText>
-            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+            <div style="overflow-y:auto;max-height:calc(100vh - 340px);border:1px solid #e0e0e0;border-radius:6px">
+            <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="margin:0">
                 <thead>
-                    <tr style="background:#1565C0;color:#fff">
+                    <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
                         <th>Challan No.</th>
                         <th>Date</th>
                         <th>BSR Code</th>
@@ -521,6 +526,7 @@
                     </tr>
                 </tfoot>
             </MudSimpleTable>
+            </div>@* /scrollable *@
         }
     </MudTabPanel>
 
