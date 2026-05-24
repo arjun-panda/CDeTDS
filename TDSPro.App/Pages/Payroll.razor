@@ -1866,43 +1866,36 @@
                                 <tbody>
                                     @foreach (var ll in _decl.Landlords)
                                     {
+                                        var _ll = ll;
                                         <tr class="ll-row">
                                             <td class="ll-td">
                                                 <input type="text" class="ll-input" placeholder="Full name"
-                                                       value="@ll.Name"
-                                                       @onchange="e => ll.Name = e.Value?.ToString() ?? string.Empty" />
+                                                       @bind="_ll.Name" @bind:event="oninput" />
                                             </td>
                                             <td class="ll-td">
                                                 <input type="text" class="ll-input td-upper" maxlength="10" placeholder="AAAAA0000A"
-                                                       value="@ll.Pan"
-                                                       @onchange="e => ll.Pan = (e.Value?.ToString() ?? string.Empty).ToUpperInvariant()" />
+                                                       @bind="_ll.Pan" @bind:event="oninput"
+                                                       @onblur="() => { _ll.Pan = (_ll.Pan ?? string.Empty).ToUpperInvariant(); }" />
                                             </td>
                                             <td class="ll-td">
                                                 <input type="number" class="ll-input" style="text-align:right" min="0" step="1000"
-                                                       value="@ll.AnnualRent"
-                                                       @onchange="e => ll.AnnualRent = double.TryParse(e.Value?.ToString(), out var v) ? v : 0" />
+                                                       @bind="_ll.AnnualRent" @bind:event="oninput" />
                                             </td>
                                             <td class="ll-td">
-                                                <div class="date-field">
-                                                    <input type="text" class="ll-input" maxlength="10" placeholder="dd-MM-yyyy"
-                                                           value="@ll.FromDate"
-                                                           @onchange="e => ll.FromDate = e.Value?.ToString() ?? string.Empty" />
-                                                </div>
+                                                <input type="text" class="ll-input" maxlength="10" placeholder="dd-MM-yyyy"
+                                                       @bind="_ll.FromDate" @bind:event="oninput" />
                                             </td>
                                             <td class="ll-td">
-                                                <div class="date-field">
-                                                    <input type="text" class="ll-input" maxlength="10" placeholder="dd-MM-yyyy"
-                                                           value="@ll.ToDate"
-                                                           @onchange="e => ll.ToDate = e.Value?.ToString() ?? string.Empty" />
-                                                </div>
+                                                <input type="text" class="ll-input" maxlength="10" placeholder="dd-MM-yyyy"
+                                                       @bind="_ll.ToDate" @bind:event="oninput" />
                                             </td>
                                             <td class="ll-td" style="text-align:center">
-                                                <button class="ll-save-btn" @onclick="() => SaveLandlord(ll)">Save</button>
+                                                <button class="ll-save-btn" @onclick="() => SaveLandlord(_ll)">Save</button>
                                             </td>
                                             <td class="ll-td" style="text-align:center">
                                                 <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small"
                                                                Color="Color.Error" title="Remove"
-                                                               OnClick="() => RemoveLandlord(ll)" />
+                                                               OnClick="() => RemoveLandlord(_ll)" />
                                             </td>
                                         </tr>
                                     }
