@@ -8,6 +8,7 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject CsiDownloadService CsiSvc
+@inject ItPortalUploadService UploadSvc
 @inject UpdateCheckService UpdateSvc
 
 @* ── Sticky page header ── *@
@@ -136,6 +137,12 @@
                                StartIcon="@Icons.Material.Filled.Article"
                                OnClick="() => _nilDialogOpen = true" Size="Size.Small">
                         NIL Return
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               OnClick="UploadToItPortal" Disabled="@(_generating || _uploadLoggingIn)" Size="Size.Small">
+                        @if (_uploadLoggingIn) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Upload to IT Portal
                     </MudButton>
                 </MudItem>
 
@@ -534,6 +541,8 @@
     private List<TDSPro.DAL.FvuError> _fvuErrors = new();
     private List<string> _logLines = new();
 
+    private bool _uploadLoggingIn = false;
+
     // FVU readiness
     private bool   _fvuReady         = false;
     private bool   _fvuJavaOk        = false;
@@ -912,6 +921,38 @@
         }
         catch (Exception ex) { _nilResult = "Error: " + ErrorTranslator.UserFriendly(ex); _nilSeverity = Severity.Error; }
         _generating = false;
+    }
+
+    // ── Upload to IT Portal ────────────────────────────────────────────────
+    private async Task UploadToItPortal()
+    {
+        _uploadLoggingIn = true;
+        _logLines.Clear();
+        _logLines.Add($"[{Now()}] Logging in to IT Portal...");
+        StateHasChanged();
+
+        var progress = new Progress<string>(msg =>
+        {
+            _logLines.Add($"[{Now()}] {msg}");
+            if (_logLines.Count > 50) _logLines.RemoveAt(0);
+            InvokeAsync(StateHasChanged);
+        });
+
+        var result = await UploadSvc.LoginAndOpenAsync(progress);
+
+        _uploadLoggingIn = false;
+
+        if (result.Success)
+        {
+            _logLines.Add($"[{Now()}] ✅ IT Portal opened — select your .fvu file and submit.");
+            Snackbar.Add("IT Portal opened. Select your validated .fvu file and click Submit.", Severity.Success);
+        }
+        else
+        {
+            _logLines.Add($"[{Now()}] ❌ {result.Error}");
+            Snackbar.Add("Login failed: " + result.Error, Severity.Error);
+        }
+        StateHasChanged();
     }
 
     // ── Download CSI ───────────────────────────────────────────────────────

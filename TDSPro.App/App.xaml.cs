@@ -65,6 +65,7 @@ namespace TDSPro.App
             services.AddSingleton<AppStateService>();
             services.AddSingleton<FilePickerService>();
             services.AddSingleton<CsiDownloadService>();
+            services.AddSingleton<ItPortalUploadService>();
 
             // BLL
             services.AddTransient<DeductorService>();
