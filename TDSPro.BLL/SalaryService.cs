@@ -323,8 +323,8 @@ namespace TDSPro.BLL
                           + decl.OtherDeductions;
             // LTA u/s 10(5) is a Sec 10 exemption — deducted from gross separately, NOT inside chap6a
             double ltaExemption = decl.LtaExemption;
-            // 80CCD(2) — FY-aware: 10% old regime all years; 14% new regime from FY 2024-25
-            double annualBasic  = hraBasic * 12;
+            // 80CCD(2) cap is based on salary structure Basic (not monthly entry which may be 0 on LOP)
+            double annualBasic  = (emp.Salary?.Basic ?? 0) * 12;
             double nps80CCD2    = Math.Min(annualNps, annualBasic * TDSPro.Common.TaxRules.Get80CCD2Rate(fy, false));
             double nps80CCD2New = Math.Min(annualNps, annualBasic * TDSPro.Common.TaxRules.Get80CCD2Rate(fy, true));
 

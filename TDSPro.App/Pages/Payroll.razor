@@ -3122,13 +3122,15 @@
             HraCityType   = "Non-Metro"
         };
         _decl.Landlords = PayrollSvc.GetLandlords(_declEmpId, AppState.CurrentFY);
+        SyncRentPaidFromLandlords();
     }
 
     void AddLandlord()
     {
         _decl!.Landlords.Add(new LandlordRecord {
             EmployeeId    = _declEmpId,
-            FinancialYear = AppState.CurrentFY
+            FinancialYear = AppState.CurrentFY,
+            CityType      = "Non-Metro"
         });
     }
 
@@ -3137,6 +3139,7 @@
         if (lr.Id > 0) PayrollSvc.DeleteLandlord(lr.Id);
         _decl!.Landlords.Remove(lr);
         SyncRentPaidFromLandlords();
+        PayrollSvc.SaveDeclaration(_decl!);
     }
 
     void SaveLandlord(LandlordRecord lr)
@@ -3144,6 +3147,7 @@
         lr.Pan = (lr.Pan ?? "").ToUpperInvariant();
         PayrollSvc.SaveLandlord(lr);
         SyncRentPaidFromLandlords();
+        PayrollSvc.SaveDeclaration(_decl!);
         Snackbar.Add("Landlord saved.", Severity.Success);
     }
 
@@ -3152,10 +3156,11 @@
         if (_decl == null) return;
         double total = _decl.Landlords.Sum(l => l.AnnualRent);
         if (total > 0) _decl.RentPaid = total;
-        // City type = landlord with highest rent (Metro wins ties)
         var dominant = _decl.Landlords.OrderByDescending(l => l.AnnualRent).FirstOrDefault();
         if (dominant != null && !string.IsNullOrEmpty(dominant.CityType))
             _decl.HraCityType = dominant.CityType;
+        else if (dominant == null)
+            _decl.HraCityType = "Non-Metro";
     }
 
     void SaveDeclaration()

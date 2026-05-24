@@ -67,6 +67,7 @@ namespace TDSPro.DAL
                 Add("monthly_salary_entries", "surcharge_amt",      "REAL DEFAULT 0");
                 Add("monthly_salary_entries", "cess_amt",           "REAL DEFAULT 0");
                 Add("monthly_salary_entries", "tax_computed",       "REAL DEFAULT 0");
+                Add("monthly_salary_entries", "saved_at",           "TEXT DEFAULT ''");
 
                 // landlord_records
                 Add("landlord_records", "city_type", "TEXT DEFAULT 'Non-Metro'");
