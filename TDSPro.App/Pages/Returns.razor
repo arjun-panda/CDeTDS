@@ -109,16 +109,10 @@
 
                 @* ── Action Buttons ── *@
                 <MudItem xs="12" Class="d-flex gap-2 flex-wrap">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.FileDownload"
-                               OnClick="GenerateTxtOnly" Disabled="_generating" Size="Size.Small">
-                        @if (_generating && _step == Step.GeneratingTxt) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Generate .txt
-                    </MudButton>
                     <MudButton Variant="Variant.Filled" Color="Color.Success"
                                StartIcon="@Icons.Material.Filled.VerifiedUser"
                                OnClick="GenerateAndValidate" Disabled="_generating || !_fvuReady" Size="Size.Small">
-                        @if (_generating && _step == Step.RunningFvu) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        @if (_generating) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
                         Generate &amp; Validate (FVU)
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
