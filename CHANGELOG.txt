@@ -1,7 +1,20 @@
 TDS Pro — Changelog
 ===================
 
-v3.2.0 (May 2026) — 27EQ TCS Support + Market Readiness
+v1.0.0 (May 2026) — Initial Release
+────────────────────────────────────
+ACCURACY FIXES
+  + HRA rent unit bug fixed — annual rent correctly divided by 12 for monthly exemption
+  + Standard deduction now derived from TaxRules dynamically (regime + FY aware)
+  + Form 16 now reads monthly_salary_entries (correct gross for all employees)
+  + Restore safety: WAL checkpoint before DB copy, stale WAL/SHM files removed
+
+NEW FEATURES
+  + FY Rollover — seeds April salary and copies HRA declarations to new FY
+  + Auto-updater — silent background updates via GitHub Releases (Velopack)
+  + Backup/Restore — WAL-safe restore with pre-restore safeguard copy
+  + Financial year dropdown shows all FYs from 2025-26 to current
+
 ────────────────────────────────────────────────────────
 27EQ / TCS
   + Form 27D (TCS Certificate) generator — mirrors Form 16A for 206C sections

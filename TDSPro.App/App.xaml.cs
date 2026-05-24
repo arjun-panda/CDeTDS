@@ -6,6 +6,8 @@ using System.Windows;
 using TDSPro.App.Services;
 using TDSPro.BLL;
 using TDSPro.DAL;
+using Velopack;
+using Velopack.Sources;
 
 namespace TDSPro.App
 {
@@ -185,6 +187,9 @@ namespace TDSPro.App
 
                     // 7. DB vacuum/analyse (only if needed)
                     try { Database.VacuumAndCheck(appDataPath); } catch { }
+
+                    // 8. Silent auto-update via Velopack — download in background, apply on next restart
+                    try { _ = CheckAndDownloadUpdateAsync(); } catch { }
                 });
             }
             catch (Exception ex)
@@ -194,6 +199,26 @@ namespace TDSPro.App
                     "TDS Pro", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
             }
+        }
+
+        // ── Velopack silent auto-updater ─────────────────────────────────────
+        // Downloads update in background. On next app launch Velopack applies it silently.
+        // Data is never touched — DB lives in AppData, install is in Program Files.
+        private static async Task CheckAndDownloadUpdateAsync()
+        {
+            try
+            {
+                var source  = new GithubSource("https://github.com/arjun-panda/tdspro-releases", null, false);
+                var manager = new UpdateManager(source);
+                if (!manager.IsInstalled) return;   // dev/debug — not installed via Velopack
+                var info = await manager.CheckForUpdatesAsync();
+                if (info == null) return;            // already up to date
+                TryLog($"Update available: {info.TargetFullRelease?.Version}. Downloading...");
+                await manager.DownloadUpdatesAsync(info);
+                TryLog("Update downloaded. Applying on next launch.");
+                // Silent — no dialog. Update applies automatically on next app restart.
+            }
+            catch (Exception ex) { TryLog("AutoUpdate: " + ex.Message); }
         }
 
         protected override void OnExit(ExitEventArgs e)
