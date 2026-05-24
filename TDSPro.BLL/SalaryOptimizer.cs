@@ -14,6 +14,7 @@ namespace TDSPro.BLL
         public bool   IncludeGratuity     { get; set; } = true;        // 4.81% Basic provision
         public string FinancialYear       { get; set; } = "2026-27";
         public string DateOfBirth         { get; set; } = "";          // for age-based slab
+        public double FixedBasicPct       { get; set; } = 0;           // 0 = auto-optimize; >0 = fixed (e.g. 0.40)
     }
 
     public class SalaryOptimizerResult
@@ -41,7 +42,10 @@ namespace TDSPro.BLL
     {
         public static SalaryOptimizerResult Optimize(SalaryOptimizerInput input)
         {
-            var candidates = new[] { 0.40, 0.45, 0.50 };
+            // If user fixed a Basic %, use only that; otherwise try 40/45/50 and pick lowest tax
+            var candidates = input.FixedBasicPct > 0
+                ? new[] { input.FixedBasicPct }
+                : new[] { 0.40, 0.45, 0.50 };
             SalaryOptimizerResult? best = null;
             double naiveTax = ComputeAnnualTax(input, basicPct: 0.50, includeNpsLever: false).Item1;
 
@@ -69,7 +73,9 @@ namespace TDSPro.BLL
             best.AnnualSavings   = Math.Max(0, Math.Round(naiveTax - best.AnnualTaxChosen));
 
             var notes = new List<string>();
-            notes.Add($"Basic set to {best.BasicPct * 100:0}% of CTC — optimal for this profile.");
+            notes.Add(input.FixedBasicPct > 0
+                ? $"Basic fixed at {input.FixedBasicPct * 100:0}% of CTC as specified."
+                : $"Basic set to {best.BasicPct * 100:0}% of CTC — optimal for this profile.");
             if (input.MonthlyRentDeclared <= 0 && input.Regime == "Old")
                 notes.Add("HRA exemption not counted (no rent declared). Declare rent later to reduce tax further.");
             if (input.EmployerOffersNps)

@@ -339,7 +339,7 @@ namespace TDSPro.BLL
             // newRegimeAddBack: perq-only exempts must be added back for new regime (taxable there)
             double newRegimeAddBack = annualPerqOnlyExemptedActual + annualPerqOnlyExemptedProjected;
             // "other" (bills reimbursement) exempts stay exempt in new regime — no add-back
-            double annualOtherExempts = annualSec10LineExempts - newRegimeAddBack;
+            double annualOtherExempts = Math.Max(0, annualSec10LineExempts - newRegimeAddBack);
             // trueAnnualGross = gross for display; same for both regimes (true GrossPayment)
             double trueAnnualGross = annualGross;
 

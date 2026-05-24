@@ -440,7 +440,7 @@
                                     </div>
                                     <div class="fg">
                                         @{
-                                            // Auto-balance Special = TargetCtc − Basic − HRA − DA − LTA − Components − Employer PF − Gratuity
+                                            // Auto-balance Special = TargetCtc − Basic − HRA − DA − LTA − Components − Employer PF − Gratuity − NPS
                                             // Only runs when TargetCtc > 0 (set by Auto-Breakup or user input below)
                                             if (_editingEmployee?.Salary != null && _editingEmployee.Salary.TargetCtc > 0)
                                             {
@@ -451,10 +451,11 @@
                                                     : 0;
                                                 var _gratNow  = _editingEmployee.Salary.IncludeGratuity ? Math.Round(_editingEmployee.Salary.Basic * 0.0481) : 0;
                                                 var _compNow  = _editingEmployee.Salary.ComponentsReceived();
+                                                var _npsNow   = _editingEmployee.Salary.EmployerNps;
                                                 var _balance  = _editingEmployee.Salary.TargetCtc
                                                               - _editingEmployee.Salary.Basic - _editingEmployee.Salary.Hra
                                                               - _editingEmployee.Salary.Da - _editingEmployee.Salary.Lta
-                                                              - _compNow - _empPfNow - _gratNow;
+                                                              - _compNow - _empPfNow - _gratNow - _npsNow;
                                                 _editingEmployee.Salary.SpecialAllowance = Math.Max(0, Math.Round(_balance));
                                             }
                                         }
@@ -763,6 +764,11 @@
                         <label>Monthly CTC (₹) <span style="color:#dc2626">*</span></label>
                         <input type="number" class="num" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px"
                                @bind="_ctcMonthlyInput" placeholder="e.g. 50000" />
+
+                        <label title="Leave 0 to auto-pick the % that minimises tax (40/45/50%). Enter e.g. 40 to fix Basic at 40% of CTC.">Basic % of CTC (0 = auto)</label>
+                        <input type="number" class="num" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px"
+                               min="0" max="70" step="5"
+                               @bind="_ctcBasicPct" placeholder="0 = auto-optimize" />
 
                         <label>HRA City Type</label>
                         <select style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px" @bind="_ctcCityType">
@@ -2607,6 +2613,7 @@
     private string _ctcPfMode = "Capped";  // Full / Capped / None
     private bool   _ctcGratuity = true;
     private string _ctcError = "";
+    private double _ctcBasicPct = 0; // 0 = auto-optimize; >0 = user-specified (e.g. 0.40 = 40%)
     private TDSPro.BLL.SalaryOptimizerResult? _ctcResult;
 
     void OpenCtcBreakup()
@@ -2619,6 +2626,7 @@
         _ctcNps          = false;
         _ctcPfMode       = "Capped";
         _ctcGratuity     = _editingEmployee.Salary?.IncludeGratuity ?? true;
+        _ctcBasicPct     = 0;
         _ctcResult       = null;
         _ctcError        = "";
         _showCtcDialog   = true;
@@ -2639,6 +2647,7 @@
             IncludeGratuity     = _ctcGratuity,
             FinancialYear       = AppState.CurrentFY,
             DateOfBirth         = _editingEmployee?.DateOfBirth ?? "",
+            FixedBasicPct       = _ctcBasicPct > 0 ? _ctcBasicPct / 100.0 : 0,
         });
     }
 
@@ -2679,6 +2688,8 @@
                 Received = _ctcResult.MonthlyMeal, Paid = _ctcResult.MonthlyMeal, Taxable = 0,
                 RuleRef = "Sec 17(2) ₹50/meal"
             });
+        // Employer NPS — saved to salary structure so payroll runs use it
+        _editingEmployee.Salary.EmployerNps = _ctcResult.MonthlyNpsEmployer;
         _empHraAuto = true;
         _showCtcDialog = false;
         Snackbar.Add($"Salary structure filled — saves ₹{_ctcResult.AnnualSavings:N0}/year vs naive split.", Severity.Success);
