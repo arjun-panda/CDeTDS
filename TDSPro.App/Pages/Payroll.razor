@@ -3665,7 +3665,6 @@
             var decl  = PayrollSvc.GetDeclaration(_sdEmpId, AppState.CurrentFY)
                         ?? new TaxDeclaration { EmployeeId = _sdEmpId, FinancialYear = AppState.CurrentFY };
             _sdAnnual = await Task.Run(() => SalarySvc.ComputeMonth(entry, emp, AppState.CurrentFY, decl));
-            _sdTds    = _sdAnnual.ThisMonthTds;
         }
         catch (Exception ex) { Snackbar.Add("Compute error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _sdComputing = false;
