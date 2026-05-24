@@ -664,6 +664,14 @@ namespace TDSPro.DAL
                 fh.ExecuteNonQuery();
             }
 
+            // Unique constraint on filing history — prevents duplicate rows per filing (added v15)
+            using (var uc = conn.CreateCommand()) {
+                uc.CommandText = @"
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_filing_hist_unique
+                    ON tds_filing_history(deductor_id, form_type, financial_year, quarter, is_correction)";
+                uc.ExecuteNonQuery();
+            }
+
             // Reimbursement claims (bill tracking per month)
             using (var cmd4 = conn.CreateCommand()) {
                 cmd4.CommandText = @"
@@ -1393,7 +1401,15 @@ namespace TDSPro.DAL
                 cmd.CommandText = @"INSERT INTO tds_filing_history
                     (deductor_id,form_type,financial_year,quarter,is_correction,
                      correction_type,prn,txt_file_path,fvu_file_path,remarks)
-                    VALUES(@did,@ft,@fy,@qt,@ic,@ct,@prn,@txt,@fvu,@rm)";
+                    VALUES(@did,@ft,@fy,@qt,@ic,@ct,@prn,@txt,@fvu,@rm)
+                    ON CONFLICT(deductor_id,form_type,financial_year,quarter,is_correction)
+                    DO UPDATE SET
+                        correction_type = excluded.correction_type,
+                        prn             = CASE WHEN excluded.prn != '' THEN excluded.prn ELSE prn END,
+                        txt_file_path   = CASE WHEN excluded.txt_file_path != '' THEN excluded.txt_file_path ELSE txt_file_path END,
+                        fvu_file_path   = CASE WHEN excluded.fvu_file_path != '' THEN excluded.fvu_file_path ELSE fvu_file_path END,
+                        remarks         = CASE WHEN excluded.remarks != '' THEN excluded.remarks ELSE remarks END,
+                        filed_at        = datetime('now','localtime')";
                 cmd.Parameters.AddWithValue("@did", deductorId);
                 cmd.Parameters.AddWithValue("@ft",  formType);
                 cmd.Parameters.AddWithValue("@fy",  fy);
