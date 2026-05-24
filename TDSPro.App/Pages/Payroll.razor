@@ -1821,9 +1821,16 @@
                             <div class="td-field">
                                 <label>Annual Rent Paid (₹)</label>
                                 <input type="number" min="0" step="1000" class="td-input"
-                                       value="@_decl.RentPaid"
-                                       @onchange="e => _decl.RentPaid = double.TryParse(e.Value?.ToString(), out var v) ? v : 0" />
-                                <span class="td-hint">Leave 0 if not claiming HRA</span>
+                                       @bind="_decl.RentPaid" @bind:event="oninput" />
+                                @{ var _llTotal = _decl.Landlords.Sum(l => l.AnnualRent); }
+                                @if (_llTotal > 0 && _llTotal != _decl.RentPaid)
+                                {
+                                    <span class="td-hint" style="color:#dc2626">⚠ Landlord total ₹@_llTotal.ToString("N0") — mismatch</span>
+                                }
+                                else
+                                {
+                                    <span class="td-hint">Leave 0 if not claiming HRA</span>
+                                }
                             </div>
                             <div class="td-field">
                                 <label>City Type</label>
@@ -3146,13 +3153,22 @@
     {
         if (lr.Id > 0) PayrollSvc.DeleteLandlord(lr.Id);
         _decl!.Landlords.Remove(lr);
+        SyncRentPaidFromLandlords();
     }
 
     void SaveLandlord(LandlordRecord lr)
     {
         lr.Pan = (lr.Pan ?? "").ToUpperInvariant();
         PayrollSvc.SaveLandlord(lr);
+        SyncRentPaidFromLandlords();
         Snackbar.Add("Landlord saved.", Severity.Success);
+    }
+
+    void SyncRentPaidFromLandlords()
+    {
+        if (_decl == null) return;
+        double total = _decl.Landlords.Sum(l => l.AnnualRent);
+        if (total > 0) _decl.RentPaid = total;
     }
 
     void SaveDeclaration()
