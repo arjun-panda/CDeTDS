@@ -206,6 +206,12 @@
 
     record PayrollDashStats(int Processed, double TotalGross, double MonthTds, double YtdTds);
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("document.body.classList.add", "dashboard-active");
+    }
+
     protected override void OnInitialized()
     {
         AppState.OnChange += OnContextChanged;
@@ -286,5 +292,9 @@
         try { FolderManager.OpenFolder(FolderManager.CompanyFolder); } catch { }
     }
 
-    public void Dispose() => AppState.OnChange -= OnContextChanged;
+    public void Dispose()
+    {
+        AppState.OnChange -= OnContextChanged;
+        _ = JS.InvokeVoidAsync("document.body.classList.remove", "dashboard-active");
+    }
 }

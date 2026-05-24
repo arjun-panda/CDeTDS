@@ -29,6 +29,11 @@ html, body {
     display: none !important;               /* Chrome/WebView2 */
 }
 
+/* Dashboard: lock outer scroll so dashboard fills exactly and doesn't move */
+body.dashboard-active .mud-main-content {
+    overflow-y: hidden !important;
+}
+
 /* Sidebar — its own thin scrollbar is fine */
 .mud-drawer {
     height: calc(100vh - 64px) !important;
