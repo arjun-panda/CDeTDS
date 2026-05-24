@@ -484,11 +484,13 @@ namespace TDSPro.DAL
                         name           TEXT DEFAULT '',
                         pan            TEXT DEFAULT '',
                         annual_rent    REAL DEFAULT 0,
+                        city_type      TEXT DEFAULT 'Non-Metro',
                         from_date      TEXT DEFAULT '',
                         to_date        TEXT DEFAULT ''
                     )";
                 cmdLl.ExecuteNonQuery();
             }
+            AddColumnIfMissing("landlord_records", "city_type", "TEXT DEFAULT 'Non-Metro'");
 
             // Create monthly_salary_entries if not exists
             using (var cmd2 = conn.CreateCommand()) {

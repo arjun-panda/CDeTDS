@@ -216,6 +216,7 @@ namespace TDSPro.DAL.Models
         public string Name         { get; set; } = "";
         public string Pan          { get; set; } = "";
         public double AnnualRent   { get; set; }
+        public string CityType     { get; set; } = "Non-Metro"; // Metro / Non-Metro
         public string FromDate     { get; set; } = ""; // dd-MM-yyyy
         public string ToDate       { get; set; } = ""; // dd-MM-yyyy
     }

@@ -1817,31 +1817,6 @@
                         <span class="td-head-note">u/s 10(13A)</span>
                     </div>
                     <div class="td-card-body">
-                        <div class="td-row-2" style="margin-bottom:14px">
-                            <div class="td-field">
-                                <label>Annual Rent Paid (₹)</label>
-                                <input type="number" min="0" step="1000" class="td-input"
-                                       @bind="_decl.RentPaid" @bind:event="oninput" />
-                                @{ var _llTotal = _decl.Landlords.Sum(l => l.AnnualRent); }
-                                @if (_llTotal > 0 && _llTotal != _decl.RentPaid)
-                                {
-                                    <span class="td-hint" style="color:#dc2626">⚠ Landlord total ₹@_llTotal.ToString("N0") — mismatch</span>
-                                }
-                                else
-                                {
-                                    <span class="td-hint">Leave 0 if not claiming HRA</span>
-                                }
-                            </div>
-                            <div class="td-field">
-                                <label>City Type</label>
-                                <select class="td-select" @bind="_decl.HraCityType">
-                                    <option value="Metro">Metro (50% of Basic)</option>
-                                    <option value="Non-Metro">Non-Metro (40% of Basic)</option>
-                                </select>
-                                <span class="td-hint">Metro: Delhi, Mumbai, Chennai, Kolkata</span>
-                            </div>
-                        </div>
-
                         @* ── Landlord Records ── *@
                         <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px">
                             <span style="font-size:12px;font-weight:600;color:#374151">Landlord Details</span>
@@ -1861,12 +1836,13 @@
                             <table class="ll-tbl">
                                 <thead>
                                     <tr>
-                                        <th class="ll-th" style="text-align:left;width:28%">Landlord Name</th>
-                                        <th class="ll-th" style="text-align:left;width:14%">PAN</th>
-                                        <th class="ll-th" style="text-align:right;width:14%">Annual Rent (₹)</th>
-                                        <th class="ll-th" style="text-align:center;width:13%">From</th>
-                                        <th class="ll-th" style="text-align:center;width:13%">To</th>
-                                        <th class="ll-th" style="text-align:center;width:10%">Save</th>
+                                        <th class="ll-th" style="text-align:left;width:22%">Landlord Name</th>
+                                        <th class="ll-th" style="text-align:left;width:12%">PAN</th>
+                                        <th class="ll-th" style="text-align:right;width:12%">Annual Rent (₹)</th>
+                                        <th class="ll-th" style="text-align:center;width:13%">City Type</th>
+                                        <th class="ll-th" style="text-align:center;width:11%">From</th>
+                                        <th class="ll-th" style="text-align:center;width:11%">To</th>
+                                        <th class="ll-th" style="text-align:center;width:11%">Save</th>
                                         <th class="ll-th" style="width:8%"></th>
                                     </tr>
                                 </thead>
@@ -1887,6 +1863,13 @@
                                             <td class="ll-td">
                                                 <input type="number" class="ll-input" style="text-align:right" min="0" step="1000"
                                                        @bind="_ll.AnnualRent" @bind:event="oninput" />
+                                            </td>
+                                            <td class="ll-td">
+                                                <select class="ll-input" style="font-size:11px;padding:2px 4px"
+                                                        @bind="_ll.CityType">
+                                                    <option value="Metro">Metro</option>
+                                                    <option value="Non-Metro">Non-Metro</option>
+                                                </select>
                                             </td>
                                             <td class="ll-td">
                                                 <input type="text" class="ll-input" maxlength="10" placeholder="dd-MM-yyyy"
@@ -3169,6 +3152,10 @@
         if (_decl == null) return;
         double total = _decl.Landlords.Sum(l => l.AnnualRent);
         if (total > 0) _decl.RentPaid = total;
+        // City type = landlord with highest rent (Metro wins ties)
+        var dominant = _decl.Landlords.OrderByDescending(l => l.AnnualRent).FirstOrDefault();
+        if (dominant != null && !string.IsNullOrEmpty(dominant.CityType))
+            _decl.HraCityType = dominant.CityType;
     }
 
     void SaveDeclaration()

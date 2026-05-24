@@ -592,7 +592,7 @@ namespace TDSPro.DAL
             var list = new List<LandlordRecord>();
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = "SELECT id,name,pan,annual_rent,from_date,to_date FROM landlord_records WHERE employee_id=@eid AND financial_year=@fy ORDER BY id";
+            cmd.CommandText = "SELECT id,name,pan,annual_rent,city_type,from_date,to_date FROM landlord_records WHERE employee_id=@eid AND financial_year=@fy ORDER BY id";
             cmd.Parameters.AddWithValue("@eid", employeeId);
             cmd.Parameters.AddWithValue("@fy",  fy);
             using var r = cmd.ExecuteReader();
@@ -604,8 +604,9 @@ namespace TDSPro.DAL
                     Name         = r.IsDBNull(1) ? "" : r.GetString(1),
                     Pan          = r.IsDBNull(2) ? "" : r.GetString(2),
                     AnnualRent   = r.IsDBNull(3) ? 0  : r.GetDouble(3),
-                    FromDate     = r.IsDBNull(4) ? "" : r.GetString(4),
-                    ToDate       = r.IsDBNull(5) ? "" : r.GetString(5),
+                    CityType     = r.IsDBNull(4) ? "Non-Metro" : (r.GetString(4) is string ct && ct.Length > 0 ? ct : "Non-Metro"),
+                    FromDate     = r.IsDBNull(5) ? "" : r.GetString(5),
+                    ToDate       = r.IsDBNull(6) ? "" : r.GetString(6),
                 });
             return list;
         }
@@ -618,25 +619,27 @@ namespace TDSPro.DAL
             {
                 // Single round-trip: INSERT then fetch new rowid
                 cmd.CommandText = @"
-                    INSERT INTO landlord_records (employee_id,financial_year,name,pan,annual_rent,from_date,to_date)
-                    VALUES(@eid,@fy,@nm,@pan,@ar,@fd,@td);
+                    INSERT INTO landlord_records (employee_id,financial_year,name,pan,annual_rent,city_type,from_date,to_date)
+                    VALUES(@eid,@fy,@nm,@pan,@ar,@ct,@fd,@td);
                     SELECT last_insert_rowid();";
                 cmd.Parameters.AddWithValue("@eid", lr.EmployeeId);
                 cmd.Parameters.AddWithValue("@fy",  lr.FinancialYear);
                 cmd.Parameters.AddWithValue("@nm",  lr.Name);
                 cmd.Parameters.AddWithValue("@pan", lr.Pan);
                 cmd.Parameters.AddWithValue("@ar",  lr.AnnualRent);
+                cmd.Parameters.AddWithValue("@ct",  lr.CityType);
                 cmd.Parameters.AddWithValue("@fd",  lr.FromDate);
                 cmd.Parameters.AddWithValue("@td",  lr.ToDate);
                 lr.Id = Convert.ToInt32(cmd.ExecuteScalar());
             }
             else
             {
-                cmd.CommandText = "UPDATE landlord_records SET name=@nm,pan=@pan,annual_rent=@ar,from_date=@fd,to_date=@td WHERE id=@id";
+                cmd.CommandText = "UPDATE landlord_records SET name=@nm,pan=@pan,annual_rent=@ar,city_type=@ct,from_date=@fd,to_date=@td WHERE id=@id";
                 cmd.Parameters.AddWithValue("@id",  lr.Id);
                 cmd.Parameters.AddWithValue("@nm",  lr.Name);
                 cmd.Parameters.AddWithValue("@pan", lr.Pan);
                 cmd.Parameters.AddWithValue("@ar",  lr.AnnualRent);
+                cmd.Parameters.AddWithValue("@ct",  lr.CityType);
                 cmd.Parameters.AddWithValue("@fd",  lr.FromDate);
                 cmd.Parameters.AddWithValue("@td",  lr.ToDate);
                 cmd.ExecuteNonQuery();
