@@ -296,6 +296,21 @@
                     </MudPaper>
                 </MudItem>
             }
+            @* ── IT Portal auto-login card ── *@
+            <MudItem xs="6" sm="4">
+                <MudPaper Class="pa-3" Elevation="1"
+                          Style="@CardStyle("#2e7d32")"
+                          @onclick="UploadToItPortal">
+                    <div style="@CardTextStyle("#2e7d32");display:flex;align-items:center;gap:6px">
+                        @if (_uploadLoggingIn)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:14px;height:14px" />
+                        }
+                        IT Portal
+                    </div>
+                    <div style="font-size:10px;color:#888;margin-top:2px">Auto-login — incometax.gov.in</div>
+                </MudPaper>
+            </MudItem>
             @* ── Upload to IT Portal button ── *@
             <MudItem xs="6" sm="4">
                 <MudButton Variant="Variant.Filled" Color="Color.Success"
@@ -595,7 +610,6 @@
         {
             new("RPU + FVU",     "Download from Protean (NSDL)",  "https://www.protean-tinpan.com/services/etds-etcs/fvu.html", "#1565C0"),
             new("TRACES",        "Download certs, check status",  "https://traces.tdscpc.gov.in/auth/login/loginScreen",                  "#6a1b9a", tracesUser, "TracesPassword"),
-            new("TIN-NSDL",      "Challan payment, e-TDS",        "https://onlineservices.tin.egov-nsdl.com/etaxnew/tdsnontds.jsp", "#0277bd", tinUser, "TinNsdlPassword"),
             new("Java Download", "Required for FVU",              "https://www.java.com/download/",                             "#795548"),
         };
     }
