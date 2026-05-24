@@ -419,26 +419,51 @@
                     </div>
                 </div>
 
-                @* ── Section breakdown strip ── *@
+                @* ── Quarter + Section breakdown strip ── *@
                 @if (_recon.SectionBreakdown.Any())
                 {
-                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid @(_recon.IsReconciled?"#c8e6c9":"#ffe0b2");display:flex;gap:0;flex-wrap:wrap">
-                        @foreach (var sb in _recon.SectionBreakdown)
+                    var _qtrs = _recon.SectionBreakdown.GroupBy(r => r.Quarter).OrderBy(g => g.Key).ToList();
+                    var _sepClr = _recon.IsReconciled ? "#c8e6c9" : "#ffe0b2";
+                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid @_sepClr">
+                        @foreach (var qg in _qtrs)
                         {
-                            var sbOk  = Math.Abs(sb.Difference) < 1.0;
-                            var sbClr = sbOk ? "#2e7d32" : "#e65100";
-                            <div style="min-width:160px;padding:6px 16px;border-right:1px solid @(_recon.IsReconciled?"#c8e6c9":"#ffe0b2")">
-                                <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:3px">Sec @sb.Section</div>
-                                <div style="display:flex;gap:12px;font-size:12px;font-family:monospace">
-                                    <span title="Payable" style="color:#1565C0">P: ₹@sb.TdsPayable.ToString("N0")</span>
-                                    <span title="Deposited" style="color:#2e7d32">D: ₹@sb.ChallanDeposited.ToString("N0")</span>
+                            var qPayable    = qg.Sum(r => r.TdsPayable);
+                            var qDeposited  = qg.Sum(r => r.ChallanDeposited);
+                            var qDiff       = qDeposited - qPayable;
+                            var qOk         = Math.Abs(qDiff) < 1.0;
+                            <div style="margin-bottom:6px">
+                                @* Quarter header *@
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                                    <span style="font-size:11px;font-weight:800;color:#555;background:@_sepClr;border-radius:4px;padding:2px 8px">@qg.Key</span>
+                                    <span style="font-size:11px;font-family:monospace;color:#1565C0">P: ₹@qPayable.ToString("N0")</span>
+                                    <span style="font-size:11px;font-family:monospace;color:#2e7d32">D: ₹@qDeposited.ToString("N0")</span>
+                                    @if (!qOk)
+                                    {
+                                        <span style="font-size:11px;font-weight:700;color:#e65100">Diff: @(qDiff>=0?"+":"")₹@qDiff.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="font-size:10px;color:#4CAF50;font-weight:600">✓ matched</span>
+                                    }
                                 </div>
-                                @if (!sbOk)
-                                {
-                                    <div style="font-size:11px;color:@sbClr;font-weight:600;margin-top:2px">
-                                        Diff: @(sb.Difference>=0?"+":"")₹@sb.Difference.ToString("N0")
-                                    </div>
-                                }
+                                @* Section tiles for this quarter *@
+                                <div style="display:flex;gap:0;flex-wrap:wrap;padding-left:8px">
+                                    @foreach (var sb in qg)
+                                    {
+                                        var sbOk  = Math.Abs(sb.Difference) < 1.0;
+                                        <div style="min-width:150px;padding:4px 14px;border-left:3px solid @(sbOk?"#4CAF50":"#FF9800");margin-right:8px;margin-bottom:4px;background:rgba(255,255,255,.5);border-radius:4px">
+                                            <div style="font-size:11px;font-weight:700;color:#444">Sec @sb.Section</div>
+                                            <div style="display:flex;gap:10px;font-size:11px;font-family:monospace">
+                                                <span style="color:#1565C0">P: ₹@sb.TdsPayable.ToString("N0")</span>
+                                                <span style="color:#2e7d32">D: ₹@sb.ChallanDeposited.ToString("N0")</span>
+                                            </div>
+                                            @if (!sbOk)
+                                            {
+                                                <div style="font-size:11px;color:#e65100;font-weight:600">Diff: @(sb.Difference>=0?"+":"")₹@sb.Difference.ToString("N0")</div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
                             </div>
                         }
                     </div>

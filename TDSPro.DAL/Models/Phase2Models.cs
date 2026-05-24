@@ -43,8 +43,9 @@ namespace TDSPro.DAL.Models
         public double TotalTds      { get; set; }
     }
 
-    public class ChallanReconSection
+    public class ChallanReconRow
     {
+        public string Quarter          { get; set; } = "";
         public string Section          { get; set; } = "";
         public double TdsPayable       { get; set; }
         public double ChallanDeposited { get; set; }
@@ -58,7 +59,7 @@ namespace TDSPro.DAL.Models
         public double Difference      => ChallanDeposited - TdsPayable;
         public bool   IsReconciled    => Math.Abs(Difference) < 1.0;
         public List<Challan> Challans { get; set; } = new();
-        public List<ChallanReconSection> SectionBreakdown { get; set; } = new();
+        public List<ChallanReconRow> SectionBreakdown { get; set; } = new();
     }
 
     // ── Return / FVU models ────────────────────────────────────────────────────
