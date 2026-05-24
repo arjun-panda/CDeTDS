@@ -11,7 +11,7 @@ namespace TDSPro.DAL
         public static string DbPath => _dbPath;
 
         // Current schema version — bump this when adding new migrations
-        private const int SchemaVersion = 14;
+        private const int SchemaVersion = 15;
 
         /// <summary>
         /// Fast path: creates tables + seeds. Returns immediately so the window can show.
@@ -916,6 +916,26 @@ namespace TDSPro.DAL
                     UPDATE due_dates SET due_date='2025-01-31' WHERE fy='2024-25' AND quarter='Q3' AND due_date='2026-01-31';
                     UPDATE due_dates SET due_date='2025-05-31' WHERE fy='2024-25' AND quarter='Q4' AND due_date='2026-05-31';";
                 cmd5.ExecuteNonQuery();
+            } catch { }
+
+            // ── v15: dedupe filing history, keep most recent row per filing ─────
+            try
+            {
+                using var conn6 = GetConnection();
+                using var del6  = conn6.CreateCommand();
+                del6.CommandText = @"
+                    DELETE FROM tds_filing_history
+                    WHERE id NOT IN (
+                        SELECT MAX(id)
+                        FROM tds_filing_history
+                        GROUP BY deductor_id, form_type, financial_year, quarter, is_correction
+                    )";
+                del6.ExecuteNonQuery();
+                using var idx6 = conn6.CreateCommand();
+                idx6.CommandText = @"
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_filing_hist_unique
+                    ON tds_filing_history(deductor_id, form_type, financial_year, quarter, is_correction)";
+                idx6.ExecuteNonQuery();
             } catch { }
         }
 
