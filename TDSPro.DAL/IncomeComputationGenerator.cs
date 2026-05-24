@@ -72,6 +72,7 @@ namespace TDSPro.DAL
             d2.Parameters.AddWithValue("@e", employeeId);
             d2.Parameters.AddWithValue("@f", fy);
             double rent = 0; double sec80c=0,sec80d=0,sec80dParents=0,sec80g=0,sec80ccd1B=0,sec80ccd2=0,otherDed=0,ltaExempt=0;
+            string declCityType = "";
             using var r2 = d2.ExecuteReader();
             if (r2.Read())
             {
@@ -83,11 +84,15 @@ namespace TDSPro.DAL
                 sec80ccd1B    = Convert.ToDouble(r2["sec_80ccd_employee"] ?? 0);
                 sec80ccd2     = Convert.ToDouble(r2["sec_80ccd_employer"] ?? 0);
                 otherDed      = Convert.ToDouble(r2["other_deductions"] ?? 0);
-                try { ltaExempt = Convert.ToDouble(r2["lta_exemption"] ?? 0); } catch { ltaExempt = 0; }
+                try { ltaExempt   = Convert.ToDouble(r2["lta_exemption"] ?? 0); } catch { ltaExempt = 0; }
+                try { declCityType = r2["hra_city_type"]?.ToString() ?? ""; } catch { }
             }
             r2.Close();
 
-            string city = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : "Non-Metro";
+            // Prefer employee-level city type → declaration city type → Non-Metro
+            string city = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType
+                        : !string.IsNullOrEmpty(declCityType)    ? declCityType
+                        : "Non-Metro";
             // rent from DB is annual; CalcHraExemption expects monthly values → pass rent/12, then annualise
             d.HraExempt = CalcHraExemption(ss.Basic, ss.Hra, rent / 12, city) * 12;
 
