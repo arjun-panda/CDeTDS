@@ -54,3 +54,6 @@ MicrosoftEdgeWebview2Setup.exe
 # Installer build artifacts (large binaries — run build_installer.ps1 to regenerate)
 installer/AppFiles/
 installer/Output/
+
+# Bundled JRE (large binary — download separately)
+installer/bundled_jre/
