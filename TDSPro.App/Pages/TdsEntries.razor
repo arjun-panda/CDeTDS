@@ -356,7 +356,7 @@
             e.EntryNo.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
             e.DeducteeName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
             e.DeducteePan.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-            e.Section.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+            (e.Section ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase) ||
             (e.ChallanNo?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
 
 

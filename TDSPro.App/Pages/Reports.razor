@@ -457,7 +457,7 @@
         {
             @* Challan details table — scrollable *@
             <MudText Typo="Typo.subtitle2" Class="mb-2">Challan Details</MudText>
-            <div style="overflow-y:auto;max-height:calc(100vh - 420px);border:1px solid #e0e0e0;border-radius:6px">
+            <div style="overflow-y:auto;max-height:calc(100vh - @(_reconDetailOpen ? 580 : 420)px);border:1px solid #e0e0e0;border-radius:6px">
             <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="margin:0">
                 <thead>
                     <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
