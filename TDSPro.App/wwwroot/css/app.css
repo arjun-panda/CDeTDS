@@ -209,7 +209,7 @@ html, body {
 .te-hdr-tds { font-size:16px; font-weight:800; }
 .te-hdr-gross { font-size:13px; font-weight:600; opacity:.9; }
 .te-tbl { width:100%; border-collapse:collapse; table-layout:fixed; }
-.te-thead-row { background:#f8fafc; }
+.te-thead-row { background:#f8fafc; position:sticky; top:0; z-index:2; }
 .te-th { padding:6px 10px; font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
 .te-row { border-top:1px solid #f1f5f9; transition:background .1s; }
 .te-td { padding:7px 10px; font-size:12px; color:#1e293b; vertical-align:middle; }

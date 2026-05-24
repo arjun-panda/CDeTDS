@@ -331,7 +331,7 @@ else
     private Challan? _editing;
     private DateTime? _challanDate;
     private string _saveError = "";
-    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
 
     // Entry linking
     private List<TdsEntry> _linkableEntries = new();
@@ -410,7 +410,7 @@ else
         _autoMatchMsg = "";
     }
 
-    void AutoMatch()
+    async void AutoMatch()
     {
         if (_editing == null || ChallanAmt <= 0) return;
 
@@ -425,6 +425,7 @@ else
             _autoMatchedIds   = new HashSet<int> { exact.Id };
             _autoMatchMsg = $"✔ Exact match — 1 entry";
             _autoMatchOk  = true;
+            _ = ClearAutoMatchMsgAfterDelay();
             return;
         }
 
@@ -451,7 +452,6 @@ else
         }
         else if (picked.Count > 0)
         {
-            // Best-effort partial match
             _selectedEntryIds = picked;
             _autoMatchedIds   = new HashSet<int>(picked);
             _autoMatchMsg = $"⚠ Best fit: {picked.Count} entries (₹{running:N0}) — review difference";
@@ -462,6 +462,15 @@ else
             _autoMatchMsg = "No matching combination found";
             _autoMatchOk  = false;
         }
+        _ = ClearAutoMatchMsgAfterDelay();
+        await Task.CompletedTask;
+    }
+
+    async Task ClearAutoMatchMsgAfterDelay()
+    {
+        await Task.Delay(5000);
+        _autoMatchMsg = "";
+        await InvokeAsync(StateHasChanged);
     }
 
     void OnQuarterChanged(string q)
@@ -535,9 +544,23 @@ else
             Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year).", Severity.Warning);
             return;
         }
+        int linkedCount = 0;
+        try
+        {
+            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM tds_entries WHERE challan_no=@cn AND deductor_id=@d";
+            cmd.Parameters.AddWithValue("@cn", c.ChallanNo ?? "");
+            cmd.Parameters.AddWithValue("@d",  c.DeductorId);
+            linkedCount = (int)(long)(cmd.ExecuteScalar() ?? 0L);
+        }
+        catch { }
+        var linkMsg = linkedCount > 0
+            ? $"\n\n⚠ {linkedCount} TDS entr{(linkedCount == 1 ? "y" : "ies")} linked to this challan will be unlinked."
+            : "";
         var confirmed = await DialogSvc.ShowMessageBox(
             "Delete Challan?",
-            $"Delete challan '{c.ChallanNo}' — ₹{c.TotalAmount:N0}?",
+            $"Delete challan '{c.ChallanNo}' — ₹{c.TotalAmount:N0}?{linkMsg}",
             yesText: "Delete", cancelText: "Cancel");
         if (confirmed != true) return;
         var (ok, msg) = Svc.Delete(c.Id);

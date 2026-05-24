@@ -145,7 +145,7 @@
                             @foreach (var e in sec.OrderByDescending(x => x.EntryDate))
                             {
                                 <tr class="te-row" @onmouseenter="@(() => _hoverId = e.Id)" @onmouseleave="@(() => _hoverId = 0)"
-                                    style="background:@(_hoverId==e.Id?"#f0f7ff":"#fff")">
+                                    style="background:@(_hoverId==e.Id ? "#e8f0fe" : !string.IsNullOrEmpty(e.ChallanNo) ? "#f0fdf4" : e.Status=="Adjusted" ? "#faf5ff" : "#fff")">
                                     <td class="te-td" style="font-family:monospace;font-size:11px;color:#94a3b8">@e.EntryNo</td>
                                     <td class="te-td" style="color:#64748b;white-space:nowrap">@e.EntryDate.ToString("dd-MMM-yy")</td>
                                     <td class="te-td" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@e.DeducteeName</td>
@@ -209,6 +209,12 @@
         @(_editing?.Id == 0 ? "New" : "Edit") TDS Entry
     </TitleContent>
     <DialogContent>
+        @if (AppState.IsReadOnlyFY)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2" Icon="@Icons.Material.Filled.Lock">
+                FY @AppState.CurrentFY is locked — view only. Changes cannot be saved.
+            </MudAlert>
+        }
         @if (_editing != null)
         {
             <MudGrid Spacing="2">
@@ -643,8 +649,13 @@
         else _saveError = msg;
     }
 
-    void MarkAdjusted(TdsEntry e)
+    async Task MarkAdjusted(TdsEntry e)
     {
+        var confirmed = await DialogSvc.ShowMessageBox(
+            "Mark as Adjusted?",
+            $"Mark entry '{e.EntryNo}' for '{e.DeducteeName}' — ₹{e.TdsAmount:N0} as Adjusted?\n\nAdjusted entries are included in the return but not linked to a challan (e.g. advance tax / DTAA relief).",
+            yesText: "Mark Adjusted", cancelText: "Cancel");
+        if (confirmed != true) return;
         var (ok, msg) = Svc.MarkAdjusted(e.Id);
         if (ok) { Load(); Snackbar.Add($"{e.EntryNo} marked as Adjusted.", Severity.Success); }
         else Snackbar.Add(msg, Severity.Error);
