@@ -927,31 +927,17 @@
     private async Task UploadToItPortal()
     {
         _uploadLoggingIn = true;
-        _logLines.Clear();
-        _logLines.Add($"[{Now()}] Logging in to IT Portal...");
         StateHasChanged();
 
-        var progress = new Progress<string>(msg =>
-        {
-            _logLines.Add($"[{Now()}] {msg}");
-            if (_logLines.Count > 50) _logLines.RemoveAt(0);
-            InvokeAsync(StateHasChanged);
-        });
-
-        var result = await UploadSvc.LoginAndOpenAsync(progress);
+        var result = await UploadSvc.LoginAndOpenAsync();   // silent — no progress log
 
         _uploadLoggingIn = false;
 
         if (result.Success)
-        {
-            _logLines.Add($"[{Now()}] ✅ IT Portal opened — select your .fvu file and submit.");
-            Snackbar.Add("IT Portal opened. Select your validated .fvu file and click Submit.", Severity.Success);
-        }
+            Snackbar.Add("IT Portal opened — select your .fvu file and click Submit.", Severity.Success);
         else
-        {
-            _logLines.Add($"[{Now()}] ❌ {result.Error}");
             Snackbar.Add("Login failed: " + result.Error, Severity.Error);
-        }
+
         StateHasChanged();
     }
 
