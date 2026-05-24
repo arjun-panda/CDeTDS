@@ -13,7 +13,7 @@
 <div style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:8px 24px 10px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
 
     @* Row 1: title + controls *@
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Reports — FY @AppState.CurrentFY</span>
         <span style="font-size:11px;color:#64748b;white-space:nowrap">@AppState.CurrentDeductorName</span>
         <div style="flex:1"></div>
@@ -57,7 +57,32 @@
         }
     </div>
 
-    @* Row 2: KPI strip — one per tab *@
+    @* Row 2: Tab bar *@
+    <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin:0 -24px;padding:0 24px">
+        @{ var _tabs = new[] {
+            ("Quarter Summary", Icons.Material.Filled.BarChart),
+            ("Deductee-wise",   Icons.Material.Filled.People),
+            ("Section-wise",    Icons.Material.Filled.Category),
+            ("Challan Recon",   Icons.Material.Filled.CompareArrows),
+            ("Payroll Summary", Icons.Material.Filled.TableChart),
+        }; }
+        @for (int _ti = 0; _ti < _tabs.Length; _ti++)
+        {
+            var _tIdx = _ti;
+            var _active = _activeTab == _tIdx;
+            <button @onclick="@(() => OnTabChanged(_tIdx))"
+                    style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:none;background:none;cursor:pointer;
+                           font-size:12px;font-weight:@(_active?"700":"500");letter-spacing:.3px;text-transform:uppercase;
+                           color:@(_active?"#1565C0":"#64748b");
+                           border-bottom:@(_active?"2px solid #1565C0":"2px solid transparent");
+                           margin-bottom:-2px;white-space:nowrap;transition:color .15s">
+                <MudIcon Icon="@_tabs[_tIdx].Item2" Size="Size.Small" Style="@(_active?"color:#1565C0":"color:#94a3b8")"/>
+                @_tabs[_tIdx].Item1
+            </button>
+        }
+    </div>
+
+    @* Row 3: KPI strip — one per tab *@
     @if (_activeTab == 0 && _quarterSummary != null)
     {
         <div style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
@@ -184,11 +209,10 @@
     }
 </div>
 
-<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4"
-         ActivePanelIndexChanged="OnTabChanged">
+<div class="pa-4">
 
-    @* â”€â”€ 1. Quarter Summary â”€â”€ *@
-    <MudTabPanel Text="Quarter Summary" Icon="@Icons.Material.Filled.BarChart">
+    @* ── 1. Quarter Summary ── *@
+    @if (_activeTab == 0) {
         @if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" /> }
         @if (_quarterSummary != null)
         {
@@ -367,10 +391,10 @@
             </table>
             </div>
         }
-    </MudTabPanel>
+    }
 
-    @* -- 2. Deductee Report -- *@
-    <MudTabPanel Text='Deductee-wise' Icon=@Icons.Material.Filled.People>
+    @* ── 2. Deductee Report ── *@
+    @if (_activeTab == 1) {
         @if (_deducteeReport != null)
         {
             @if (!_deducteeReport.Any())
@@ -430,10 +454,10 @@
                 </div>
             }
         }
-    </MudTabPanel>
+    }
 
-    @* -- 3. Section Report -- *@
-    <MudTabPanel Text='Section-wise' Icon=@Icons.Material.Filled.Category>
+    @* ── 3. Section Report ── *@
+    @if (_activeTab == 2) {
         @if (_sectionReport != null)
         {
             @if (!_sectionReport.Any())
@@ -489,10 +513,10 @@
                 </div>
             }
         }
-    </MudTabPanel>
+    }
 
-    @* -- 4. Challan Reconciliation -- *@
-    <MudTabPanel Text='Challan Recon' Icon=@Icons.Material.Filled.CompareArrows>
+    @* ── 4. Challan Reconciliation ── *@
+    @if (_activeTab == 3) {
         @if (_recon != null)
         {
             @* Challan details table — scrollable *@
@@ -545,10 +569,10 @@
             </MudSimpleTable>
             </div>@* /scrollable *@
         }
-    </MudTabPanel>
+    }
 
-    @* -- 5. Payroll Year Summary -- *@
-    <MudTabPanel Text="Payroll Summary" Icon="@Icons.Material.Filled.People">
+    @* ── 5. Payroll Year Summary ── *@
+    @if (_activeTab == 4) {
 
         @if (_yearSummary != null)
         {
@@ -618,9 +642,9 @@
         {
             <MudAlert Severity="Severity.Info">Click Load to generate the Payroll Year Summary (employee × month grid).</MudAlert>
         }
-    </MudTabPanel>
+    }
 
-</MudTabs>
+</div>
 
 @code {
     // Quarter summary
