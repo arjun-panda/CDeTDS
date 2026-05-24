@@ -106,6 +106,29 @@ html, body {
     flex: 1 1 auto;
 }
 
+/* Dashboard KPI tile */
+.db-kpi { flex:1 1 0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; min-width:0; transition:box-shadow .15s; }
+.db-kpi:hover { box-shadow:0 2px 8px rgba(21,101,192,.15); border-color:#b0c4e8; }
+.db-kpi-lbl { font-size:10px; color:#94a3b8; font-weight:500; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.db-kpi-val { font-size:16px; font-weight:800; font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.db-kpi-sep { width:1px; background:#e2e8f0; margin:0 4px; flex:0 0 auto; }
+
+/* Dashboard: fill viewport exactly, no outer scroll */
+.dashboard-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px - 36px); /* 64px appbar, 36px footer bar */
+    overflow: hidden;
+    margin: -16px -24px -44px; /* negate page-content padding */
+    gap: 0;
+}
+.dashboard-header   { flex: 0 0 auto; padding: 0 24px; }
+.dashboard-kpi-row  { flex: 0 0 auto; padding: 0 24px; }
+.dashboard-actions  { flex: 0 0 auto; padding: 0 24px; }
+.dashboard-middle   { flex: 1 1 0;    padding: 0 24px; min-height: 0; display: flex; gap: 16px; }
+.dashboard-middle > * { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.dashboard-alerts   { flex: 0 0 auto; padding: 0 24px 8px; max-height: 120px; overflow-y: auto; }
+
 /* Payroll page: fill the flex column from page-content, no outer scroll */
 .payroll-page {
     display: flex;

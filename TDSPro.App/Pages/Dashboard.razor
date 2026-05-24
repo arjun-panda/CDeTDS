@@ -16,222 +16,184 @@
     <FirstRunWizard OnFinished="OnWizardFinished" />
 }
 
-@* ── Sticky header ── *@
-<div style="position:sticky;top:0;z-index:50;margin:-16px -24px 16px -24px;">
-    <div style="background:linear-gradient(135deg,#1565C0 0%,#1976D2 60%,#42A5F5 100%);
-                padding:12px 24px;color:#fff;
-                display:flex;align-items:center;justify-content:space-between;
-                box-shadow:0 2px 8px rgba(0,0,0,.18);">
-        <div>
-            <div style="font-size:16px;font-weight:700;line-height:1.2">Welcome, @AppState.CurrentUser</div>
-            <div style="font-size:11px;opacity:.85;margin-top:2px;">
-                @AppState.CurrentDeductorName &nbsp;·&nbsp; FY @AppState.CurrentFY &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY) &nbsp;·&nbsp; @TaxRules.ActName(AppState.CurrentFY)
+<div class="dashboard-page">
+
+    @* ── Header banner ── *@
+    <div class="dashboard-header" style="padding-top:12px;padding-bottom:8px">
+        <div style="background:linear-gradient(135deg,#1565C0 0%,#1976D2 60%,#42A5F5 100%);
+                    padding:10px 20px;color:#fff;border-radius:10px;
+                    display:flex;align-items:center;justify-content:space-between;
+                    box-shadow:0 2px 8px rgba(0,0,0,.18);">
+            <div>
+                <div style="font-size:15px;font-weight:700;line-height:1.2">Welcome, @AppState.CurrentUser</div>
+                <div style="font-size:11px;opacity:.85;margin-top:2px">
+                    @AppState.CurrentDeductorName &nbsp;·&nbsp; FY @AppState.CurrentFY &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY) &nbsp;·&nbsp; @TaxRules.ActName(AppState.CurrentFY)
+                </div>
+            </div>
+            <MudChip T="string" Icon="@Icons.Material.Filled.Verified" Color="Color.Success"
+                     Style="background:rgba(255,255,255,.15);color:#fff;font-size:12px">
+                @AppState.CurrentLicense.TierLabel &nbsp; @AppState.CurrentLicense.DaysLeft d left
+            </MudChip>
+        </div>
+    </div>
+
+    @if (_stats == null)
+    {
+        <div style="padding:24px"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else
+    {
+        @* ── KPI rows ── *@
+        <div class="dashboard-kpi-row" style="padding-top:6px;padding-bottom:4px">
+            @* TDS KPIs *@
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+                <div class="db-kpi" @onclick='() => Nav.NavigateTo("/entries")'><div class="db-kpi-lbl">Total Entries</div><div class="db-kpi-val" style="color:#1565C0">@_stats.TotalEntries</div></div>
+                <div class="db-kpi" @onclick='() => Nav.NavigateTo("/entries")'><div class="db-kpi-lbl">Gross Amount</div><div class="db-kpi-val" style="color:#0288d1">₹@_stats.TotalAmount.ToString("N0")</div></div>
+                <div class="db-kpi" @onclick='() => Nav.NavigateTo("/entries")'><div class="db-kpi-lbl">Total TDS</div><div class="db-kpi-val" style="color:#2e7d32">₹@_stats.TotalTds.ToString("N0")</div></div>
+                <div class="db-kpi" @onclick='() => Nav.NavigateTo("/challans")'><div class="db-kpi-lbl">Challans</div><div class="db-kpi-val" style="color:#e65100">@_stats.TotalChallans</div></div>
+                <div class="db-kpi" @onclick='() => Nav.NavigateTo("/entries")'><div class="db-kpi-lbl">Pending</div><div class="db-kpi-val" style="color:@(_stats.PendingEntries>0?"#c62828":"#999")">@_stats.PendingEntries</div></div>
+                <div class="db-kpi" @onclick='() => Nav.NavigateTo("/deductees")'><div class="db-kpi-lbl">Deductees</div><div class="db-kpi-val" style="color:#6a1b9a">@_stats.TotalDeductees</div></div>
+                @if (_payrollStats != null)
+                {
+                    <div class="db-kpi-sep"></div>
+                    <div class="db-kpi" @onclick='() => Nav.NavigateTo("/payroll")'><div class="db-kpi-lbl">Payroll Processed</div><div class="db-kpi-val" style="color:#2e7d32">@_payrollStats.Processed</div></div>
+                    <div class="db-kpi" @onclick='() => Nav.NavigateTo("/payroll")'><div class="db-kpi-lbl">Total Gross</div><div class="db-kpi-val" style="color:#1565C0">₹@_payrollStats.TotalGross.ToString("N0")</div></div>
+                    <div class="db-kpi" @onclick='() => Nav.NavigateTo("/payroll")'><div class="db-kpi-lbl">Month TDS</div><div class="db-kpi-val" style="color:#c62828">₹@_payrollStats.MonthTds.ToString("N0")</div></div>
+                    <div class="db-kpi" @onclick='() => Nav.NavigateTo("/payroll")'><div class="db-kpi-lbl">YTD TDS</div><div class="db-kpi-val" style="color:#0288d1">₹@_payrollStats.YtdTds.ToString("N0")</div></div>
+                }
             </div>
         </div>
-        <MudChip T="string" Icon="@Icons.Material.Filled.Verified" Color="Color.Success"
-                 Style="background:rgba(255,255,255,.15);color:#fff;font-size:12px">
-            @AppState.CurrentLicense.TierLabel &nbsp; @AppState.CurrentLicense.DaysLeft d left
-        </MudChip>
-    </div>
-</div>
 
-@if (_stats == null)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
-}
-else
-{
-    @* ── KPI Row 1: TDS ── *@
-    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">TDS Summary — FY @AppState.CurrentFY</MudText>
-    <MudGrid Spacing="2" Class="mb-4">
-        <MudItem xs="6" sm="4" md="2">
-            <KpiCard Title="Total Entries" Value="@_stats.TotalEntries.ToString()" Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" OnClick='() => Nav.NavigateTo("/entries")' />
-        </MudItem>
-        <MudItem xs="6" sm="4" md="2">
-            <KpiCard Title="Gross Amount" Value='@($"₹{_stats.TotalAmount:N0}")' Icon="@Icons.Material.Filled.CurrencyRupee" Color="Color.Info" OnClick='() => Nav.NavigateTo("/entries")' />
-        </MudItem>
-        <MudItem xs="6" sm="4" md="2">
-            <KpiCard Title="Total TDS" Value='@($"₹{_stats.TotalTds:N0}")' Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Success" OnClick='() => Nav.NavigateTo("/entries")' />
-        </MudItem>
-        <MudItem xs="6" sm="4" md="2">
-            <KpiCard Title="Challans" Value="@_stats.TotalChallans.ToString()" Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Warning" OnClick='() => Nav.NavigateTo("/challans")' />
-        </MudItem>
-        <MudItem xs="6" sm="4" md="2">
-            <KpiCard Title="Pending" Value="@_stats.PendingEntries.ToString()" Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Error" OnClick='() => Nav.NavigateTo("/entries")' />
-        </MudItem>
-        <MudItem xs="6" sm="4" md="2">
-            <KpiCard Title="Deductees" Value="@_stats.TotalDeductees.ToString()" Icon="@Icons.Material.Filled.People" Color="Color.Secondary" OnClick='() => Nav.NavigateTo("/deductees")' />
-        </MudItem>
-    </MudGrid>
+        @* ── Quick Actions ── *@
+        <div class="dashboard-actions" style="padding-bottom:6px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.FileUpload" OnClick='()=>Nav.NavigateTo("/returns")'>File Return</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.TableChart" OnClick='()=>Nav.NavigateTo("/excel")'>Import Excel</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Calculate" OnClick='()=>Nav.NavigateTo("/calculator")'>Interest Calc</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="OpenFolder">Open Folder</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Print" OnClick='()=>Nav.NavigateTo("/challan/print")'>Challan Print</MudButton>
+            </div>
+        </div>
 
-    @* ── KPI Row 2: Payroll ── *@
-    @if (_payrollStats != null)
-    {
-        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">Payroll — @_payrollMonthLabel</MudText>
-        <MudGrid Spacing="2" Class="mb-4">
-            <MudItem xs="6" sm="3">
-                <KpiCard Title="Processed" Value="@_payrollStats.Processed.ToString()" Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" OnClick='() => Nav.NavigateTo("/payroll")' />
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <KpiCard Title="Total Gross" Value='@($"₹{_payrollStats.TotalGross:N0}")' Icon="@Icons.Material.Filled.Payments" Color="Color.Primary" OnClick='() => Nav.NavigateTo("/payroll")' />
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <KpiCard Title="Month TDS" Value='@($"₹{_payrollStats.MonthTds:N0}")' Icon="@Icons.Material.Filled.Calculate" Color="Color.Error" OnClick='() => Nav.NavigateTo("/payroll")' />
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <KpiCard Title="YTD TDS" Value='@($"₹{_payrollStats.YtdTds:N0}")' Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Info" OnClick='() => Nav.NavigateTo("/payroll")' />
-            </MudItem>
-        </MudGrid>
-    }
-
-    @* ── Quick Actions ── *@
-    <MudPaper Class="pa-3 mb-4 d-flex gap-2 flex-wrap" Elevation="1" Style="border-radius:10px">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.FileUpload" OnClick='()=>Nav.NavigateTo("/returns")'>
-            File Return
-        </MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.TableChart" OnClick='()=>Nav.NavigateTo("/excel")'>
-            Import Excel
-        </MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Calculate" OnClick='()=>Nav.NavigateTo("/calculator")'>
-            Interest Calc
-        </MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="OpenFolder">
-            Open Folder
-        </MudButton>
-        <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Print" OnClick='()=>Nav.NavigateTo("/challan/print")'>
-            Challan Print
-        </MudButton>
-    </MudPaper>
-
-    @* ── Middle Row: Charts + Recent Entries ── *@
-    <MudGrid Spacing="3" Class="mb-4">
-        @* Bar Chart — Quarterly TDS *@
-        <MudItem xs="12" md="5">
-            <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;height:260px">
-                <MudText Typo="Typo.subtitle2" Class="mb-3">Quarterly TDS (₹)</MudText>
+        @* ── Middle: Charts + Recent Entries — fills remaining height ── *@
+        <div class="dashboard-middle">
+            @* Quarterly TDS bar chart *@
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;min-height:0">
+                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">Quarterly TDS (₹)</div>
                 @if (_quarterData.Any())
                 {
                     var _maxTds = _quarterData.Max(q => q.TdsAmount) == 0 ? 1.0 : _quarterData.Max(q => q.TdsAmount);
-                    <div style="display:flex;align-items:flex-end;gap:12px;height:160px;border-bottom:2px solid #e0e0e0;margin-bottom:6px">
+                    <div style="flex:1;display:flex;align-items:flex-end;gap:12px;border-bottom:2px solid #e0e0e0;padding-bottom:4px;min-height:0">
                         @foreach (var q in _quarterData)
                         {
-                            int barH = (int)(q.TdsAmount / _maxTds * 130);
-                            if (barH < 4 && q.TdsAmount > 0) barH = 4;
+                            double barPct = q.TdsAmount / _maxTds * 85;
+                            if (barPct < 3 && q.TdsAmount > 0) barPct = 3;
                             <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%">
                                 <div style="font-size:10px;color:#555;font-weight:600">₹@((q.TdsAmount/1000).ToString("N0"))K</div>
-                                <div style="width:70%;background:linear-gradient(180deg,#42A5F5,#1565C0);
-                                            border-radius:4px 4px 0 0;height:@(barH)px;transition:height .4s"></div>
+                                <div style="width:60%;background:linear-gradient(180deg,#42A5F5,#1565C0);border-radius:4px 4px 0 0;height:@(barPct.ToString("F0"))%"></div>
                             </div>
                         }
                     </div>
-                    <div style="display:flex;gap:12px">
+                    <div style="display:flex;gap:12px;margin-top:4px">
                         @foreach (var q in _quarterData)
                         {
                             <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#1565C0">@q.Quarter</div>
                         }
                     </div>
                 }
-                else
-                {
-                    <MudText Color="Color.Secondary" Typo="Typo.caption">No data for @AppState.CurrentFY</MudText>
-                }
-            </MudPaper>
-        </MudItem>
+                else { <div style="color:#9e9e9e;font-size:12px">No data for @AppState.CurrentFY</div> }
+            </div>
 
-        @* Donut — Filing Status *@
-        <MudItem xs="12" md="3">
-            <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;height:260px">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Filing Status</MudText>
+            @* Filing Status *@
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;min-height:0">
                 @{
                     int tot  = _stats.TotalEntries > 0 ? _stats.TotalEntries : 1;
                     int paid = tot - _stats.PendingEntries;
                     int pend = _stats.PendingEntries;
                     double paidPct = (double)paid / tot * 100;
                 }
-                <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">Filing Status</div>
+                <div style="display:flex;flex-direction:column;gap:10px">
                     <div>
                         <div style="display:flex;justify-content:space-between;font-size:12px"><span>Paid</span><b style="color:#4CAF50">@paid</b></div>
-                        <div style="background:#e0e0e0;border-radius:4px;height:12px;margin-top:3px">
-                            <div style="background:#4CAF50;width:@(paidPct.ToString("F0"))%;height:12px;border-radius:4px;transition:width .3s"></div>
+                        <div style="background:#e0e0e0;border-radius:4px;height:10px;margin-top:3px">
+                            <div style="background:#4CAF50;width:@(paidPct.ToString("F0"))%;height:10px;border-radius:4px"></div>
                         </div>
                     </div>
                     <div>
                         <div style="display:flex;justify-content:space-between;font-size:12px"><span>Pending</span><b style="color:#FF9800">@pend</b></div>
-                        <div style="background:#e0e0e0;border-radius:4px;height:12px;margin-top:3px">
-                            <div style="background:#FF9800;width:@(((double)pend/tot*100).ToString("F0"))%;height:12px;border-radius:4px;transition:width .3s"></div>
+                        <div style="background:#e0e0e0;border-radius:4px;height:10px;margin-top:3px">
+                            <div style="background:#FF9800;width:@(((double)pend/tot*100).ToString("F0"))%;height:10px;border-radius:4px"></div>
                         </div>
                     </div>
                 </div>
-                <div style="margin-top:20px;text-align:center;font-size:28px;font-weight:700;color:#1565C0">
-                    @paidPct.ToString("F0")%
-                    <div style="font-size:11px;color:#888;font-weight:400">Compliance Rate</div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column">
+                    <div style="font-size:32px;font-weight:800;color:#1565C0">@paidPct.ToString("F0")%</div>
+                    <div style="font-size:11px;color:#888">Compliance Rate</div>
                 </div>
-            </MudPaper>
-        </MudItem>
+            </div>
 
-        @* Recent TDS Entries *@
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;height:260px;overflow:hidden">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Recent TDS Entries</MudText>
-                <div style="overflow-y:auto;max-height:200px">
-                    <MudSimpleTable Dense="true" Hover="true" Style="font-size:11px">
+            @* Recent TDS Entries *@
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;min-height:0;flex:1.5">
+                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">Recent TDS Entries</div>
+                <div style="flex:1;overflow-y:auto;min-height:0">
+                    <table style="width:100%;border-collapse:collapse;font-size:11px">
                         <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Sec</th>
-                                <th style="text-align:right">TDS</th>
-                                <th>Status</th>
+                            <tr style="background:#f1f5f9;position:sticky;top:0">
+                                <th style="padding:5px 8px;text-align:left;color:#64748b;font-weight:600">Date</th>
+                                <th style="padding:5px 8px;text-align:left;color:#64748b;font-weight:600">Sec</th>
+                                <th style="padding:5px 8px;text-align:right;color:#64748b;font-weight:600">TDS</th>
+                                <th style="padding:5px 8px;text-align:left;color:#64748b;font-weight:600">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var e in _recentEntries)
                             {
-                                <tr>
-                                    <td>@e.EntryDate.ToString("dd-MMM")</td>
-                                    <td>@e.Section</td>
-                                    <td style="text-align:right">@e.TotalTds.ToString("N0")</td>
-                                    <td>
-                                        <MudChip T="string" Size="Size.Small"
-                                                 Color="@(e.Status=="Paid"?Color.Success:e.Status=="Overdue"?Color.Error:Color.Warning)"
-                                                 Style="height:18px;font-size:9px">@e.Status</MudChip>
+                                <tr style="border-bottom:1px solid #f1f5f9">
+                                    <td style="padding:5px 8px">@e.EntryDate.ToString("dd-MMM")</td>
+                                    <td style="padding:5px 8px;color:#1565C0;font-weight:600">@e.Section</td>
+                                    <td style="padding:5px 8px;text-align:right;font-family:monospace">@e.TotalTds.ToString("N0")</td>
+                                    <td style="padding:5px 8px">
+                                        <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;
+                                            background:@(e.Status=="Paid"?"#e8f5e9":e.Status=="Overdue"?"#ffebee":"#fff3e0");
+                                            color:@(e.Status=="Paid"?"#2e7d32":e.Status=="Overdue"?"#c62828":"#e65100")">
+                                            @e.Status
+                                        </span>
                                     </td>
                                 </tr>
                             }
                         </tbody>
-                    </MudSimpleTable>
+                    </table>
                 </div>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+            </div>
+        </div>
 
-    @* ── Due Date Alerts ── *@
-    @if (_alerts.Any())
-    {
-        <MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:10px">
-            <MudText Typo="Typo.subtitle2" Class="mb-2">
-                <MudIcon Icon="@Icons.Material.Filled.Alarm" Class="mr-1" Color="Color.Warning" />
-                Filing Due Date Alerts
-            </MudText>
-            @foreach (var a in _alerts)
-            {
-                <div class="d-flex align-center gap-2 mb-1">
-                    <MudAlert Severity="@(a.IsOverdue ? Severity.Error : Severity.Warning)"
-                              Dense="true" Style="flex:1;margin:0">
-                        <b>@a.FormType</b> @a.Quarter FY @a.Fy — Due: @a.DueDateValue.ToString("dd-MMM-yyyy") — @a.DaysLabel
-                    </MudAlert>
-                    <MudButton Size="Size.Small" Variant="Variant.Filled"
-                               Color="@(a.IsOverdue ? Color.Error : Color.Warning)"
-                               OnClick='() => Nav.NavigateTo("/returns")'>File Now</MudButton>
-                </div>
-            }
-        </MudPaper>
+        @* ── Due Date Alerts ── *@
+        @if (_alerts.Any())
+        {
+            <div class="dashboard-alerts">
+                @foreach (var a in _alerts)
+                {
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                        <div style="flex:1;background:@(a.IsOverdue?"#ffebee":"#fff8e1");border-left:4px solid @(a.IsOverdue?"#c62828":"#FF9800");
+                                    border-radius:6px;padding:6px 12px;font-size:12px">
+                            <b>@a.FormType</b> @a.Quarter FY @a.Fy — Due: @a.DueDateValue.ToString("dd-MMM-yyyy") — @a.DaysLabel
+                        </div>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled"
+                                   Color="@(a.IsOverdue ? Color.Error : Color.Warning)"
+                                   OnClick='() => Nav.NavigateTo("/returns")'>File Now</MudButton>
+                    </div>
+                }
+            </div>
+        }
     }
-}
+
+</div>
 
 @code {
     private DashboardStats? _stats;
