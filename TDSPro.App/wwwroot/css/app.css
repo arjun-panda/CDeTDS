@@ -515,3 +515,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .ch-kpi-lbl { font-size:10px; color:#94a3b8; font-weight:500; white-space:nowrap; }
 .ch-kpi-val { font-size:13px; font-weight:700; color:#1e293b; white-space:nowrap; }
 .ch-kpi-sep { width:1px; background:#e2e8f0; margin:4px 0; }
+
+/* ── Reports sticky header KPI strip (all tabs) ── */
+.rpt-kpi { display:flex; flex-direction:column; align-items:flex-start; padding:5px 16px; gap:1px; }
+.rpt-kpi-lbl { font-size:10px; color:#94a3b8; font-weight:500; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.rpt-kpi-val { font-size:15px; font-weight:800; color:#1e293b; font-family:monospace; white-space:nowrap; }
+.rpt-kpi-sep { width:1px; background:#e2e8f0; margin:6px 0; }
