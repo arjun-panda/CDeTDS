@@ -166,7 +166,8 @@ namespace TDSPro.BLL
             // ── OLD REGIME ────────────────────────────────────────────────────
             // Prefer employee-level HRA city type; fall back to declaration value
             var hraCityType = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : decl.HraCityType;
-            double hraExemption = CalcHraExemption(ss.Basic, ss.Hra, decl.RentPaid, hraCityType);
+            // RentPaid in DB is annual ("Annual Rent Paid"); CalcHraExemption takes monthly → divide by 12
+            double hraExemption = CalcHraExemption(ss.Basic, ss.Hra, decl.RentPaid / 12, hraCityType);
             double hraExAnnual  = hraExemption * 12;
 
             // 80D self-limit: ₹50K for senior citizen employee, ₹25K for general
@@ -430,41 +431,6 @@ namespace TDSPro.BLL
 
         public void DeleteLandlord(int id)
             => _repo.DeleteLandlord(id);
-
-        // ══════════════════════════════════════════════════════════════════════
-        // TAX SLABS
-        // ══════════════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Old regime slabs — pure computation, no rebate inside.
-        /// Slabs: 0-2.5L=0%, 2.5-5L=5%, 5-10L=20%, >10L=30%.
-        /// </summary>
-        private static double ComputeTaxOldRegime(double income)
-        {
-            if (income <= 250000) return 0;
-            double tax = 0;
-            if (income > 1000000) { tax += (income - 1000000) * 0.30; income = 1000000; }
-            if (income > 500000)  { tax += (income - 500000)  * 0.20; income = 500000;  }
-            if (income > 250000)  { tax += (income - 250000)  * 0.05; }
-            return Math.Round(tax);
-        }
-
-        /// <summary>
-        /// New regime slabs FY 2025-26 — pure computation, no rebate inside.
-        /// Slabs: 0-4L=0%, 4-8L=5%, 8-12L=10%, 12-16L=15%, 16-20L=20%, 20-24L=25%, >24L=30%.
-        /// </summary>
-        private static double ComputeTaxNewRegime(double income)
-        {
-            if (income <= 400000) return 0;
-            double tax = 0;
-            if (income > 2400000) { tax += (income - 2400000) * 0.30; income = 2400000; }
-            if (income > 2000000) { tax += (income - 2000000) * 0.25; income = 2000000; }
-            if (income > 1600000) { tax += (income - 1600000) * 0.20; income = 1600000; }
-            if (income > 1200000) { tax += (income - 1200000) * 0.15; income = 1200000; }
-            if (income >  800000) { tax += (income - 800000)  * 0.10; income = 800000;  }
-            if (income >  400000) { tax += (income - 400000)  * 0.05; }
-            return Math.Round(tax);
-        }
 
         /// <summary>HRA exemption = min(actual HRA, 50%/40% basic, rent - 10% basic). Monthly.</summary>
         public  static double CalcHraExemptionPublic(double basic, double hra, double rent, string cityType)

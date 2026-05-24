@@ -136,7 +136,7 @@ namespace TDSPro.DAL.Repositories
             var list = new List<Deductee>();
             using var conn = Database.GetConnection();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM deductees ORDER BY name";
+            cmd.CommandText = "SELECT * FROM deductees WHERE (deductee_code IS NULL OR deductee_code NOT LIKE 'EMP-%') ORDER BY name";
             using var r = cmd.ExecuteReader();
             while (r.Read()) list.Add(Map(r));
             return list;

@@ -10,23 +10,26 @@
 @inject CsiDownloadService CsiSvc
 @inject UpdateCheckService UpdateSvc
 
-<div class="d-flex align-center gap-3 mb-4">
-    <MudText Typo="Typo.h5">Returns / FVU — FY @AppState.CurrentFY</MudText>
-    <MudSpacer />
-    <MudText Typo="Typo.caption" Color="Color.Secondary">
-        @TaxRules.ActName(AppState.CurrentFY) &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY)
-    </MudText>
+@* ── Sticky page header ── *@
+<div style="position:sticky;top:0;z-index:50;background:#f5f7fa;
+            margin:-16px -24px 16px -24px;padding:10px 24px 0;
+            border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
+    <div class="d-flex align-center gap-3 mb-2">
+        <MudText Typo="Typo.h6" Style="font-weight:700">Returns / FVU — FY @AppState.CurrentFY</MudText>
+        <MudSpacer />
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @TaxRules.ActName(AppState.CurrentFY) &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY)
+        </MudText>
+    </div>
+    <div style="background:#e3f2fd;border-left:4px solid #1565C0;border-radius:6px 6px 0 0;
+                padding:5px 14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:#555">Salary: <b style="color:#1565C0">@TaxRules.SalaryTdsSection(AppState.CurrentFY)</b> · <b style="color:#1565C0">@TaxRules.SalaryReturnForm(AppState.CurrentFY)</b></span>
+        <span style="width:1px;height:14px;background:#b0c8e8;flex-shrink:0"></span>
+        <span style="font-size:11px;color:#555">Non-Salary: <b style="color:#1565C0">@TaxRules.NonSalaryTdsSection(AppState.CurrentFY)</b> · <b style="color:#1565C0">@TaxRules.NonSalaryReturnForm(AppState.CurrentFY)</b></span>
+        <span style="width:1px;height:14px;background:#b0c8e8;flex-shrink:0"></span>
+        <span style="font-size:11px;color:#555">TDS Cert: <b style="color:#1565C0">@TaxRules.NonSalaryTdsCertForm(AppState.CurrentFY)</b></span>
+    </div>
 </div>
-
-@* ── Info banner ── *@
-<MudPaper Class="pa-3 mb-4 d-flex gap-4 flex-wrap" Elevation="0"
-          Style="background:#e3f2fd;border-radius:10px;border-left:4px solid #1565C0">
-    <div><span style="font-size:10px;color:#666">Salary TDS Section</span><br/><b>@TaxRules.SalaryTdsSection(AppState.CurrentFY)</b></div>
-    <div><span style="font-size:10px;color:#666">Salary Return Form</span><br/><b>@TaxRules.SalaryReturnForm(AppState.CurrentFY)</b></div>
-    <div><span style="font-size:10px;color:#666">Non-Salary Section</span><br/><b>@TaxRules.NonSalaryTdsSection(AppState.CurrentFY)</b></div>
-    <div><span style="font-size:10px;color:#666">Non-Salary Return Form</span><br/><b>@TaxRules.NonSalaryReturnForm(AppState.CurrentFY)</b></div>
-    <div><span style="font-size:10px;color:#666">TDS Certificate</span><br/><b>@TaxRules.NonSalaryTdsCertForm(AppState.CurrentFY)</b></div>
-</MudPaper>
 
 <MudGrid Spacing="3">
     @* ── LEFT: Generate + Validate ── *@

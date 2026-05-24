@@ -16,20 +16,20 @@
     <FirstRunWizard OnFinished="OnWizardFinished" />
 }
 
-@* ── Welcome Banner ── *@
-<div style="background:linear-gradient(135deg,#1565C0 0%,#1976D2 60%,#42A5F5 100%);
-            border-radius:12px;padding:20px 28px;margin-bottom:24px;color:#fff;
-            display:flex;align-items:center;justify-content:space-between;">
-    <div>
-        <div style="font-size:20px;font-weight:700;">Welcome, @AppState.CurrentUser</div>
-        <div style="font-size:13px;opacity:.85;margin-top:4px;">
-            @AppState.CurrentDeductorName &nbsp;·&nbsp; FY @AppState.CurrentFY &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY)
+@* ── Sticky header ── *@
+<div style="position:sticky;top:0;z-index:50;margin:-16px -24px 16px -24px;">
+    <div style="background:linear-gradient(135deg,#1565C0 0%,#1976D2 60%,#42A5F5 100%);
+                padding:12px 24px;color:#fff;
+                display:flex;align-items:center;justify-content:space-between;
+                box-shadow:0 2px 8px rgba(0,0,0,.18);">
+        <div>
+            <div style="font-size:16px;font-weight:700;line-height:1.2">Welcome, @AppState.CurrentUser</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px;">
+                @AppState.CurrentDeductorName &nbsp;·&nbsp; FY @AppState.CurrentFY &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY) &nbsp;·&nbsp; @TaxRules.ActName(AppState.CurrentFY)
+            </div>
         </div>
-        <div style="font-size:11px;opacity:.7;margin-top:2px;">@TaxRules.ActName(AppState.CurrentFY)</div>
-    </div>
-    <div style="text-align:right">
         <MudChip T="string" Icon="@Icons.Material.Filled.Verified" Color="Color.Success"
-                 Style="background:rgba(255,255,255,.15);color:#fff">
+                 Style="background:rgba(255,255,255,.15);color:#fff;font-size:12px">
             @AppState.CurrentLicense.TierLabel &nbsp; @AppState.CurrentLicense.DaysLeft d left
         </MudChip>
     </div>

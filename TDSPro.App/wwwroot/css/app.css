@@ -3,35 +3,94 @@ html, body {
     padding: 0;
     width: 100%;
     height: 100%;
-    max-height: 100vh;
     overflow: hidden !important;
     font-family: 'Roboto', sans-serif;
     background: #F5F7FA;
 }
 
-/* Lock entire MudBlazor layout to viewport */
+/* Lock layout to viewport — no window-level scrollbar ever */
 .mud-layout {
     height: 100vh !important;
     overflow: hidden !important;
 }
 
-/* Content area scrolls by default */
+/* Main content scrolls, but NO visible scrollbar on this element */
 .mud-main-content {
     height: calc(100vh - 64px) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    /* hide the outer scrollbar — content still scrollable via mouse wheel / touch */
+    scrollbar-width: none !important;        /* Firefox */
+    -ms-overflow-style: none !important;     /* IE/Edge */
 }
-/* Payroll page suppresses outer scroll — body gets this class via JS */
-.mud-main-content.no-outer-scroll {
-    overflow: hidden !important;
+.mud-main-content::-webkit-scrollbar {
+    display: none !important;               /* Chrome/WebView2 */
 }
 
-/* Sidebar fixed height, no overflow */
+/* Sidebar — its own thin scrollbar is fine */
 .mud-drawer {
     height: calc(100vh - 64px) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     top: 64px !important;
+    scrollbar-width: thin;
+}
+
+/* Read-only FY banner */
+.tds-readonly-bar {
+    background: linear-gradient(90deg,#fff3e0,#ffe0b2);
+    border-bottom: 1px solid #ffb74d;
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #6d4c00;
+}
+
+/* Bottom bar — fixed, full width, footer text centred, back button right */
+.tds-footer-strip {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-top: 1px solid #eef0f3;
+    background: #f8fafc;
+    z-index: 1000;
+}
+.tds-footer-text {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #c0cad8;
+    letter-spacing: .2px;
+    white-space: nowrap;
+}
+
+/* Back button — sits inside the fixed footer bar, right side */
+.tds-back-btn {
+    position: absolute;
+    right: 16px;
+    background: #1565C0;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 5px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(21,101,192,.35);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* Sidebar nav item active state */
@@ -41,9 +100,10 @@ html, body {
     font-weight: 500;
 }
 
-/* Page content padding */
+/* Page content — grows to fill space; bottom padding clears the fixed footer bar */
 .page-content {
-    padding: 16px 24px;
+    padding: 16px 24px 44px;
+    flex: 1 1 auto;
 }
 
 /* Payroll page: fill the flex column from page-content, no outer scroll */

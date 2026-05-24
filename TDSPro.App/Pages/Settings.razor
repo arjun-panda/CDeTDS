@@ -2,6 +2,7 @@
 @inject AppStateService AppState
 @inject ISnackbar Snackbar
 @inject UpdateCheckService UpdateSvc
+@inject IDialogService DialogSvc
 @using System.IO
 @using System.IO.Compression
 @using TDSPro.BLL
@@ -325,6 +326,58 @@
         </MudDialog>
     </MudTabPanel>
 
+    @* ── FY ROLLOVER ── *@
+    <MudTabPanel Text="FY Rollover" Icon="@Icons.Material.Filled.FastForward">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Year-End Rollover</MudText>
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            Copies each employee's HRA/city settings to the new FY and seeds April salary as Draft.
+            Investment declarations (80C, 80D etc.) are reset to zero — employees re-submit Form 12BB.
+            Existing entries are never overwritten.
+        </MudAlert>
+        <MudGrid>
+            <MudItem xs="4">
+                <MudSelect @bind-Value="_rollFromFy" Label="From FY" Variant="Variant.Outlined">
+                    @foreach (var fy in TDSPro.Common.AppConstants.FinancialYears)
+                    {
+                        <MudSelectItem Value="@fy">@fy</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="4">
+                <MudSelect @bind-Value="_rollToFy" Label="To FY" Variant="Variant.Outlined">
+                    @foreach (var fy in TDSPro.Common.AppConstants.FinancialYearsWithNext)
+                    {
+                        <MudSelectItem Value="@fy">@fy</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="4" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.FastForward"
+                           OnClick="DoRollover" Disabled="@_rolloverRunning">
+                    @(_rolloverRunning ? "Running..." : "Run Rollover")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+        @if (_rolloverResult != null)
+        {
+            <MudAlert Severity="@(_rolloverResult.HasErrors ? Severity.Warning : Severity.Success)" Class="mt-3">
+                <b>@_rolloverResult.EmpTotal employees</b> processed &nbsp;·&nbsp;
+                Declarations copied: <b>@_rolloverResult.DeclCopied</b> (skipped: @_rolloverResult.DeclSkipped) &nbsp;·&nbsp;
+                April seeded: <b>@_rolloverResult.AprilSeeded</b> (skipped: @_rolloverResult.AprilSkipped)
+                @if (_rolloverResult.HasErrors)
+                {
+                    <ul class="mt-2">
+                        @foreach (var e in _rolloverResult.Errors)
+                        {
+                            <li>@e</li>
+                        }
+                    </ul>
+                }
+            </MudAlert>
+        }
+    </MudTabPanel>
+
     @* ── DUE DATES ── *@
     <MudTabPanel Text="Due Dates" Icon="@Icons.Material.Filled.DateRange">
         <MudText Typo="Typo.subtitle1" Class="mb-3">Due Date Reminders</MudText>
@@ -371,7 +424,7 @@
                     <MudDivider Style="width:180px" Class="mb-3" />
                     <MudSimpleTable Dense="true" Class="mb-3" Style="width:100%">
                         <tbody>
-                            <tr><td><b>Version</b></td><td>v@AppConstants.AppVersion</td></tr>
+                            <tr><td><b>Version</b></td><td>v@(AppConstants.AppVersion)</td></tr>
                             <tr><td><b>Framework</b></td><td>.NET 8 · Blazor · MudBlazor</td></tr>
                             <tr><td><b>Database</b></td><td>SQLite (WAL mode)</td></tr>
                             <tr><td><b>FVU Utility</b></td>
@@ -445,7 +498,7 @@
                 <MudCard Elevation="1" Class="mb-3">
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.subtitle1"><b>What's New in v@AppConstants.AppVersion</b></MudText>
+                            <MudText Typo="Typo.subtitle1"><b>What's New in v@(AppConstants.AppVersion)</b></MudText>
                         </CardHeaderContent>
                         <CardHeaderActions>
                             <MudIconButton Icon="@(_showChangelog ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
@@ -686,6 +739,12 @@
     // Delete-backup confirm
     private bool               _deleteConfirmOpen;
     private BackupInfo?        _deleteTarget;
+
+    // Rollover
+    private string _rollFromFy = TDSPro.Common.AppConstants.CurrentFinancialYear;
+    private string _rollToFy   = TDSPro.Common.AppConstants.FinancialYearsWithNext.First();
+    private bool   _rolloverRunning;
+    private TDSPro.BLL.RolloverService.RolloverResult? _rolloverResult;
 
     // Due dates
     private int    _dueSoonDays = 7;
@@ -1153,16 +1212,59 @@
         if (string.IsNullOrEmpty(_restorePath)) return;
         try
         {
+            // Checkpoint WAL into main DB file before copying so restore is consistent
+            Database.CheckpointAndClose();
+
             if (File.Exists(_dbPath))
             {
                 var safeguard = _dbPath + $".pre_restore_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
                 File.Copy(_dbPath, safeguard, overwrite: false);
             }
+
             File.Copy(_restorePath, _dbPath, overwrite: true);
+
+            // Remove stale WAL/SHM files so restored DB opens cleanly
+            foreach (var ext in new[] { "-wal", "-shm" })
+            {
+                var f = _dbPath + ext;
+                if (File.Exists(f)) File.Delete(f);
+            }
+
             Snackbar.Add($"Restored from {Path.GetFileName(_restorePath)}. Restart the app to apply.", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Restore failed: " + ex.Message, Severity.Error); }
         finally { _restorePath = ""; }
+    }
+
+    // ── Rollover ──
+    async Task DoRollover()
+    {
+        if (_rollFromFy == _rollToFy)
+        {
+            Snackbar.Add("From FY and To FY must be different.", Severity.Warning);
+            return;
+        }
+        var confirmed = await DialogSvc.ShowMessageBox(
+            "Run FY Rollover?",
+            $"This will copy declarations from {_rollFromFy} → {_rollToFy} and seed April salary as Draft for all active employees. Existing entries are NOT overwritten.",
+            yesText: "Run", cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        _rolloverRunning = true;
+        _rolloverResult  = null;
+        StateHasChanged();
+
+        await Task.Run(() =>
+        {
+            var svc = new TDSPro.BLL.RolloverService();
+            _rolloverResult = svc.Execute(AppState.CurrentDeductorId, _rollFromFy, _rollToFy);
+        });
+
+        _rolloverRunning = false;
+        var msg = _rolloverResult!.HasErrors
+            ? $"Rollover completed with warnings. {_rolloverResult.AprilSeeded} seeded."
+            : $"Rollover complete. {_rolloverResult.AprilSeeded} employees seeded for April {_rollToFy}.";
+        Snackbar.Add(msg, _rolloverResult.HasErrors ? Severity.Warning : Severity.Success);
     }
 
     // ── Due dates ──

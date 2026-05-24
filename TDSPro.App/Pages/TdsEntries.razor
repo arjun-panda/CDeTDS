@@ -9,8 +9,9 @@
 
 <div style="display:flex;flex-direction:column;height:100%">
 
-@* ── compact toolbar ── *@
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-shrink:0;flex-wrap:wrap">
+@* ── sticky toolbar ── *@
+<div style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:10px 24px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06);flex-shrink:0">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">TDS Entries</span>
 
     @if (_items.Any())
@@ -45,6 +46,7 @@
                StartIcon="@Icons.Material.Filled.Add"
                Disabled="@AppState.IsReadOnlyFY"
                OnClick="OpenAdd">New Entry</MudButton>
+</div>
 </div>
 
 @* ── scrollable content ── *@

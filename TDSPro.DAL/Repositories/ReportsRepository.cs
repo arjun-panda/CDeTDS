@@ -70,6 +70,7 @@ namespace TDSPro.DAL.Repositories
                 FROM tds_entries e
                 JOIN deductees d ON e.deductee_id = d.id
                 WHERE e.financial_year = @fy {qc}{didF}
+                  AND e.section NOT LIKE '192%' AND e.section NOT LIKE '392%'
                 GROUP BY e.deductee_id
                 ORDER BY total DESC";
             cmd.Parameters.AddWithValue("@fy", fy);
@@ -419,7 +420,7 @@ namespace TDSPro.DAL.Repositories
                 agg.CommandText = @"
                     SELECT COALESCE(SUM(gross_salary),0)        AS gross,
                            COALESCE(SUM(hra_exemption),0)       AS hra,
-                           COALESCE(SUM(chapter6a_deduction),0) AS ch6a,
+                           MAX(chapter6a_deduction)              AS ch6a,
                            MAX(taxable_income)                   AS taxable,
                            MAX(annual_tax)                       AS tax,
                            MAX(surcharge)                        AS sur,
@@ -433,7 +434,10 @@ namespace TDSPro.DAL.Repositories
                 agg.Parameters.AddWithValue("@did", deductorId);
                 agg.Parameters.AddWithValue("@fy",  fy);
 
-                double gross=0, hra=0, ch6a=0, taxable=0, tax=0, sur=0, cess=0, stdDed=75000, rebate87A=0;
+                // Derive correct std deduction for this employee's regime+FY (never hardcode 75000)
+                bool _isNew = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
+                double _fallbackStdDed = TDSPro.Common.TaxRules.GetRules(fy, _isNew).StandardDeduction;
+                double gross=0, hra=0, ch6a=0, taxable=0, tax=0, sur=0, cess=0, stdDed=_fallbackStdDed, rebate87A=0;
                 using (var r = agg.ExecuteReader())
                 {
                     if (r.Read())
@@ -446,8 +450,8 @@ namespace TDSPro.DAL.Repositories
                         sur      = Convert.ToDouble(r["sur"]);
                         cess     = Convert.ToDouble(r["cess"]);
                         var sd   = r["std_ded"];
-                        stdDed   = (sd == DBNull.Value || sd == null) ? 75000 : Convert.ToDouble(sd);
-                        if (stdDed <= 0) stdDed = 75000;
+                        stdDed   = (sd == DBNull.Value || sd == null) ? _fallbackStdDed : Convert.ToDouble(sd);
+                        if (stdDed <= 0) stdDed = _fallbackStdDed;
                         var rb   = r["rebate"];
                         rebate87A = (rb == DBNull.Value || rb == null) ? 0 : Convert.ToDouble(rb);
                     }
@@ -456,27 +460,30 @@ namespace TDSPro.DAL.Repositories
                 // If rebate87A not stored in payroll_runs, compute from TaxRules
                 if (rebate87A == 0 && tax > 0)
                 {
-                    bool isNewRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase)
-                                    || regime.Equals("O", StringComparison.OrdinalIgnoreCase);
+                    bool isNewRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
                     var rules = TDSPro.Common.TaxRules.GetRules(fy, isNewRegime);
                     rebate87A = taxable <= rules.Rebate87AThreshold
                         ? Math.Min(tax, rules.Rebate87AMaxAmount) : 0;
                 }
 
                 // ── Prefer monthly_salary_entries when populated (single source of truth) ──
+                // perq_exempted in MSE = all Sec 10 exemptions (HRA + LTA + bills reimbursements)
+                // gross_taxable in MSE = GrossPayment - perq_exempted - leave_enc_exempted
+                //   → perq exemptions already removed; PT and Ch6A still need to be deducted for taxable
                 using var mse = conn.CreateCommand();
                 mse.CommandText = @"
-                    SELECT COALESCE(SUM(gross_payment),0)   AS gross_pay,
-                           COALESCE(SUM(gross_taxable),0)   AS gross_taxable,
-                           COALESCE(SUM(perq_exempted),0)   AS exempted,
-                           COALESCE(SUM(tds_deducted),0)    AS tds_total,
-                           COUNT(*)                          AS row_count
+                    SELECT COALESCE(SUM(gross_payment),0)    AS gross_pay,
+                           COALESCE(SUM(gross_taxable),0)    AS gross_taxable,
+                           COALESCE(SUM(perq_exempted),0)    AS exempted,
+                           COALESCE(SUM(professional_tax),0) AS pt_total,
+                           COALESCE(SUM(tds_deducted),0)     AS tds_total,
+                           COUNT(*)                           AS row_count
                     FROM monthly_salary_entries
                     WHERE employee_id=@eid AND deductor_id=@did AND financial_year=@fy";
                 mse.Parameters.AddWithValue("@eid", empId);
                 mse.Parameters.AddWithValue("@did", deductorId);
                 mse.Parameters.AddWithValue("@fy",  fy);
-                int mseCount = 0; double mseGross = 0, mseExempted = 0, mseTds = 0, mseTaxable = 0;
+                int mseCount = 0; double mseGross = 0, mseExempted = 0, mseTds = 0, mseTaxable = 0, msePt = 0;
                 using (var r = mse.ExecuteReader())
                 {
                     if (r.Read())
@@ -486,31 +493,20 @@ namespace TDSPro.DAL.Repositories
                         mseExempted = Convert.ToDouble(r["exempted"]);
                         mseTaxable  = Convert.ToDouble(r["gross_taxable"]);
                         mseTds      = Convert.ToDouble(r["tds_total"]);
+                        msePt       = Convert.ToDouble(r["pt_total"]);
                     }
                 }
                 if (mseCount > 0)
                 {
-                    gross    = mseGross;
-                    hra      = mseExempted;             // all exempted heads (HRA + LTA + perq exempt + components-paid)
-                    // Recompute tax from monthly_salary_entries — mseTaxable = SUM(gross_taxable_salary)
-                    // which already has bills-reimbursement exemptions stripped.
-                    // Still need to subtract: standard deduction, HRA (in mseExempted), PT (in ch6a from payroll_runs), chap6a.
+                    gross = mseGross;
+                    hra   = mseExempted; // perq_exempted = all Sec 10 exemptions (HRA + LTA + bills)
                     bool isNewRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
                     var rules = TDSPro.Common.TaxRules.GetRules(fy, isNewRegime);
                     stdDed = rules.StandardDeduction;
-                    // For new regime: only std deduction applies (no HRA, no chap6a)
-                    // For old regime: subtract HRA (mseExempted), PT (annualPt from payroll_runs), chap6a
-                    double annualPtFromRuns = 0;
-                    using var ptCmd = conn.CreateCommand();
-                    ptCmd.CommandText = "SELECT COALESCE(SUM(professional_tax),0) AS pt FROM payroll_runs WHERE employee_id=@eid AND deductor_id=@did AND financial_year=@fy";
-                    ptCmd.Parameters.AddWithValue("@eid", empId);
-                    ptCmd.Parameters.AddWithValue("@did", deductorId);
-                    ptCmd.Parameters.AddWithValue("@fy",  fy);
-                    using (var r = ptCmd.ExecuteReader()) { if (r.Read()) annualPtFromRuns = Convert.ToDouble(r["pt"]); }
-
+                    // gross_taxable already has perq exemptions removed; subtract PT and Ch6A for old regime
                     taxable = isNewRegime
                         ? Math.Max(0, mseTaxable - stdDed)
-                        : Math.Max(0, mseTaxable - stdDed - hra - annualPtFromRuns - ch6a);
+                        : Math.Max(0, mseTaxable - stdDed - msePt - ch6a);
                     tax     = TDSPro.Common.TaxRules.ComputeSlabTax(taxable, rules);
                     var (afterRebate, reb) = TDSPro.Common.TaxRules.Apply87A(tax, taxable, rules);
                     rebate87A = reb;
@@ -561,7 +557,7 @@ namespace TDSPro.DAL.Repositories
                     Surcharge        = sur,
                     Cess             = cess,
                     Rebate87A        = rebate87A,
-                    TotalTaxPayable  = Math.Max(0, tax + sur + cess - rebate87A),
+                    TotalTaxPayable  = Math.Max(0, tax + sur + cess),
                     TdsDeducted      = tdsFromDD,  // sum of DD records for this employee
                     Chapter6ATotal   = ch6a,
                     Chapter6ACount   = ch6a > 0 ? 1 : 0,

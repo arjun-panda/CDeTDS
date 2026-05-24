@@ -62,7 +62,9 @@ namespace TDSPro.DAL
                         JOIN deductees d ON e.deductee_id = d.id
                         WHERE e.deductor_id=@did
                           AND d.pan=@pan
-                          AND e.financial_year=@fy";
+                          AND e.financial_year=@fy
+                          AND e.section NOT LIKE '192%'
+                          AND e.section NOT LIKE '392%'";
             if (quarter != null) sql += " AND e.quarter=@q";
             sql += " ORDER BY e.entry_date";
             d3.CommandText = sql;
@@ -499,99 +501,198 @@ namespace TDSPro.DAL
             }
             r2.Close();
 
-            // All payroll runs for this employee in this FY — aggregate annual figures
-            using var d3 = conn.CreateCommand();
-            d3.CommandText = @"SELECT * FROM payroll_runs
-                               WHERE employee_id=@eid AND deductor_id=@did
-                                 AND financial_year=@fy
-                               ORDER BY year, month";
-            d3.Parameters.AddWithValue("@eid", employeeId);
-            d3.Parameters.AddWithValue("@did", deductorId);
-            d3.Parameters.AddWithValue("@fy",  fy);
-            using var r3 = d3.ExecuteReader();
+            // ── Source of truth: monthly_salary_entries (preferred) → payroll_runs (fallback) ──
+            // monthly_salary_entries is the newer system; payroll_runs is legacy.
+            // Must check MSE first so employees like Jitender Chopra (data only in MSE) work correctly.
 
             var months = new[] { "", "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
-            double totGross=0, totTds=0, totHra=0, totStd=0, tot6a=0, totPt=0;
+            double totGross=0, totHra=0, totStd=0, tot6a=0, totPt=0;
 
-            while (r3.Read())
+            // Try monthly_salary_entries first
+            using var mseCmd = conn.CreateCommand();
+            mseCmd.CommandText = @"SELECT month, year, gross_payment, tds_deducted,
+                                          perq_exempted, professional_tax, pf_employee, esi_employee
+                                   FROM monthly_salary_entries
+                                   WHERE employee_id=@eid AND deductor_id=@did AND financial_year=@fy
+                                   ORDER BY year, month";
+            mseCmd.Parameters.AddWithValue("@eid", employeeId);
+            mseCmd.Parameters.AddWithValue("@did", deductorId);
+            mseCmd.Parameters.AddWithValue("@fy",  fy);
+            using var mseR = mseCmd.ExecuteReader();
+            bool usedMse = false;
+            while (mseR.Read())
             {
-                int m = Convert.ToInt32(r3["month"]);
-                double gross = Convert.ToDouble(r3["gross_salary"] ?? 0);
-                double tds   = Convert.ToDouble(r3["tds_deducted"] ?? 0);
-                double net   = gross - Convert.ToDouble(r3["pf_employee"] ?? 0)
-                                     - Convert.ToDouble(r3["professional_tax"] ?? 0)
-                                     - Convert.ToDouble(r3["esi_employee"] ?? 0)
-                                     - tds;
-
-                data.MonthRows.Add(new Form16MonthRow
-                {
+                usedMse = true;
+                int m    = Convert.ToInt32(mseR["month"]);
+                double gross = Convert.ToDouble(mseR["gross_payment"] ?? 0);
+                double tds   = Convert.ToDouble(mseR["tds_deducted"]  ?? 0);
+                double pf    = Convert.ToDouble(mseR["pf_employee"]   ?? 0);
+                double pt    = Convert.ToDouble(mseR["professional_tax"] ?? 0);
+                double esi   = Convert.ToDouble(mseR["esi_employee"]  ?? 0);
+                double net   = gross - pf - pt - esi - tds;
+                data.MonthRows.Add(new Form16MonthRow {
                     MonthLabel  = m >= 1 && m <= 12 ? months[m] : m.ToString(),
-                    GrossSalary = gross,
-                    TdsDeducted = tds,
-                    NetPay      = net,
+                    GrossSalary = gross, TdsDeducted = tds, NetPay = net,
                 });
-
                 totGross += gross;
-                totTds   += tds;
-                totHra   += Convert.ToDouble(r3["hra_exemption"] ?? 0);
-                totStd    = Convert.ToDouble(r3["standard_deduction"] ?? 0);
-                tot6a    += Convert.ToDouble(r3["chapter6a_deduction"] ?? 0);
-                totPt    += Convert.ToDouble(r3["professional_tax"] ?? 0);
-
-                // Use last month's annual tax computation (most accurate)
-                data.TaxableIncome   = Convert.ToDouble(r3["taxable_income"] ?? 0);
-                data.TaxOnIncome     = Convert.ToDouble(r3["annual_tax"] ?? 0);
-                data.Surcharge       = Convert.ToDouble(r3["surcharge"] ?? 0);
-                data.Cess            = Convert.ToDouble(r3["cess"] ?? 0);
-                data.TotalAnnualTax  = Convert.ToDouble(r3["total_annual_tax"] ?? 0);
+                totHra   += Convert.ToDouble(mseR["perq_exempted"] ?? 0); // perq_exempted = all Sec 10 exemptions
+                totPt    += pt;
             }
-            r3.Close();
+            mseR.Close();
 
-            // Rebate 87A
+            // If MSE empty, fall back to payroll_runs
+            if (!usedMse)
+            {
+                using var d3 = conn.CreateCommand();
+                d3.CommandText = @"SELECT * FROM payroll_runs
+                                   WHERE employee_id=@eid AND deductor_id=@did
+                                     AND financial_year=@fy ORDER BY year, month";
+                d3.Parameters.AddWithValue("@eid", employeeId);
+                d3.Parameters.AddWithValue("@did", deductorId);
+                d3.Parameters.AddWithValue("@fy",  fy);
+                using var r3 = d3.ExecuteReader();
+                while (r3.Read())
+                {
+                    int m    = Convert.ToInt32(r3["month"]);
+                    double gross = Convert.ToDouble(r3["gross_salary"] ?? 0);
+                    double tds   = Convert.ToDouble(r3["tds_deducted"] ?? 0);
+                    double net   = gross - Convert.ToDouble(r3["pf_employee"] ?? 0)
+                                         - Convert.ToDouble(r3["professional_tax"] ?? 0)
+                                         - Convert.ToDouble(r3["esi_employee"] ?? 0) - tds;
+                    data.MonthRows.Add(new Form16MonthRow {
+                        MonthLabel  = m >= 1 && m <= 12 ? months[m] : m.ToString(),
+                        GrossSalary = gross, TdsDeducted = tds, NetPay = net,
+                    });
+                    totGross += gross;
+                    totHra   += Convert.ToDouble(r3["hra_exemption"] ?? 0);
+                    totStd    = Convert.ToDouble(r3["standard_deduction"] ?? 0);
+                    tot6a     = Convert.ToDouble(r3["chapter6a_deduction"] ?? 0);
+                    totPt    += Convert.ToDouble(r3["professional_tax"] ?? 0);
+                }
+            }
+
+            // For MSE path: load std deduction and chapter6a from payroll_runs (engine stores annual constants there)
+            if (usedMse)
+            {
+                using var prConst = conn.CreateCommand();
+                prConst.CommandText = @"SELECT MAX(standard_deduction) AS std_ded,
+                                               MAX(chapter6a_deduction) AS ch6a
+                                        FROM payroll_runs
+                                        WHERE employee_id=@eid AND deductor_id=@did AND financial_year=@fy";
+                prConst.Parameters.AddWithValue("@eid", employeeId);
+                prConst.Parameters.AddWithValue("@did", deductorId);
+                prConst.Parameters.AddWithValue("@fy",  fy);
+                using var prR = prConst.ExecuteReader();
+                if (prR.Read())
+                {
+                    totStd = prR["std_ded"] == DBNull.Value ? 0 : Convert.ToDouble(prR["std_ded"]);
+                    tot6a  = prR["ch6a"]    == DBNull.Value ? 0 : Convert.ToDouble(prR["ch6a"]);
+                }
+                // If payroll_runs also empty (no engine run at all), derive from TaxRules
+                if (totStd <= 0)
+                    totStd = TDSPro.Common.TaxRules.GetRules(fy, data.TaxRegime == "New").StandardDeduction;
+            }
+
+            // Part B: compute tax from actual figures
+            int monthsRun = data.MonthRows.Count;
+            double actualStd    = monthsRun > 0 ? totStd : 0;
+            double actualChap6a = monthsRun > 0 ? tot6a  : 0;
+            double actualTaxable = Math.Max(0, totGross - totHra - totPt - actualStd - actualChap6a);
+
             var rules = TDSPro.Common.TaxRules.GetRules(fy, data.TaxRegime == "New");
-            if (data.TaxableIncome <= rules.Rebate87AThreshold)
-                data.Rebate87A = Math.Min(data.TaxOnIncome, rules.Rebate87AMaxAmount);
+            double rawTax = TDSPro.Common.TaxRules.ComputeSlabTax(actualTaxable, rules);
+            var (taxAfterRebate, rebate87A) = TDSPro.Common.TaxRules.Apply87A(rawTax, actualTaxable, rules);
+            double surcharge = TDSPro.Common.TaxRules.CalcSurcharge(taxAfterRebate, actualTaxable, rules);
+            double cess      = Math.Round((taxAfterRebate + surcharge) * 0.04);
+            double totalTax  = taxAfterRebate + surcharge + cess;
+
+            // TDS actually deducted = sum from tds_entries (section 192/392) — authoritative
+            using var tdCmd = conn.CreateCommand();
+            tdCmd.CommandText = @"SELECT COALESCE(SUM(e.total_tds),0)
+                                  FROM tds_entries e
+                                  JOIN deductees d ON e.deductee_id = d.id
+                                  WHERE d.pan = @pan AND e.deductor_id = @did
+                                    AND e.financial_year = @fy
+                                    AND (e.section LIKE '192%' OR e.section LIKE '392%')";
+            tdCmd.Parameters.AddWithValue("@pan", data.EmployeePan ?? "");
+            tdCmd.Parameters.AddWithValue("@did", deductorId);
+            tdCmd.Parameters.AddWithValue("@fy",  fy);
+            using var tdr = tdCmd.ExecuteReader();
+            double actualTdsDeducted = tdr.Read() ? Convert.ToDouble(tdr[0]) : 0;
+            tdr.Close();
 
             data.GrossSalary        = totGross;
-            data.TdsDeducted        = totTds;
+            data.AnnualGrossSalary  = totGross;
+            data.TdsDeducted        = actualTdsDeducted;
             data.HraExemption       = totHra;
-            data.StandardDeduction  = totStd;
-            data.Chapter6ADeduction = tot6a;
+            data.StandardDeduction  = actualStd;
+            data.Chapter6ADeduction = actualChap6a;
             data.ProfessionalTax    = totPt;
+            data.TaxableIncome      = actualTaxable;
+            data.TaxOnIncome        = rawTax;
+            data.Rebate87A          = rebate87A;
+            data.Surcharge          = surcharge;
+            data.Cess               = cess;
+            data.TotalAnnualTax     = totalTax;
             data.GeneratedDate      = DateTime.Today;
 
-            // Quarter-wise summary
+            // Quarter-wise summary: gross from MSE (preferred) or payroll_runs; TDS from tds_entries
             var qtrs = new[] { (1,"Q1",4,5,6), (2,"Q2",7,8,9), (3,"Q3",10,11,12), (4,"Q4",1,2,3) };
             foreach (var (_, qName, m1, m2, m3) in qtrs)
             {
-                var qMonths = new HashSet<int>{m1,m2,m3};
-                var qRows   = data.MonthRows.Where((_, i) => {
-                    // Map back month index — MonthRows is in order
-                    return true; // simplified — sum all for now
-                });
-                // Proper quarter grouping from DB
-                using var qCmd = conn.CreateCommand();
-                qCmd.CommandText = @"SELECT COALESCE(SUM(gross_salary),0), COALESCE(SUM(tds_deducted),0)
-                                     FROM payroll_runs
-                                     WHERE employee_id=@eid AND deductor_id=@did
-                                       AND financial_year=@fy AND month IN (@m1,@m2,@m3)";
-                qCmd.Parameters.AddWithValue("@eid", employeeId);
-                qCmd.Parameters.AddWithValue("@did", deductorId);
-                qCmd.Parameters.AddWithValue("@fy",  fy);
-                qCmd.Parameters.AddWithValue("@m1",  m1);
-                qCmd.Parameters.AddWithValue("@m2",  m2);
-                qCmd.Parameters.AddWithValue("@m3",  m3);
-                using var qr = qCmd.ExecuteReader();
-                if (qr.Read())
+                double qGross = 0;
+                if (usedMse)
                 {
-                    var qGross = Convert.ToDouble(qr[0]);
-                    var qTds   = Convert.ToDouble(qr[1]);
-                    if (qGross > 0 || qTds > 0)
-                        data.QuarterRows.Add(new Form16QuarterRow {
-                            Quarter = qName, AmountPaid = qGross,
-                            TdsDeducted = qTds, TdsDeposited = qTds,
-                        });
+                    using var qCmd = conn.CreateCommand();
+                    qCmd.CommandText = @"SELECT COALESCE(SUM(gross_payment),0)
+                                         FROM monthly_salary_entries
+                                         WHERE employee_id=@eid AND deductor_id=@did
+                                           AND financial_year=@fy AND month IN (@m1,@m2,@m3)";
+                    qCmd.Parameters.AddWithValue("@eid", employeeId);
+                    qCmd.Parameters.AddWithValue("@did", deductorId);
+                    qCmd.Parameters.AddWithValue("@fy",  fy);
+                    qCmd.Parameters.AddWithValue("@m1",  m1);
+                    qCmd.Parameters.AddWithValue("@m2",  m2);
+                    qCmd.Parameters.AddWithValue("@m3",  m3);
+                    using var qr = qCmd.ExecuteReader();
+                    if (qr.Read()) qGross = Convert.ToDouble(qr[0]);
                 }
+                else
+                {
+                    using var qCmd = conn.CreateCommand();
+                    qCmd.CommandText = @"SELECT COALESCE(SUM(gross_salary),0)
+                                         FROM payroll_runs
+                                         WHERE employee_id=@eid AND deductor_id=@did
+                                           AND financial_year=@fy AND month IN (@m1,@m2,@m3)";
+                    qCmd.Parameters.AddWithValue("@eid", employeeId);
+                    qCmd.Parameters.AddWithValue("@did", deductorId);
+                    qCmd.Parameters.AddWithValue("@fy",  fy);
+                    qCmd.Parameters.AddWithValue("@m1",  m1);
+                    qCmd.Parameters.AddWithValue("@m2",  m2);
+                    qCmd.Parameters.AddWithValue("@m3",  m3);
+                    using var qr = qCmd.ExecuteReader();
+                    if (qr.Read()) qGross = Convert.ToDouble(qr[0]);
+                }
+
+                using var qtdsCmd = conn.CreateCommand();
+                qtdsCmd.CommandText = @"SELECT COALESCE(SUM(e.total_tds),0)
+                                        FROM tds_entries e JOIN deductees d ON e.deductee_id=d.id
+                                        WHERE d.pan=@pan AND e.deductor_id=@did
+                                          AND e.financial_year=@fy AND e.quarter=@q
+                                          AND (e.section LIKE '192%' OR e.section LIKE '392%')";
+                qtdsCmd.Parameters.AddWithValue("@pan", data.EmployeePan ?? "");
+                qtdsCmd.Parameters.AddWithValue("@did", deductorId);
+                qtdsCmd.Parameters.AddWithValue("@fy",  fy);
+                qtdsCmd.Parameters.AddWithValue("@q",   qName);
+                using var qtdsr = qtdsCmd.ExecuteReader();
+                double qTds = qtdsr.Read() ? Convert.ToDouble(qtdsr[0]) : 0;
+                qtdsr.Close();
+
+                if (qGross > 0 || qTds > 0)
+                    data.QuarterRows.Add(new Form16QuarterRow {
+                        Quarter = qName, AmountPaid = qGross,
+                        TdsDeducted = qTds, TdsDeposited = qTds,
+                    });
             }
 
             return data;
@@ -668,9 +769,9 @@ namespace TDSPro.DAL
             sb.Append($@"<tr class='tot'><td>Total</td><td class='right'>{d.GrossSalary:N0}</td><td class='right'>{d.TdsDeducted:N0}</td><td class='right'>{d.QuarterRows.Sum(q => q.TdsDeposited):N0}</td><td></td></tr>
 </table>
 
-<div class='hdr'>Part B — Annual Tax Computation ({d.TaxRegime} Regime)</div>
+<div class='hdr'>Part B — Tax Computation on Salary Actually Paid ({d.TaxRegime} Regime)</div>
 <table>
-  <tr><td class='lbl'>Gross Salary</td><td class='right bold'>{Rv(d.GrossSalary)}</td></tr>
+  <tr><td class='lbl'>Gross Salary Paid</td><td class='right bold'>{Rv(d.GrossSalary)}</td></tr>
   <tr><td class='lbl'>Less: HRA Exemption u/s 10(13A)</td><td class='right'>{(d.HraExemption == 0 ? "—" : "(" + d.HraExemption.ToString("N0") + ")")}</td></tr>
   <tr><td class='lbl'>Less: Professional Tax u/s 16(iii)</td><td class='right'>{(d.ProfessionalTax == 0 ? "—" : "(" + d.ProfessionalTax.ToString("N0") + ")")}</td></tr>
   <tr><td class='lbl'>Less: Standard Deduction u/s 16(ia)</td><td class='right'>{(d.StandardDeduction == 0 ? "—" : "(" + d.StandardDeduction.ToString("N0") + ")")}</td></tr>
@@ -760,7 +861,7 @@ namespace TDSPro.DAL
                             var amtText = t.Cell().Element(bold ? PdfReports.SubtotalCell : PdfReports.AmountCell).Text(Money(v));
                             if (bold) amtText.Bold();
                         }
-                        Row("Gross Salary",                        data.GrossSalary);
+                        Row("Gross Salary Paid",                  data.GrossSalary);
                         Row("Less: HRA Exemption u/s 10(13A)",    data.HraExemption);
                         Row("Less: Professional Tax u/s 16(iii)", data.ProfessionalTax);
                         Row("Less: Standard Deduction u/s 16(ia)",data.StandardDeduction);
@@ -949,7 +1050,8 @@ namespace TDSPro.DAL
         public string TaxRegime       { get; set; } = "New";
 
         // Annual salary summary (aggregated from payroll_runs)
-        public double GrossSalary          { get; set; }
+        public double GrossSalary          { get; set; }  // actual salary paid (sum of months run)
+        public double AnnualGrossSalary    { get; set; }  // projected annual gross used in tax computation
         public double HraExemption         { get; set; }
         public double StandardDeduction    { get; set; }
         public double Chapter6ADeduction   { get; set; }

@@ -88,7 +88,8 @@ namespace TDSPro.DAL
             r2.Close();
 
             string city = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : "Non-Metro";
-            d.HraExempt = CalcHraExemption(ss.Basic, ss.Hra, rent, city) * 12;
+            // rent from DB is annual; CalcHraExemption expects monthly values → pass rent/12, then annualise
+            d.HraExempt = CalcHraExemption(ss.Basic, ss.Hra, rent / 12, city) * 12;
 
             // Exempted total (annual) — HRA + components paid + LTA declaration
             double componentsPaid = ss.Components.Sum(c => c.Paid) * 12;
@@ -172,8 +173,7 @@ th{{background:#e2e8f0;text-align:left}}
       <td></td>
     </tr>
 
-    @if({(d.ExemptedTotal > 0 ? "true" : "false")})
-    <tr><td colspan='4' style='font-weight:600'>Less - Allowances Exempted</td></tr>
+    {(d.ExemptedTotal > 0 ? "<tr><td colspan='4' style='font-weight:600'>Less - Allowances Exempted</td></tr>" : "")}
     {(d.HraExempt > 0 ? $"<tr><td style='padding-left:24px'>- HRA Exemption</td><td></td><td style='text-align:right;font-family:monospace'>{d.HraExempt:N0}</td><td></td></tr>" : "")}
     {(d.LtaExempt > 0 ? $"<tr><td style='padding-left:24px'>- LTA Exemption [Sec 10(5)]</td><td></td><td style='text-align:right;font-family:monospace'>{d.LtaExempt:N0}</td><td></td></tr>" : "")}
     {string.Join("", d.Lines.Where(l => l.Exempted > 0).Select(l => $"<tr><td style='padding-left:24px'>- {l.Name} (bills)</td><td></td><td style='text-align:right;font-family:monospace'>{l.Exempted:N0}</td><td></td></tr>"))}

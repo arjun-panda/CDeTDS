@@ -129,6 +129,9 @@ namespace TDSPro.App
 
                 state.CurrentLicense = LicenseService.BuildTrial();
 
+                // Seed FVU/Java paths from installer registry keys on first run
+                SeedInstallerPaths();
+
                 TryLog("Showing MainWindow...");
                 var mainWindow = new MainWindow();
                 mainWindow.Show();
@@ -221,6 +224,32 @@ namespace TDSPro.App
             catch { }
 
             base.OnExit(e);
+        }
+
+        private static void SeedInstallerPaths()
+        {
+            try
+            {
+                // Skip if already configured
+                var existingFvu  = Database.GetSetting("FvuPath",  "");
+                var existingJava = Database.GetSetting("JavaPath", "");
+                if (!string.IsNullOrEmpty(existingFvu) && !string.IsNullOrEmpty(existingJava)
+                    && File.Exists(existingFvu) && File.Exists(existingJava))
+                    return;
+
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\TDSPro");
+                if (key == null) return;
+
+                var fvuPath  = key.GetValue("FvuPath")  as string ?? "";
+                var javaPath = key.GetValue("JavaPath") as string ?? "";
+
+                if (!string.IsNullOrEmpty(fvuPath) && File.Exists(fvuPath))
+                    Database.SetSetting("FvuPath", fvuPath);
+
+                if (!string.IsNullOrEmpty(javaPath) && File.Exists(javaPath))
+                    Database.SetSetting("JavaPath", javaPath);
+            }
+            catch { }
         }
 
         private static bool IsWebView2Installed()

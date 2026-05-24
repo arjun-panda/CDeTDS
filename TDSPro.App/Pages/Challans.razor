@@ -8,25 +8,38 @@
 @inject NavigationManager Nav
 @implements IDisposable
 
-@* ── Toolbar ── *@
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-shrink:0">
-    <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Challans — FY @AppState.CurrentFY</span>
+@* ── Sticky header ── *@
+<div style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:10px 24px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Challans — FY @AppState.CurrentFY</span>
+        @if (_items.Count > 0)
+        {
+            <div style="display:flex;align-items:stretch;gap:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-left:4px">
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Challans</span><span class="ch-kpi-val" style="color:#1565C0">@_items.Count</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">TDS</span><span class="ch-kpi-val" style="color:#2e7d32">₹@_items.Sum(x=>x.TdsAmount).ToString("N0")</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Surcharge</span><span class="ch-kpi-val">₹@_items.Sum(x=>x.Surcharge).ToString("N0")</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Total Paid</span><span class="ch-kpi-val" style="color:#6a1b9a">₹@_items.Sum(x=>x.TotalAmount).ToString("N0")</span></div>
+            </div>
+        }
+        <div style="flex:1"></div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   Disabled="@AppState.IsReadOnlyFY" Size="Size.Small"
+                   OnClick="OpenAdd">Add Challan</MudButton>
+    </div>
     @if (_items.Count > 0)
     {
-        <div style="display:flex;align-items:stretch;gap:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-left:4px">
-            <div class="ch-kpi"><span class="ch-kpi-lbl">Challans</span><span class="ch-kpi-val" style="color:#1565C0">@_items.Count</span></div>
-            <div class="ch-kpi-sep"></div>
-            <div class="ch-kpi"><span class="ch-kpi-lbl">TDS</span><span class="ch-kpi-val" style="color:#2e7d32">₹@_items.Sum(x=>x.TdsAmount).ToString("N0")</span></div>
-            <div class="ch-kpi-sep"></div>
-            <div class="ch-kpi"><span class="ch-kpi-lbl">Surcharge</span><span class="ch-kpi-val">₹@_items.Sum(x=>x.Surcharge).ToString("N0")</span></div>
-            <div class="ch-kpi-sep"></div>
-            <div class="ch-kpi"><span class="ch-kpi-lbl">Total Paid</span><span class="ch-kpi-val" style="color:#6a1b9a">₹@_items.Sum(x=>x.TotalAmount).ToString("N0")</span></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <MudTextField @bind-Value="_search" Placeholder="Search challan no, BSR, bank, section..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Style="max-width:300px" Class="mt-0"
+                          @bind-Value:after="RebuildView" />
+            <span style="font-size:11px;color:#94a3b8">@_filteredItems.Count challan(s) · @_groups.Count section(s)</span>
         </div>
     }
-    <div style="flex:1"></div>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-               Disabled="@AppState.IsReadOnlyFY" Size="Size.Small"
-               OnClick="OpenAdd">Add Challan</MudButton>
 </div>
 
 @if (_items.Count == 0)
@@ -38,16 +51,6 @@
 }
 else
 {
-    @* ── Search + count bar ── *@
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-shrink:0">
-        <MudTextField @bind-Value="_search" Placeholder="Search challan no, BSR, bank, section..."
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                      Style="max-width:300px" Class="mt-0"
-                      @bind-Value:after="RebuildView" />
-        <span style="font-size:11px;color:#94a3b8">@_filteredItems.Count challan(s) · @_groups.Count section(s)</span>
-    </div>
-
     @* ── Grouped table ── *@
     <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
         <table class="ch-tbl">

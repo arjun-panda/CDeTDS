@@ -6,100 +6,114 @@
 @inject PayrollService PayrollSvc
 @inject DeductorService DeductorSvc
 
-<MudText Typo="Typo.h5" Class="mb-4">Form 16 / 16A Generation</MudText>
+@* ── Sticky header ── *@
+<div style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 16px -24px;padding:10px 24px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
+    <span style="font-size:15px;font-weight:700;color:#1e293b">Form 16 / 16A Generation</span>
+</div>
 
-<MudPaper Class="pa-6 mb-4" Elevation="1">
-    <MudTabs @bind-ActivePanelIndex="_activeTab">
+<MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-0">
 
-        @* ── Form 16A (Non-Salary) ── *@
-        <MudTabPanel Text="Form 16A — Non-Salary">
-            <MudGrid Class="mt-2">
-                <MudItem xs="4">
+    @* ── Form 16A (Non-Salary) ── *@
+    <MudTabPanel Text="Form 16A — Non-Salary">
+        <div style="padding:20px 24px">
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="4">
                     <PanField Value="@_deducteePan" Label="Deductee PAN*" ShowType="true"
                               ValueChanged="@((v) => _deducteePan = v)" />
                 </MudItem>
-                <MudItem xs="4">
+                <MudItem xs="12" sm="3">
                     <MudSelect @bind-Value="_quarter16A" Label="Quarter" Variant="Variant.Outlined" ShrinkLabel="true">
                         <MudSelectItem Value='""'>Full Year</MudSelectItem>
                         @foreach (var q in AppConstants.QuarterCodes)
                         { <MudSelectItem Value="@q">@q</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="4" Class="d-flex align-end gap-2 flex-wrap">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview16A"
-                               Disabled="_generating">Preview</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print16A"
-                               StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download16A"
-                               StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
+                <MudItem xs="12" sm="5">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview16A"
+                                   StartIcon="@Icons.Material.Filled.Visibility" Disabled="_generating">Preview</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print16A"
+                                   StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download16A"
+                                   StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
+                    </div>
                 </MudItem>
             </MudGrid>
-        </MudTabPanel>
+        </div>
+    </MudTabPanel>
 
-        @* ── Form 16 (Salary) ── *@
-        <MudTabPanel Text="Form 16 — Salary">
-            <MudGrid Class="mt-2">
-                <MudItem xs="6">
-                    <MudSelect T="int" @bind-Value="_employeeId" Label="Employee*" Variant="Variant.Outlined">
+    @* ── Form 16 (Salary) ── *@
+    <MudTabPanel Text="Form 16 — Salary">
+        <div style="padding:20px 24px">
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="5">
+                    <MudSelect T="int" @bind-Value="_employeeId" Label="Employee*" Variant="Variant.Outlined" ShrinkLabel="true">
                         <MudSelectItem Value="0">— Select Employee —</MudSelectItem>
                         @foreach (var e in _employees)
                         { <MudSelectItem Value="@e.Id">@e.Name (@e.Pan)</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="6" Class="d-flex align-end gap-2 flex-wrap">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview16"
-                               Disabled="_generating">Preview</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print16"
-                               StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download16"
-                               StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Download16Pdf"
-                               StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="_generating">📄 Save PDF</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="Generate12BA"
-                               StartIcon="@Icons.Material.Filled.AttachFile" Disabled="_generating">Form 12BA (Perquisites)</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="GenerateComputation"
-                               StartIcon="@Icons.Material.Filled.Calculate" Disabled="_generating">Computation HTML</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="GenerateComputationPdf"
-                               StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="_generating">📄 Computation PDF</MudButton>
+                <MudItem xs="12" sm="7">
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview16"
+                                   StartIcon="@Icons.Material.Filled.Visibility" Disabled="_generating" Size="Size.Small">Preview</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print16"
+                                   StartIcon="@Icons.Material.Filled.Print" Disabled="_generating" Size="Size.Small">Print/PDF</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download16"
+                                   StartIcon="@Icons.Material.Filled.Download" Disabled="_generating" Size="Size.Small">Save HTML</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Download16Pdf"
+                                   StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="_generating" Size="Size.Small">Save PDF</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="Generate12BA"
+                                   StartIcon="@Icons.Material.Filled.AttachFile" Disabled="_generating" Size="Size.Small">Form 12BA</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="GenerateComputation"
+                                   StartIcon="@Icons.Material.Filled.Calculate" Disabled="_generating" Size="Size.Small">Comp. HTML</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="GenerateComputationPdf"
+                                   StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="_generating" Size="Size.Small">Comp. PDF</MudButton>
+                    </div>
                 </MudItem>
             </MudGrid>
-        </MudTabPanel>
+        </div>
+    </MudTabPanel>
 
-        @* ── Form 27D (TCS) ── *@
-        <MudTabPanel Text="Form 27D — TCS">
-            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                <b>Form 27D</b> is the TCS Certificate issued to collectees under Section 206C / Rule 37D.
-                Enter the collectee's PAN to generate the certificate for FY @AppState.CurrentFY.
+    @* ── Form 27D (TCS) ── *@
+    <MudTabPanel Text="Form 27D — TCS">
+        <div style="padding:20px 24px">
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                <b>Form 27D</b> — TCS Certificate issued to collectees under Section 206C / Rule 37D for FY @AppState.CurrentFY.
             </MudAlert>
-            <MudGrid Class="mt-2">
-                <MudItem xs="4">
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="4">
                     <PanField Value="@_collecteePan" Label="Collectee PAN*" ShowType="true"
                               ValueChanged="@((v) => _collecteePan = v)" />
                 </MudItem>
-                <MudItem xs="4">
+                <MudItem xs="12" sm="3">
                     <MudSelect @bind-Value="_quarter27D" Label="Quarter" Variant="Variant.Outlined" ShrinkLabel="true">
                         <MudSelectItem Value='""'>Full Year</MudSelectItem>
                         @foreach (var q in AppConstants.QuarterCodes)
                         { <MudSelectItem Value="@q">@q</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="4" Class="d-flex align-end gap-2 flex-wrap">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview27D"
-                               Disabled="_generating">Preview</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print27D"
-                               StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download27D"
-                               StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
+                <MudItem xs="12" sm="5">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Preview27D"
+                                   StartIcon="@Icons.Material.Filled.Visibility" Disabled="_generating">Preview</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Print27D"
+                                   StartIcon="@Icons.Material.Filled.Print" Disabled="_generating">Print / PDF</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="Download27D"
+                                   StartIcon="@Icons.Material.Filled.Download" Disabled="_generating">Save HTML</MudButton>
+                    </div>
                 </MudItem>
             </MudGrid>
-        </MudTabPanel>
+        </div>
+    </MudTabPanel>
 
-        @* ── Bulk Generation ── *@
-        <MudTabPanel Text="Bulk Generate">
-            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                Generate Form 16 (salary) for all active employees for FY @AppState.CurrentFY and save to the output folder.
+    @* ── Bulk Generation ── *@
+    <MudTabPanel Text="Bulk Generate">
+        <div style="padding:20px 24px">
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                Generate Form 16 (salary) for <b>all active employees</b> for FY @AppState.CurrentFY and save to the output folder.
             </MudAlert>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
                        StartIcon="@Icons.Material.Filled.AllInbox" OnClick="BulkGenerate16"
                        Disabled="_generating">
                 @if (_generating) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
@@ -111,9 +125,9 @@
                 <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen"
                            Class="mt-2" OnClick="OpenForm16Folder">Open Output Folder</MudButton>
             }
-        </MudTabPanel>
-    </MudTabs>
-</MudPaper>
+        </div>
+    </MudTabPanel>
+</MudTabs>
 
 @if (_generating)
 {

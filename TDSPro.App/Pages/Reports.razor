@@ -9,55 +9,71 @@
 @using TDSPro.Common
 @using System.IO
 
-@* ── Toolbar ── *@
-<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2" Style="flex-shrink:0">
-    <MudText Typo="Typo.subtitle1" Style="font-weight:700;white-space:nowrap">Reports — FY @AppState.CurrentFY</MudText>
-    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="white-space:nowrap">@AppState.CurrentDeductorName</MudText>
-    <MudSpacer />
-    @if (_activeTab == 0 && _quarterSummary != null)
-    {
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadQuarterExcel">Excel</MudButton>
-    }
-    @if (_activeTab == 1 && _deducteeReport != null)
-    {
-        <MudSelect T="string" Value="_deducteeQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
-                   Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
-                   ValueChanged="@((string v) => { _deducteeQuarter = v; _ = LoadDeducteeReport(); })">
-            <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
-            @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
-        </MudSelect>
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadDeducteeExcel">Excel</MudButton>
-    }
-    @if (_activeTab == 2 && _sectionReport != null)
-    {
-        <MudSelect T="string" Value="_sectionQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
-                   Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
-                   ValueChanged="@((string v) => { _sectionQuarter = v; _ = LoadSectionReport(); })">
-            <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
-            @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
-        </MudSelect>
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadSectionExcel">Excel</MudButton>
-    }
-    @if (_activeTab == 3 && _recon != null)
-    {
-        <MudSelect T="string" Value="_reconQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
-                   Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
-                   ValueChanged="@((string v) => { _reconQuarter = v; _ = LoadChallanRecon(); })">
-            <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
-            @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
-        </MudSelect>
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadReconExcel">Excel</MudButton>
-    }
-    @if (_activeTab == 4 && _yearSummary != null)
-    {
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadPayrollExcel">Excel</MudButton>
-    }
-</MudStack>
+@* ── Sticky header ── *@
+<div style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:8px 24px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Reports — FY @AppState.CurrentFY</span>
+        <span style="font-size:11px;color:#64748b;white-space:nowrap">@AppState.CurrentDeductorName</span>
+        @if (_activeTab == 0 && _quarterSummary != null)
+        {
+            <div style="display:flex;align-items:stretch;gap:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-left:4px">
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Entries</span><span class="ch-kpi-val" style="color:#1565C0">@_quarterSummary.Sum(q=>q.Entries)</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Gross</span><span class="ch-kpi-val" style="color:#2e7d32">₹@_quarterSummary.Sum(q=>q.GrossAmount).ToString("N0")</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Total TDS</span><span class="ch-kpi-val" style="color:#e65100">₹@_quarterSummary.Sum(q=>q.TdsAmount).ToString("N0")</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Paid</span><span class="ch-kpi-val" style="color:#880e4f">@_quarterSummary.Sum(q=>q.PaidCount)</span></div>
+                <div class="ch-kpi-sep"></div>
+                <div class="ch-kpi"><span class="ch-kpi-lbl">Pending</span><span class="ch-kpi-val" style="color:#6a1b9a">@_quarterSummary.Sum(q=>q.PendingCount)</span></div>
+            </div>
+        }
+        <div style="flex:1"></div>
+        @if (_activeTab == 0 && _quarterSummary != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadQuarterExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 1 && _deducteeReport != null)
+        {
+            <MudSelect T="string" Value="_deducteeQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                       ValueChanged="@((string v) => { _deducteeQuarter = v; _ = LoadDeducteeReport(); })">
+                <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+                @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadDeducteeExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 2 && _sectionReport != null)
+        {
+            <MudSelect T="string" Value="_sectionQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                       ValueChanged="@((string v) => { _sectionQuarter = v; _ = LoadSectionReport(); })">
+                <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+                @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadSectionExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 3 && _recon != null)
+        {
+            <MudSelect T="string" Value="_reconQuarter" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                       ValueChanged="@((string v) => { _reconQuarter = v; _ = LoadChallanRecon(); })">
+                <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+                @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadReconExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 4 && _yearSummary != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadPayrollExcel">Excel</MudButton>
+        }
+    </div>
+</div>
 
 <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4"
          ActivePanelIndexChanged="OnTabChanged">
@@ -67,40 +83,6 @@
         @if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" /> }
         @if (_quarterSummary != null)
         {
-            @* KPI Row *@
-            <MudGrid Spacing="2" Class="mb-3">
-                <MudItem xs="6" sm="2">
-                    <div style="background:#e3f2fd;border-radius:8px;padding:8px 12px;text-align:center">
-                        <div style="font-size:10px;color:#666">Entries</div>
-                        <div style="font-size:18px;font-weight:700;color:#1565C0">@_quarterSummary.Sum(q=>q.Entries)</div>
-                    </div>
-                </MudItem>
-                <MudItem xs="6" sm="3">
-                    <div style="background:#e8f5e9;border-radius:8px;padding:8px 12px;text-align:center">
-                        <div style="font-size:10px;color:#666">Gross Amount</div>
-                        <div style="font-size:18px;font-weight:700;color:#2e7d32">₹@_quarterSummary.Sum(q=>q.GrossAmount).ToString("N0")</div>
-                    </div>
-                </MudItem>
-                <MudItem xs="6" sm="3">
-                    <div style="background:#fff3e0;border-radius:8px;padding:8px 12px;text-align:center">
-                        <div style="font-size:10px;color:#666">Total TDS</div>
-                        <div style="font-size:18px;font-weight:700;color:#e65100">₹@_quarterSummary.Sum(q=>q.TdsAmount).ToString("N0")</div>
-                    </div>
-                </MudItem>
-                <MudItem xs="6" sm="2">
-                    <div style="background:#fce4ec;border-radius:8px;padding:8px 12px;text-align:center">
-                        <div style="font-size:10px;color:#666">Paid</div>
-                        <div style="font-size:18px;font-weight:700;color:#880e4f">@_quarterSummary.Sum(q=>q.PaidCount)</div>
-                    </div>
-                </MudItem>
-                <MudItem xs="6" sm="2">
-                    <div style="background:#f3e5f5;border-radius:8px;padding:8px 12px;text-align:center">
-                        <div style="font-size:10px;color:#666">Pending</div>
-                        <div style="font-size:18px;font-weight:700;color:#6a1b9a">@_quarterSummary.Sum(q=>q.PendingCount)</div>
-                    </div>
-                </MudItem>
-            </MudGrid>
-
             <div style="border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">
             <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
                 <colgroup>

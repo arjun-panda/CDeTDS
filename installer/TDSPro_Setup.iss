@@ -1,14 +1,16 @@
 ; TDS Pro — Inno Setup 6 Installer Script
-; Build: Run ISCC.exe TDSPro_Setup.iss
+; Build: .\installer\build_installer.ps1
 ; Output: installer\Output\TDSPro_Setup_v3.2.0.exe
 
 #define AppName        "TDS Pro"
 #define AppVersion     "3.2.0"
-#define AppPublisher   "Arjun Panda"
+#define AppPublisher   "CapitalDesk"
 #define AppURL         "https://capitaldesk.co.in"
 #define AppExeName     "TDSPro.exe"
 #define AppId          "{{A3F7B2E1-4C8D-4F5A-9B6E-1D2C3E4F5A6B}"
-#define PublishDir     "AppFiles"
+#define AppFiles       "AppFiles"
+#define FvuDir         "..\TDS_STANDALONE_FVU_9.4"
+#define JreDir         "bundled_jre"
 
 [Setup]
 AppId={#AppId}
@@ -17,7 +19,7 @@ AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
-AppSupportURL=mailto:admin@capitaldesk.co.in
+AppSupportURL=mailto:support@capitaldesk.co.in
 AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\TDSPro
 DefaultGroupName={#AppName}
@@ -34,9 +36,14 @@ ArchitecturesAllowed=x64compatible
 MinVersion=10.0.17763
 UninstallDisplayName={#AppName} v{#AppVersion}
 UninstallDisplayIcon={app}\{#AppExeName}
-ChangesAssociations=no
-DisableProgramGroupPage=yes
+CloseApplications=yes
+RestartApplications=no
 LicenseFile=..\LICENSE.txt
+ShowLanguageDialog=no
+VersionInfoVersion={#AppVersion}.0
+VersionInfoProductName={#AppName}
+VersionInfoCompany={#AppPublisher}
+VersionInfoDescription=TDS Compliance Software
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -45,87 +52,83 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Files]
-; Main application — all files from publish folder
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main application
+Source: "{#AppFiles}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; Bundled JRE (Java 8 x64 — required to run FVU)
+Source: "{#JreDir}\*"; DestDir: "{app}\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; FVU validation engine (NSDL JARs)
+Source: "{#FvuDir}\*"; DestDir: "{app}\FVU"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; WebView2 bootstrapper (optional — install silently if missing)
+Source: "..\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
+
+; Docs
+Source: "..\README.txt";    DestDir: "{app}"; Flags: ignoreversion isreadme skipifsourcedoesntexist
+Source: "..\CHANGELOG.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\LICENSE.txt";   DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+
+[Dirs]
+Name: "{userappdata}\TDSPro";        Permissions: users-full
+Name: "{userappdata}\TDSPro\Backup"; Permissions: users-full
+Name: "{userappdata}\TDSPro\Logs";   Permissions: users-full
+
+[Registry]
+Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "InstallPath";    ValueData: "{app}";                Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "Version";        ValueData: "{#AppVersion}"
+Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "FvuPath";        ValueData: "{app}\FVU\TDS_STANDALONE_FVU_9.4.jar"
+Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "JavaPath";       ValueData: "{app}\jre\bin\java.exe"
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Comment: "TDS Compliance Software"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-; Launch app after install (optional, user can uncheck)
-Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+; Install WebView2 silently if not already present
+Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; \
+  StatusMsg: "Installing Microsoft Edge WebView2 (required)..."; \
+  Flags: waituntilterminated skipifdoesntexist; Check: WebView2NotInstalled
+
+; Launch app after install
+Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName} now"; \
+  Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallDelete]
-; Remove app data only if user confirms — we DON'T auto-delete %AppData%\TDSPro (user data!)
-; Just remove leftover empty dirs from the install folder
 Type: dirifempty; Name: "{app}"
 
 [Code]
-// ── WebView2 Runtime check ────────────────────────────────────────────────────
-// TDS Pro requires Microsoft Edge WebView2. Check registry before completing setup.
-
-function IsWebView2Installed(): Boolean;
+function WebView2NotInstalled(): Boolean;
 var
   Version: String;
 begin
-  Result := False;
-  // Machine-wide (most installs)
-  if RegQueryStringValue(HKLM,
-      'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version) then
-  begin
-    if (Version <> '') and (Version <> '0.0.0.0') then
-    begin
-      Result := True;
-      Exit;
-    end;
-  end;
-  if RegQueryStringValue(HKLM,
-      'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version) then
-  begin
-    if (Version <> '') and (Version <> '0.0.0.0') then
-    begin
-      Result := True;
-      Exit;
-    end;
-  end;
-  // Per-user install
-  if RegQueryStringValue(HKCU,
-      'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version) then
-  begin
-    if (Version <> '') and (Version <> '0.0.0.0') then
-    begin
-      Result := True;
-      Exit;
-    end;
-  end;
-end;
-
-procedure InitializeWizard();
-begin
-  // Nothing extra needed at wizard init
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
   Result := True;
-  // On the Ready page, warn if WebView2 is missing
-  if CurPageID = wpReady then
+  if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then begin Result := False; Exit; end;
+  if RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then begin Result := False; Exit; end;
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
+    if (Version <> '') and (Version <> '0.0.0.0') then begin Result := False; Exit; end;
+end;
+
+// Offer to delete user data on uninstall
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataPath: String;
+begin
+  if CurUninstallStep = usPostUninstall then
   begin
-    if not IsWebView2Installed() then
+    DataPath := ExpandConstant('{userappdata}\TDSPro');
+    if DirExists(DataPath) then
     begin
       if MsgBox(
-        'Microsoft Edge WebView2 Runtime is required by TDS Pro but does not appear to be installed.' + #13#10 + #13#10 +
-        'You can install it for free from Microsoft after this setup completes.' + #13#10 +
-        'TDS Pro will remind you on first launch if WebView2 is still missing.' + #13#10 + #13#10 +
-        'Continue installing TDS Pro anyway?',
-        mbConfirmation, MB_YESNO) = IDNO then
+        'Would you like to delete your TDS Pro data (database, backups, logs)?' + #13#10 + #13#10 +
+        'Location: ' + DataPath + #13#10 + #13#10 +
+        'Click Yes to delete all data, or No to keep it.',
+        mbConfirmation, MB_YESNO) = IDYES then
       begin
-        Result := False;
+        DelTree(DataPath, True, True, True);
       end;
     end;
   end;

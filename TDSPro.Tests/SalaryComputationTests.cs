@@ -381,7 +381,8 @@ public class SalaryComputationTests
     [Fact]
     public void OldRegime_HRA_Exemption_ReducesTaxable()
     {
-        // Basic 30K, HRA 12K, Rent 15K; HRA exempt = 12K/month x 12 = 1,44,000
+        // Basic 30K/m, HRA 12K/m, Rent 15K/m (=1,80,000 annual stored in DB)
+        // HRA exempt = min(12K, 15K-10%*30K=12K, 40%*30K=12K) = 12K/m x 12 = 1,44,000
         // Gross = 42K x 12 = 5,04,000
         // Old taxable = 5,04,000 - 1,44,000 - 50,000 = 3,10,000 -> rebate wipes
         // New taxable = 5,04,000 - 0 - 75,000 = 4,29,000 -> rebate wipes
@@ -389,7 +390,8 @@ public class SalaryComputationTests
         emp.HraCityType = "non-metro";
         var months = new[] { 4,5,6,7,8,9,10,11,12,1,2,3 };
         var entries = months.Select(m => BasicEntry(m, 30000, 12000)).ToList();
-        var decl = new TaxDeclaration { EmployeeId = 1, FinancialYear = FY, RentPaid = 15000, HraCityType = "non-metro" };
+        // RentPaid is annual in DB (UI label "Annual Rent Paid"); ComputeAnnual divides by 12 internally
+        var decl = new TaxDeclaration { EmployeeId = 1, FinancialYear = FY, RentPaid = 180000, HraCityType = "non-metro" };
         var r = Svc().ComputeAnnual(entries, emp, FY, decl, 3, reimbShortfallOverride: 0, ytdTdsOverride: 0);
 
         Assert.Equal(310000, r.OldRegime.TotalIncome);

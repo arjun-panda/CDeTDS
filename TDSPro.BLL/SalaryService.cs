@@ -284,7 +284,8 @@ namespace TDSPro.BLL
             double annualBasic = (cur?.Basic ?? 0) * 12;
             // Prefer employee-level HRA city type; fall back to declaration value
             var hraCityType = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : decl.HraCityType;
-            double hraExemption = PayrollService.CalcHraExemptionPublic(cur?.Basic ?? 0, cur?.HRA ?? 0, decl.RentPaid, hraCityType) * 12;
+            // RentPaid in DB is annual; CalcHraExemptionPublic takes monthly → divide by 12
+            double hraExemption = PayrollService.CalcHraExemptionPublic(cur?.Basic ?? 0, cur?.HRA ?? 0, decl.RentPaid / 12, hraCityType) * 12;
 
             // Age category — needed for 80D self-limit (senior citizen gets ₹50K, others ₹25K)
             DateTime? dob = DateTime.TryParseExact(emp.DateOfBirth, "dd-MMM-yyyy",

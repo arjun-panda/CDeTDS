@@ -8,8 +8,8 @@ namespace TDSPro.Common
     public static class AppConstants
     {
         public const string AppName    = "TDS Pro";
-        public const string AppVersion = "3.2.0";
-        public const string VersionCheckUrl = "https://capitaldesk.co.in/version.json";
+        public const string AppVersion = "1.0.0";
+        public const string VersionCheckUrl = "https://raw.githubusercontent.com/arjun-panda/tdspro-releases/main/version.json";
         public const string DbFileName = "tds_pro.db";
 
         // ── Known section codes (for UI dropdowns only) ───────────────────────
@@ -50,18 +50,30 @@ namespace TDSPro.Common
             }
         }
 
-        // ── Financial years — current + 3 past, newest first, no future FY ──
-        // The April-1st rollover auto-adds the new FY (current year becomes part of the list)
-        // e.g. today = May 2026 → list = 2026-27, 2025-26, 2024-25, 2023-24
+        // Same list plus one future FY — used only in rollover "To FY" picker
+        public static string[] FinancialYearsWithNext
+        {
+            get
+            {
+                int cur = DateTime.Today.Month >= 4 ? DateTime.Today.Year : DateTime.Today.Year - 1;
+                const int startYear = 2025;
+                var list = new List<string>();
+                list.Add($"{cur + 1}-{(cur + 2) % 100:D2}"); // next
+                for (int y = cur; y >= startYear; y--)
+                    list.Add($"{y}-{(y + 1) % 100:D2}");
+                return list.ToArray();
+            }
+        }
+
+        // All FYs from app start year (2025-26) up to current, newest first
         public static string[] FinancialYears
         {
             get
             {
-                int today = DateTime.Today.Month >= 4
-                            ? DateTime.Today.Year
-                            : DateTime.Today.Year - 1;
+                int cur = DateTime.Today.Month >= 4 ? DateTime.Today.Year : DateTime.Today.Year - 1;
+                const int startYear = 2025; // app launch year
                 var list = new List<string>();
-                for (int y = today; y >= today - 3; y--)
+                for (int y = cur; y >= startYear; y--)
                     list.Add($"{y}-{(y + 1) % 100:D2}");
                 return list.ToArray();
             }

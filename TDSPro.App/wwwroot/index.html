@@ -10,7 +10,7 @@
         body { font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     </style>
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="css/app.css?v=6" rel="stylesheet" />
+    <link href="css/app.css?v=12" rel="stylesheet" />
 </head>
 <body>
     <div id="app">Loading...</div>
@@ -67,6 +67,10 @@
                     document.body.removeChild(ta);
                     return true;
                 } catch (e) { return false; }
+            },
+            scrollToTop: function () {
+                var el = document.querySelector('.mud-main-content');
+                if (el) el.scrollTop = 0;
             },
             printElement: function (elementId) {
                 var el = document.getElementById(elementId);

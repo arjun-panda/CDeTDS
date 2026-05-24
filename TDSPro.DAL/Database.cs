@@ -57,6 +57,20 @@ namespace TDSPro.DAL
             return conn;
         }
 
+        /// <summary>Force WAL checkpoint so all data is flushed to the main DB file before a restore copy.</summary>
+        public static void CheckpointAndClose()
+        {
+            try
+            {
+                using var conn = new SqliteConnection($"Data Source={_dbPath}");
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                cmd.ExecuteNonQuery();
+            }
+            catch { /* best-effort */ }
+        }
+
         private static void CreateTables()
         {
             using var conn = new SqliteConnection($"Data Source={_dbPath}");
