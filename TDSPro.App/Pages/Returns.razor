@@ -285,52 +285,34 @@
 
         @* ── Portal & Download Cards ── *@
         <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Downloads &amp; Portals</MudText>
-        <MudGrid Spacing="2">
+        <div style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto">
             @foreach (var card in _portalCards)
             {
-                <MudItem xs="6" sm="4">
-                    <MudPaper Class="pa-3" Elevation="1"
-                              Style="@CardStyle(card.Color)" @onclick="() => OpenPortalCard(card)">
-                        <div style="@CardTextStyle(card.Color)">@card.Title</div>
-                        <div style="font-size:10px;color:#888;margin-top:2px">@card.Sub</div>
-                    </MudPaper>
-                </MudItem>
-            }
-            @* ── IT Portal auto-login card ── *@
-            <MudItem xs="6" sm="4">
-                <MudPaper Class="pa-3" Elevation="1"
-                          Style="@CardStyle("#2e7d32")"
-                          @onclick="UploadToItPortal">
-                    <div style="@CardTextStyle("#2e7d32");display:flex;align-items:center;gap:6px">
-                        @if (_uploadLoggingIn)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:14px;height:14px" />
-                        }
-                        IT Portal
-                    </div>
-                    <div style="font-size:10px;color:#888;margin-top:2px">Auto-login · Upload return · e-Pay Tax</div>
+                <MudPaper Class="pa-3" Elevation="1" Style="@(CardStyle(card.Color) + ";flex:1;min-width:110px;cursor:pointer")"
+                          @onclick="() => OpenPortalCard(card)">
+                    <div style="@CardTextStyle(card.Color)">@card.Title</div>
+                    <div style="font-size:10px;color:#888;margin-top:2px">@card.Sub</div>
                 </MudPaper>
-            </MudItem>
-            @* ── Download CSI button ── *@
-            <MudItem xs="6" sm="4">
-                <MudButton Variant="Variant.Filled" Color="Color.Warning"
-                           StartIcon="@Icons.Material.Filled.CloudDownload"
-                           FullWidth="true"
-                           Style="height:100%;min-height:58px;border-radius:8px;font-size:12px;font-weight:600"
-                           Disabled="@_csiDownloading"
-                           OnClick="DownloadCsi">
-                    @if (_csiDownloading)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
-                        <span style="font-size:11px">@_csiStatus</span>
-                    }
-                    else
-                    {
-                        <span>Download CSI</span>
-                    }
-                </MudButton>
-            </MudItem>
-        </MudGrid>
+            }
+            @* IT Portal — auto-login *@
+            <MudPaper Class="pa-3" Elevation="1" Style="@(CardStyle("#2e7d32") + ";flex:1;min-width:110px;cursor:pointer")"
+                      @onclick="UploadToItPortal">
+                <div style="@(CardTextStyle("#2e7d32") + ";display:flex;align-items:center;gap:5px")">
+                    @if (_uploadLoggingIn) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:12px;height:12px" /> }
+                    IT Portal
+                </div>
+                <div style="font-size:10px;color:#888;margin-top:2px">Auto-login · Upload · e-Pay Tax</div>
+            </MudPaper>
+            @* Download CSI — same card style, orange *@
+            <MudPaper Class="pa-3" Elevation="1" Style="@(CardStyle("#e65100") + ";flex:1;min-width:110px;cursor:pointer")"
+                      @onclick="DownloadCsi">
+                <div style="@(CardTextStyle("#e65100") + ";display:flex;align-items:center;gap:5px")">
+                    @if (_csiDownloading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:12px;height:12px" /> }
+                    Download CSI
+                </div>
+                <div style="font-size:10px;color:#888;margin-top:2px">Challan status file · OLTAS</div>
+            </MudPaper>
+        </div>
     </MudItem>
 
     @* ── RIGHT: 8-Step Guide ── *@
