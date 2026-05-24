@@ -3846,9 +3846,12 @@
         _sdComputing = false;
     }
 
-    void SdDownloadSlip(bool html)
+    async Task SdDownloadSlip(bool html)
     {
-        if (_sdEmpId == 0 || _sdAnnual == null) { Snackbar.Add("Compute first to generate slip.", Severity.Warning); return; }
+        if (_sdEmpId == 0) { Snackbar.Add("Select an employee first.", Severity.Warning); return; }
+        if (_sdMonth == 0) { Snackbar.Add("Select a month first.", Severity.Warning); return; }
+        if (_sdAnnual == null) await SdCompute();
+        if (_sdAnnual == null) return;
         try
         {
             var entry = BuildSdEntry();
@@ -3867,9 +3870,12 @@
         catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
-    void SdDownloadAnnual(bool html)
+    async Task SdDownloadAnnual(bool html)
     {
-        if (_sdEmpId == 0 || _sdAnnual == null) { Snackbar.Add("Compute first to generate tax computation.", Severity.Warning); return; }
+        if (_sdEmpId == 0) { Snackbar.Add("Select an employee first.", Severity.Warning); return; }
+        if (_sdMonth == 0) { Snackbar.Add("Select a month first.", Severity.Warning); return; }
+        if (_sdAnnual == null) await SdCompute();
+        if (_sdAnnual == null) return;
         try
         {
             var emp    = _employees.FirstOrDefault(e => e.Id == _sdEmpId) ?? new Employee();
