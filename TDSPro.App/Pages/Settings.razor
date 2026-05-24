@@ -221,7 +221,11 @@
             </MudItem>
             <MudItem xs="5">
                 <MudTextField @bind-Value="_itPortalPassword" Label="IT Portal Password"
-                              InputType="InputType.Password" Variant="Variant.Outlined"
+                              InputType="@(_showItPass ? InputType.Text : InputType.Password)"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showItPass ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="() => _showItPass = !_showItPass"
                               HelperText="Stored encrypted in local DB — never transmitted to anyone except the IT portal" />
             </MudItem>
             <MudItem xs="2" Class="d-flex align-end">
@@ -727,6 +731,7 @@
     private string   _tracesPassword      = "";
     private string   _itPortalUserId      = "";
     private string   _itPortalPassword    = "";
+    private bool     _showItPass          = false;
     private string   _itPortalSaveMsg     = "";
     private Severity _itPortalSaveSeverity = Severity.Success;
 
