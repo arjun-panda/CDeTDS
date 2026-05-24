@@ -94,7 +94,7 @@
                     <span class="te-month-name">@month.Key.ToString("MMM yyyy")</span>
                     <span class="te-month-meta">
                         @month.Count() entr@(month.Count()==1?"y":"ies") &nbsp;·&nbsp;
-                        @string.Join(", ", sectionGroups.Select(s => s.Key))
+                        @string.Join(" · ", sectionGroups.Select(s => $"{s.Key}: ₹{s.Sum(x => x.TotalTds):N0}"))
                     </span>
                 </div>
                 <div style="flex:1"></div>
