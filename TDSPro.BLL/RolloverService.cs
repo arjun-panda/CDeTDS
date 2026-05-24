@@ -100,8 +100,9 @@ namespace TDSPro.BLL
                             ? ss.PfFixedAmount
                             : Math.Min(ss.Basic * 0.12, 1800);
 
-                    double esi = ss.EsiApplicable
-                        ? Math.Round((ss.Basic + ss.Hra + ss.SpecialAllowance) * 0.0075, 2)
+                    double grossForEsi = ss.Basic + ss.Hra + ss.Da + ss.SpecialAllowance + ss.MedicalAllowance + ss.Lta + ss.OtherAllowance;
+                    double esi = ss.EsiApplicable && grossForEsi <= 21000
+                        ? Math.Round(grossForEsi * 0.0075, 2)
                         : 0;
 
                     var april = new MonthlySalaryEntry
