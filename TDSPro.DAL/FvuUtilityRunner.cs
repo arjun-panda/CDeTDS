@@ -312,7 +312,20 @@ namespace TDSPro.DAL
             string? realCsiPath = FindCsiFile(inputTxtPath, outputDir);
             if (realCsiPath != null)
             {
-                File.Copy(realCsiPath, tempCsi, overwrite: true);
+                // CSI file may be stored as raw NSDL text or as a JSON wrapper {"csiResponse":"..."}.
+                // FVU needs only the raw NSDL text — extract if JSON.
+                var csiContent = File.ReadAllText(realCsiPath).Trim();
+                if (csiContent.StartsWith("{"))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(csiContent);
+                        if (doc.RootElement.TryGetProperty("csiResponse", out var prop))
+                            csiContent = prop.GetString() ?? csiContent;
+                    }
+                    catch { /* leave csiContent as-is */ }
+                }
+                File.WriteAllText(tempCsi, csiContent);
                 progress?.Report($"CSI file found: {realCsiPath}");
             }
             else
