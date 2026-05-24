@@ -88,13 +88,7 @@
                         </MudItem>
                     }
                 }
-                @if (_quarter != "Q1" && !_isCorrection)
-                {
-                    <MudItem xs="6">
-                        <MudTextField @bind-Value="_prevQuarterToken" Label="Previous Quarter Token" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      HelperText="Provisional Receipt Number from last filed quarter" />
-                    </MudItem>
-                }
+                @* Previous Quarter Token not required for Regular statements — FVU rejects non-empty PrevPRN for Regular *@
 
                 @* ── FVU version warning ── *@
                 @if (!string.IsNullOrEmpty(_fvuVersionWarn))

@@ -161,7 +161,7 @@ namespace TDSPro.DAL
                 corrType,                                       //  6: Transaction Type (empty=Regular; C1/C2/C3=Correction)
                 h.IsCorrection ? "C" : "",                      //  7: Batch Updation Indicator (C=Correction, empty=Regular)
                 origPrn,                                        //  8: Original PRN (PRN of first original filing; empty=Regular)
-                h.PreviousPrn?.Trim() ?? "",                    //  9: Previous PRN (token from last quarter for regular; preceding filing PRN for correction)
+                h.IsCorrection ? (h.PreviousPrn?.Trim() ?? "") : "", //  9: Previous PRN — only for correction; Regular statements must leave this empty (T-FV-2232 if non-empty)
                 "",                                             // 10: Current PRN — always empty (assigned by NSDL after upload)
                 "",                                             // 11: PRN Date
                 "",                                             // 12: Last TAN (empty=Regular)
