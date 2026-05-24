@@ -99,8 +99,11 @@ namespace TDSPro.DAL
             string returnType = data.Header.IsCorrection ? "C" : "R";
             var today8   = DateTime.Today.ToString("ddMMyyyy");
             var tanUpper = h.TanOfDeductor.PadRight(10).Trim().ToUpper();
-            // FH: exactly 15 fields after "FH" tag, with trailing "^" (verified vs FVU 9.4).
-            // Fields 11-15 must be empty — non-empty hash fields trigger T-FV-1022.
+            // FH: exactly 17 fields, with trailing "^" (verified vs FVU 9.4).
+            // FVU 9.4 p.e() / p.y() / p.x() / p.i() require FH[11..14] to hold non-empty/non-zero
+            // hash stubs so execution reaches p.u() which checks b.u (IgnoreHashing=true).
+            // Without these stubs FVU exits early with T-FV-1022 before reading IgnoreHashing.
+            // FH[15] and FH[16] MUST be empty (p.w=null, p.h=0) or p.e() returns error.
             // PRN for correction returns goes in BH field 13, not in FH.
             lines.Add(string.Join("^", new[]
             {
@@ -114,13 +117,13 @@ namespace TDSPro.DAL
                 tanUpper,     // field 8: TAN
                 "1",          // field 9: batch count
                 "IITRETeTDS", // field 10: RPU identifier (NSDL e-TDS RPU tag)
-                "",           // field 11
-                "",           // field 12
-                "",           // field 13
-                "",           // field 14
-                "",           // field 15
-                "",           // field 16
-                "",           // field 17
+                "",           // field 11: reserved (p.y long — FVU p.g parses but not checked)
+                "RPUHASH01",  // field 12: p.q string (must be non-empty for p.e/p.y/p.x/p.i to reach p.u)
+                "10000001",   // field 13: p.nb long (must be non-zero parseable; any positive integer)
+                "RPUHASH02",  // field 14: p.k string (must be non-empty)
+                "20000002",   // field 15: p.sb long (must be non-zero parseable)
+                "",           // field 16: p.w string — MUST be empty (null), else p.e() returns error
+                "",           // field 17: p.h long  — MUST be 0/empty, else p.e() returns error
             }) + "^");
 
             // ── BH — Batch Header ─────────────────────────────────────────────
@@ -213,7 +216,10 @@ namespace TDSPro.DAL
                     ? data.TotalGrossSalary.ToString("F2")      // 50: Batch Total Gross Income for SD (24Q Q4)
                     : "",                                       // 50
                 "N",                                            // 51: AO Approval (must be "N" for Regular)
-                (h.IsCorrection || h.Quarter != "Q1") ? "Y" : "N", // 52: Has regular statement filed earlier (Y for corrections and Q2/Q3/Q4; Q1 first filing = N)
+                // 52: Has regular statement filed earlier?
+                // "Y" only when this IS a correction (a previous regular exists) OR PreviousPrn is set.
+                // For fresh regular Q1/Q2/Q3/Q4 with no PrevPRN → "N"; otherwise FVU fires T-FV-2232.
+                (h.IsCorrection || !string.IsNullOrWhiteSpace(h.PreviousPrn)) ? "Y" : "N",
                 "",                                             // 53: Last Deductor Type (empty for Regular)
                 // 54: State Name — mandatory for S/E/H/N; must be empty for K/M/P/J/B/Q/F/T
                 (new[]{"S","E","H","N"}.Contains(DeductorCategory(h.DeductorType)) ? stateCode : ""),

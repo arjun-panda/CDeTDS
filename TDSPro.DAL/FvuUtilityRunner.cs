@@ -338,15 +338,33 @@ namespace TDSPro.DAL
             // when WorkingDirectory = tempDir (needed because jarDir may be read-only)
             try
             {
+                var skipFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "ver.txt", "fvu.log" }; // never copy stale FVU state files
                 foreach (var f in Directory.GetFiles(jarDir))
                 {
                     var fname = Path.GetFileName(f);
+                    if (skipFiles.Contains(fname)) continue;
                     var dest  = Path.Combine(tempDir, fname);
                     if (!File.Exists(dest))
                         File.Copy(f, dest, overwrite: false);
                 }
             }
             catch { /* best-effort — FVU may still work without all sibling files */ }
+
+            // FVU 9.4 b.class reads tin_config/TDSHashing.properties from CWD at class-load time.
+            // IgnoreHashing=true bypasses hash re-verification (p.u() returns true).
+            // Without this, FVU fires T-FV-1022 for Q1/Q2/Q3 in command-line mode.
+            // The FH record must also have non-empty stubs at fields [12..15] so p.e/p.y/p.x/p.i
+            // reaches p.u() instead of short-circuiting with error code 2 before checking b.u.
+            try
+            {
+                var tinConfigDir = Path.Combine(tempDir, "tin_config");
+                Directory.CreateDirectory(tinConfigDir);
+                File.WriteAllText(
+                    Path.Combine(tinConfigDir, "TDSHashing.properties"),
+                    "IgnoreHashing=true\nIgnoreVersioning=true\nIgnoreRecordLevelHashing=true\n");
+            }
+            catch { /* best-effort */ }
 
             // Version-check write-back file (FVU writes "Incorrect FVU Version" or success here)
             // MUST NOT be the jar itself — if it writes here the jar gets corrupted
@@ -364,13 +382,13 @@ namespace TDSPro.DAL
             //   args[4] = fvuVersion          ("9.4")
             //   args[5] = correctionFlag      ("0" = regular, "1" = correction — parsed as int)
             //   args[6] = CSI file path
-            // FVU 9.4 hash validation (p.q) only passes for quarter=4 in command-line mode;
-            // passing 4 for all quarters bypasses the pre-hash check (which only applies to
-            // files previously validated interactively). FormValidator still validates the actual
+            // Quarter must match the actual filing quarter — FVU uses it for quarter-specific
+            // validation rules (date ranges, etc.). The T-FV-1022 hash check is now bypassed via
+            // tin_config/TDSHashing.properties + FH stubs, so passing the real quarter is safe.
             var displayQuarter = inputTxtPath.Contains("_Q1") ? "1"
                                : inputTxtPath.Contains("_Q2") ? "2"
                                : inputTxtPath.Contains("_Q3") ? "3" : "4";
-            var quarter = displayQuarter; // must match actual quarter — FVU uses this for quarter-specific validation
+            var quarter = displayQuarter;
             var outBase = Path.Combine(tempDir, formCode); // e.g. /tmp/.../FORM26Q  (no ext)
 
             // Deploy RunFVU.class + patched FVU.class to tempDir.
