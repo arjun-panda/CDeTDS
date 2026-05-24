@@ -585,7 +585,7 @@
         new("Validate with FVU",    "Run NSDL FVU — validates PAN, challan totals, section codes."),
         new("Download CSI File",    $"From OLTAS → e-Pay Tax → Payment History. Save .csi file to: {TDSPro.DAL.FolderManager.CsiFolder}"),
         new("Upload to IT Portal",  "Login incometax.gov.in with TAN, upload validated .fvu file."),
-        new("Download TDS Cert",    "Download Form 16A / 16 from TRACES and issue to deductees."),
+        new("Download TDS Cert",    "Login TRACES → download Form 16 Part A (salary) or Form 16A (non-salary) → issue to deductees."),
     };
 
     protected override void OnInitialized()
