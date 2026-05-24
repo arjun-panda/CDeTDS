@@ -280,12 +280,12 @@ namespace TDSPro.BLL
                 annualNps += cur.NpsEmployer             * projectedMonths;
             }
 
-            // HRA exemption (monthly × 12 for simplicity, use current month data)
-            double annualBasic = (cur?.Basic ?? 0) * 12;
-            // Prefer employee-level HRA city type; fall back to declaration value
+            // HRA exemption — use saved monthly entry if available, else salary structure
+            double hraBasic = cur?.Basic > 0 ? cur.Basic : (emp.Salary?.Basic ?? 0);
+            double hraHra   = cur?.HRA   > 0 ? cur.HRA   : (emp.Salary?.Hra   ?? 0);
             var hraCityType = !string.IsNullOrEmpty(emp.HraCityType) ? emp.HraCityType : decl.HraCityType;
             // RentPaid in DB is annual; CalcHraExemptionPublic takes monthly → divide by 12
-            double hraExemption = PayrollService.CalcHraExemptionPublic(cur?.Basic ?? 0, cur?.HRA ?? 0, decl.RentPaid / 12, hraCityType) * 12;
+            double hraExemption = PayrollService.CalcHraExemptionPublic(hraBasic, hraHra, decl.RentPaid / 12, hraCityType) * 12;
 
             // Age category — needed for 80D self-limit (senior citizen gets ₹50K, others ₹25K)
             DateTime? dob = DateTime.TryParseExact(emp.DateOfBirth, "dd-MMM-yyyy",
@@ -324,6 +324,7 @@ namespace TDSPro.BLL
             // LTA u/s 10(5) is a Sec 10 exemption — deducted from gross separately, NOT inside chap6a
             double ltaExemption = decl.LtaExemption;
             // 80CCD(2) — FY-aware: 10% old regime all years; 14% new regime from FY 2024-25
+            double annualBasic  = hraBasic * 12;
             double nps80CCD2    = Math.Min(annualNps, annualBasic * TDSPro.Common.TaxRules.Get80CCD2Rate(fy, false));
             double nps80CCD2New = Math.Min(annualNps, annualBasic * TDSPro.Common.TaxRules.Get80CCD2Rate(fy, true));
 
