@@ -367,11 +367,10 @@ namespace TDSPro.DAL
             // FVU 9.4 hash validation (p.q) only passes for quarter=4 in command-line mode;
             // passing 4 for all quarters bypasses the pre-hash check (which only applies to
             // files previously validated interactively). FormValidator still validates the actual
-            // quarter from the BH record, so format errors are still caught.
-            var quarter = "4";
             var displayQuarter = inputTxtPath.Contains("_Q1") ? "1"
                                : inputTxtPath.Contains("_Q2") ? "2"
                                : inputTxtPath.Contains("_Q3") ? "3" : "4";
+            var quarter = displayQuarter; // must match actual quarter — FVU uses this for quarter-specific validation
             var outBase = Path.Combine(tempDir, formCode); // e.g. /tmp/.../FORM26Q  (no ext)
 
             // Deploy RunFVU.class + patched FVU.class to tempDir.
