@@ -229,6 +229,21 @@ namespace TDSPro.DAL
             }
         }
 
+        // ── Diagnostic file logger ────────────────────────────────────────────
+        private static string? _logFile;
+        private static void Log(string msg)
+        {
+            try
+            {
+                _logFile ??= Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "TDSPro", "fvu_debug.log");
+                Directory.CreateDirectory(Path.GetDirectoryName(_logFile)!);
+                File.AppendAllText(_logFile, $"{DateTime.Now:HH:mm:ss.fff}  {msg}\n");
+            }
+            catch { }
+        }
+
         // ── Run FVU utility asynchronously ────────────────────────────────────
         public async Task<FvuRunResult> RunFvuAsync(
             string inputTxtPath,
@@ -236,6 +251,8 @@ namespace TDSPro.DAL
             IProgress<string>? progress = null,
             CancellationToken ct = default)
         {
+            _logFile = null; // reset per run so each run gets its own header
+            Log($"=== RunFvuAsync START: {inputTxtPath}");
             var result = new FvuRunResult { InputFile = inputTxtPath };
             var cfg    = LoadConfig();
 
@@ -289,6 +306,8 @@ namespace TDSPro.DAL
 
             // ── Ensure output directory ───────────────────────────────────────
             Directory.CreateDirectory(outputDir);
+            Log($"outputDir={outputDir}  inputTxtPath={inputTxtPath}");
+            Log($"java={javaPath}  jar={cfg.FvuJarPath}");
 
             // ── NSDL FVU filename constraint ──────────────────────────────────
             // FVU requires: input filename ≤ 12 chars (incl .txt), no special chars, no path separators.
@@ -296,6 +315,7 @@ namespace TDSPro.DAL
             var jarDir  = Path.GetDirectoryName(cfg.FvuJarPath) ?? outputDir;
             var tempDir = Path.Combine(Path.GetTempPath(), "TDSProFVU_" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(tempDir);
+            Log($"tempDir={tempDir}  jarDir={jarDir}");
 
             // Short name: FORM26Q.txt / FORM24Q.txt (≤ 12 chars including extension)
             var formCode  = Path.GetFileNameWithoutExtension(inputTxtPath).Contains("24Q") ? "FORM24Q" : "FORM26Q";
@@ -369,6 +389,26 @@ namespace TDSPro.DAL
             // Version-check write-back file (FVU writes "Incorrect FVU Version" or success here)
             // MUST NOT be the jar itself — if it writes here the jar gets corrupted
             var versionFile = Path.Combine(tempDir, "ver.txt");
+            Log($"versionFile path={versionFile}");
+
+            // Delete stale ver.txt and fvu output from previous runs in outputDir so we never
+            // read a stale result if FVU succeeds silently (ver.txt not written on success).
+            var baseName = Path.GetFileNameWithoutExtension(inputTxtPath);
+            var verDest  = Path.Combine(outputDir, baseName + ".ver.txt");
+            try { if (File.Exists(verDest)) { File.Delete(verDest); Log($"Deleted stale verDest: {verDest}"); } } catch { }
+            // Also delete stale .fvu / extensionless output so we can detect fresh generation
+            try
+            {
+                foreach (var stale in Directory.GetFiles(outputDir)
+                    .Where(f => string.Equals(Path.GetFileNameWithoutExtension(f), baseName, StringComparison.OrdinalIgnoreCase)
+                             && (string.IsNullOrEmpty(Path.GetExtension(f)) || Path.GetExtension(f).Equals(".fvu", StringComparison.OrdinalIgnoreCase))
+                             && !f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
+                {
+                    File.Delete(stale);
+                    Log($"Deleted stale output: {Path.GetFileName(stale)}");
+                }
+            }
+            catch { }
 
             // Ensure NSDL version-check domain resolves (old domain onlineservices.tin.egov-nsdl.com is dead)
             progress?.Report("Checking NSDL server connectivity...");
@@ -390,6 +430,7 @@ namespace TDSPro.DAL
                                : inputTxtPath.Contains("_Q3") ? "3" : "4";
             var quarter = displayQuarter;
             var outBase = Path.Combine(tempDir, formCode); // e.g. /tmp/.../FORM26Q  (no ext)
+            Log($"quarter={quarter}  formCode={formCode}  outBase={outBase}");
 
             // Deploy RunFVU.class + patched FVU.class to tempDir.
             // The patch fixes FVU 9.4 bug: n.wc("") at bytecode offset 193 resets CSI path.
@@ -409,11 +450,13 @@ namespace TDSPro.DAL
                 // FVU checks that args[0] filename is ≤12 chars — pass short names only (WorkingDirectory=tempDir)
                 var fvuArgs = $"{shortName} ver.txt {formCode} {quarter} 9.4 0 {csiName}";
                 args = $"-cp {cp} RunFVU {fvuArgs}";
+                Log($"CMD: java {args}");
                 progress?.Report($"Running: java -cp [classpath] RunFVU {shortName} ver.txt {formCode} Q{displayQuarter} 9.4 0 {csiName}");
             }
             else
             {
                 args = $"-jar \"{cfg.FvuJarPath}\" {shortName} ver.txt {formCode} {quarter} 9.4 0 {csiName}";
+                Log($"CMD: java {args}");
                 progress?.Report($"Running: java -jar {Path.GetFileName(cfg.FvuJarPath)} {shortName} ver.txt {formCode} Q{displayQuarter} 9.4 0 {csiName}");
             }
 
@@ -460,6 +503,23 @@ namespace TDSPro.DAL
                 result.ExitCode    = proc.ExitCode;
                 result.StdOut      = stdOut.ToString();
                 result.StdErr      = stdErr.ToString();
+                Log($"FVU exited: code={proc.ExitCode}");
+                Log($"STDOUT:\n{result.StdOut}");
+                if (!string.IsNullOrEmpty(result.StdErr)) Log($"STDERR:\n{result.StdErr}");
+                // Dump tempDir contents immediately after FVU exits
+                try
+                {
+                    var files = Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories);
+                    Log($"tempDir files after exit ({files.Length}):");
+                    foreach (var f in files)
+                        Log($"  {f.Replace(tempDir, "")}  ({new FileInfo(f).Length}B  {File.GetLastWriteTime(f):HH:mm:ss})");
+                    // Dump ver.txt content
+                    if (File.Exists(versionFile))
+                        Log($"ver.txt content:\n{File.ReadAllText(versionFile)}");
+                    else
+                        Log("ver.txt NOT FOUND in tempDir");
+                }
+                catch (Exception ex2) { Log($"tempDir dump failed: {ex2.Message}"); }
                 progress?.Report($"[FVU exit code: {proc.ExitCode}]");
             }
             catch (Exception ex)
@@ -492,15 +552,20 @@ namespace TDSPro.DAL
             }
 
             // ── Read ver.txt BEFORE deleting tempDir ─────────────────────────
-            // Format: errorCount^NA^NA^NA^NA^ErrorCode^ErrorDescription
-            //   "0^NA^NA^NA^NA^NA^NA"  = success (0 errors)
-            //   "9^NA^NA^NA^NA^T-FV-xxxx^description" = errors
-            var baseName = Path.GetFileNameWithoutExtension(inputTxtPath);
-            var verDest  = Path.Combine(outputDir, baseName + ".ver.txt");
+            // FVU writes ver.txt only when there are validation errors.
+            // On success it writes the .fvu output file but NOT ver.txt.
+            // verDest was already deleted above before the run — absence = success.
+            Log($"verDest={verDest}  versionFile exists={File.Exists(versionFile)}");
             if (File.Exists(versionFile))
             {
+                var verRaw = File.ReadAllText(versionFile).Trim();
+                Log($"ver.txt content: {verRaw}");
                 File.Copy(versionFile, verDest, overwrite: true);
-                progress?.Report($"FVU result: {File.ReadAllText(versionFile).Trim()}");
+                progress?.Report($"FVU result: {verRaw}");
+            }
+            else
+            {
+                Log("WARNING: versionFile not found — ver.txt was not written by FVU");
             }
 
             // ── Copy FVU output from tempDir back to outputDir ────────────────
@@ -514,8 +579,8 @@ namespace TDSPro.DAL
                 {
                     var fname = Path.GetFileName(f);
                     var ext   = Path.GetExtension(f).ToLowerInvariant();
-                    if (inputFileNames.Contains(fname)) continue;
-                    if (!fvuOutputExts.Contains(ext))   continue;
+                    if (inputFileNames.Contains(fname)) { Log($"  SKIP (input): {fname}"); continue; }
+                    if (!fvuOutputExts.Contains(ext))   { Log($"  SKIP (ext={ext}): {fname}"); continue; }
                     // Preserve FVU's filename suffix (e.g. "FORM26Qerr.html" → "<base>err.html",
                     // "FORM26Q_PAN_Statistics.html" → "<base>_PAN_Statistics.html") so the err
                     // report doesn't collide with the Statistics report.
@@ -528,9 +593,10 @@ namespace TDSPro.DAL
                         : baseName + suffix + ext;
                     var dest = Path.Combine(outputDir, destName);
                     File.Copy(f, dest, overwrite: true);
+                    Log($"  COPY: {fname} → {destName}");
                 }
             }
-            catch { /* best-effort copy */ }
+            catch (Exception copyEx) { Log($"copy block exception: {copyEx.Message}"); }
             finally
             {
                 try { Directory.Delete(tempDir, recursive: true); } catch { }
@@ -540,9 +606,12 @@ namespace TDSPro.DAL
             //   LineNo^RecordType^FieldName^ChallanNo^DeducteeNo^ErrorCode^ErrorDescription
             // e.g.: 3^Regular^Bank-Branch Code/Form 24G receipt No. ^1^^T-FV-3149^Provide valid...
             int rawErrors = 0;
+            Log($"verDest exists={File.Exists(verDest)}");
             if (File.Exists(verDest))
             {
-                foreach (var verLine in File.ReadAllLines(verDest))
+                var verLines = File.ReadAllLines(verDest);
+                Log($"verDest lines ({verLines.Length}): {string.Join(" | ", verLines.Take(5))}");
+                foreach (var verLine in verLines)
                 {
                     var vl = verLine.Trim();
                     if (string.IsNullOrEmpty(vl)) continue;
@@ -555,6 +624,7 @@ namespace TDSPro.DAL
                         var seqNo    = !string.IsNullOrEmpty(vp[3].Trim()) ? vp[3].Trim() : vp[4].Trim();
                         var code     = vp[5].Trim();
                         var nsdlDesc = vp.Length > 6 ? vp[6].Trim() : "";
+                        Log($"  verLine parse: code={code} recType={recType} field={field} nsdlDesc={nsdlDesc}");
                         if (string.IsNullOrEmpty(code) || code == "NA") continue;
                         var friendly = GetFvuErrorDescription(code);
                         result.Errors.Add(new FvuError
@@ -567,10 +637,12 @@ namespace TDSPro.DAL
                             FieldName   = field,
                         });
                         rawErrors++;
+                        Log($"  ERROR added: {code}");
                         progress?.Report($"⚠ {code}: {nsdlDesc} (Line {lineNo})");
                     }
                 }
             }
+            Log($"rawErrors={rawErrors}");
 
             // .raw file is a summary/statistics file — first field is record count, NOT error count.
             // Do not use it to determine error status.
@@ -580,10 +652,12 @@ namespace TDSPro.DAL
             var extensionlessFiles = Directory.GetFiles(outputDir)
                 .Where(f => string.IsNullOrEmpty(Path.GetExtension(f)))
                 .ToArray();
+            Log($"fvuFiles={fvuFiles.Length}  extensionlessFiles={extensionlessFiles.Length}: [{string.Join(", ", extensionlessFiles.Select(Path.GetFileName))}]");
 
             var outputFile = fvuFiles.Concat(extensionlessFiles)
                                      .OrderByDescending(File.GetLastWriteTime)
                                      .FirstOrDefault();
+            Log($"outputFile={outputFile ?? "null"}  → success condition: outputFile!=null && rawErrors<=0 → {outputFile != null} && {rawErrors <= 0}");
 
             if (outputFile != null && rawErrors <= 0)
             {
@@ -658,6 +732,7 @@ namespace TDSPro.DAL
                 progress?.Report($"📋 Error report: {Path.GetFileName(errorReportPath)}");
             }
 
+            Log($"=== FINAL: Success={result.Success}  Errors={result.Errors.Count}  FvuFile={result.FvuFile ?? "null"}  ErrorMsg={result.ErrorMessage ?? ""}");
             Database.LogAction("system", "FVU_RUN", "Return",
                 $"Exit={result.ExitCode} Errors={result.Errors.Count} File={result.FvuFile}");
 
