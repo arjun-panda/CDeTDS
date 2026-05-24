@@ -21,6 +21,21 @@ namespace TDSPro.DAL
         {
             _dbPath = Path.Combine(appDataPath, AppConstants.DbFileName);
             CreateTables();
+            // Fast-path column additions — safe to run every startup (no-op if column exists)
+            try
+            {
+                using var c0 = new SqliteConnection($"Data Source={_dbPath}");
+                c0.Open();
+                using var chk = c0.CreateCommand();
+                chk.CommandText = "SELECT COUNT(*) FROM pragma_table_info('landlord_records') WHERE name='city_type'";
+                if (Convert.ToInt32(chk.ExecuteScalar()) == 0)
+                {
+                    using var alt = c0.CreateCommand();
+                    alt.CommandText = "ALTER TABLE landlord_records ADD COLUMN city_type TEXT DEFAULT 'Non-Metro'";
+                    alt.ExecuteNonQuery();
+                }
+            }
+            catch { }
             SeedTdsRules2026();
             SeedFvuConfig();
             SeedDefaultAdmin();
