@@ -450,7 +450,16 @@ namespace TDSPro.DAL.Repositories
                          tds_amount,surcharge,cess,interest,late_fee,total_amount,
                          bank_name,ack_no,quarter,financial_year,status,remarks,minor_head_code)
                         VALUES(@cn,@cd,@di,@bs,@s,@am,@ta,@su,@ce,@in,@lf,@to,
-                               @bn,@an,@qt,@fy,@st,@rm,@mh)";
+                               @bn,@an,@qt,@fy,@st,@rm,@mh)
+                        ON CONFLICT(bsr_code,challan_no,challan_date,deductor_id) DO UPDATE SET
+                            section=excluded.section, amount=excluded.amount,
+                            tds_amount=excluded.tds_amount, surcharge=excluded.surcharge,
+                            cess=excluded.cess, interest=excluded.interest,
+                            late_fee=excluded.late_fee, total_amount=excluded.total_amount,
+                            bank_name=excluded.bank_name, ack_no=excluded.ack_no,
+                            quarter=excluded.quarter, financial_year=excluded.financial_year,
+                            status=excluded.status, remarks=excluded.remarks,
+                            minor_head_code=excluded.minor_head_code";
                 }
                 else
                 {
