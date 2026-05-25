@@ -91,12 +91,12 @@ namespace TDSPro.DAL
 body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 .page{{width:297mm;min-height:210mm;margin:8mm auto;background:#fff;padding:12mm;box-shadow:0 0 8px rgba(0,0,0,.2)}}
 /* ── Header ── */
-.slip-header{{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1e3a8a;padding-bottom:10px;margin-bottom:12px}}
-.co-name{{font-size:17px;font-weight:700;color:#1e3a8a;margin-bottom:2px}}
-.co-sub{{font-size:10px;color:#555}}
-.slip-title{{text-align:right}}
-.slip-title h2{{font-size:15px;font-weight:600;color:#1e3a8a;background:#dbeafe;padding:4px 12px;border-radius:4px}}
-.slip-title p{{font-size:10px;color:#666;margin-top:4px}}
+.slip-header{{text-align:center;border-bottom:3px solid #1e3a8a;padding-bottom:10px;margin-bottom:12px}}
+.co-name{{font-size:18px;font-weight:700;color:#1e3a8a;letter-spacing:.3px;margin-bottom:3px}}
+.co-addr{{font-size:9.5px;color:#555;margin-bottom:2px}}
+.co-ids{{font-size:9.5px;color:#374151;font-weight:600;margin-bottom:8px}}
+.slip-title-box{{display:inline-block;background:#1e3a8a;color:#fff;padding:4px 28px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:1.5px;margin-bottom:4px}}
+.slip-period{{font-size:10px;color:#6b7280}}
 /* ── Employee info ── */
 .emp-grid{{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:10px}}
 .emp-row{{display:flex;gap:4px}}
@@ -150,14 +150,11 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 
 <!-- HEADER -->
 <div class='slip-header'>
-  <div>
-    <div class='co-name'>{Esc(deductor.CompanyName)}</div>
-    <div class='co-sub'>TAN: {Esc(deductor.Tan)} &nbsp;|&nbsp; {Esc(deductor.Address ?? "")}</div>
-  </div>
-  <div class='slip-title'>
-    <h2>SALARY SLIP</h2>
-    <p>{monthLabel}</p>
-  </div>
+  <div class='co-name'>{Esc(deductor.CompanyName)}</div>
+  {(string.IsNullOrWhiteSpace(deductor.Address) ? "" : $"<div class='co-addr'>{Esc(deductor.Address)}{(string.IsNullOrWhiteSpace(deductor.City) ? "" : ", " + Esc(deductor.City))}{(string.IsNullOrWhiteSpace(deductor.State) ? "" : ", " + Esc(deductor.State))}{(string.IsNullOrWhiteSpace(deductor.Pincode) ? "" : " — " + Esc(deductor.Pincode))}</div>")}
+  <div class='co-ids'>{(string.IsNullOrWhiteSpace(deductor.Pan) ? "" : $"PAN: {Esc(deductor.Pan)}")} {((!string.IsNullOrWhiteSpace(deductor.Pan) && !string.IsNullOrWhiteSpace(deductor.Tan)) ? "&nbsp;|&nbsp;" : "")} {(string.IsNullOrWhiteSpace(deductor.Tan) ? "" : $"TAN: {Esc(deductor.Tan)}")}</div>
+  <div class='slip-title-box'>SALARY SLIP</div>
+  <div class='slip-period'>Pay Period: {monthLabel}</div>
 </div>
 
 <!-- EMPLOYEE INFO -->
@@ -317,22 +314,25 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             string netInWords = TDSPro.Common.AmountInWords.Rupees(netPay);
             bool draft       = !entry.IsLocked;
 
+            // Build centered header lines
+            var idParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(deductor.Pan)) idParts.Add($"PAN: {deductor.Pan}");
+            if (!string.IsNullOrWhiteSpace(deductor.Tan)) idParts.Add($"TAN: {deductor.Tan}");
+            string idLine = string.Join("  |  ", idParts);
+            string coLine = deductor.CompanyName
+                + (string.IsNullOrEmpty(dedAddress) ? "" : "\n" + dedAddress)
+                + (string.IsNullOrEmpty(idLine)     ? "" : "\n" + idLine);
+
             byte[] pdf = PdfReports.BuildA4(
-                title:    $"Salary Slip — {monthLabel}  |  Pay Period: {periodStart} to {periodEnd}",
-                subtitle: deductor.CompanyName + (string.IsNullOrEmpty(dedAddress) ? "" : "  ·  " + dedAddress),
-                body:     c => c.Column(col =>
+                title:        "SALARY SLIP",
+                subtitle:     coLine,
+                centerHeader: true,
+                body:         c => c.Column(col =>
                 {
-                    // Employer identity strip (TAN / PAN)
-                    if (!string.IsNullOrEmpty(deductor.Tan) || !string.IsNullOrEmpty(deductor.Pan))
-                    {
-                        col.Item().PaddingBottom(6).Row(r =>
-                        {
-                            if (!string.IsNullOrEmpty(deductor.Tan))
-                                r.RelativeItem().Text(t => { t.Span("Employer TAN: ").FontColor(PdfReports.MutedColor).FontSize(9); t.Span(deductor.Tan).FontSize(9).Bold(); });
-                            if (!string.IsNullOrEmpty(deductor.Pan))
-                                r.RelativeItem().Text(t => { t.Span("Employer PAN: ").FontColor(PdfReports.MutedColor).FontSize(9); t.Span(deductor.Pan).FontSize(9).Bold(); });
-                        });
-                    }
+                    // Pay period strip
+                    col.Item().PaddingBottom(6).AlignCenter()
+                        .Text($"Pay Period: {monthLabel}  ({periodStart} to {periodEnd})")
+                        .FontSize(9).FontColor(PdfReports.MutedColor);
 
                     // Employee header block
                     col.Item().PaddingBottom(10).Table(t =>

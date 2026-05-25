@@ -33,7 +33,7 @@ namespace TDSPro.DAL
         /// A4 portrait page with consistent margins, app footer, page number.
         /// Pass a delegate to render the body — the delegate gets a Container scoped to the page content area.
         /// </summary>
-        public static byte[] BuildA4(string title, Action<IContainer> body, string? subtitle = null)
+        public static byte[] BuildA4(string title, Action<IContainer> body, string? subtitle = null, bool centerHeader = false)
         {
             Initialize();
             return Document.Create(doc =>
@@ -45,7 +45,7 @@ namespace TDSPro.DAL
                     page.DefaultTextStyle(t => t.FontSize(10).FontFamily("Arial"));
 
                     // Title bar
-                    page.Header().Element(c => RenderTitle(c, title, subtitle));
+                    page.Header().Element(c => RenderTitle(c, title, subtitle, centerHeader));
 
                     // Body — caller fills
                     page.Content().PaddingVertical(8).Element(body);
@@ -56,13 +56,22 @@ namespace TDSPro.DAL
             }).GeneratePdf();
         }
 
-        private static void RenderTitle(IContainer c, string title, string? subtitle)
+        private static void RenderTitle(IContainer c, string title, string? subtitle, bool centered = false)
         {
             c.Column(col =>
             {
-                col.Item().Text(title).FontSize(16).Bold().FontColor(PrimaryColor);
-                if (!string.IsNullOrEmpty(subtitle))
-                    col.Item().Text(subtitle).FontSize(10).FontColor(MutedColor);
+                if (centered)
+                {
+                    col.Item().AlignCenter().Text(title).FontSize(16).Bold().FontColor(PrimaryColor);
+                    if (!string.IsNullOrEmpty(subtitle))
+                        col.Item().AlignCenter().Text(subtitle).FontSize(10).FontColor(MutedColor);
+                }
+                else
+                {
+                    col.Item().Text(title).FontSize(16).Bold().FontColor(PrimaryColor);
+                    if (!string.IsNullOrEmpty(subtitle))
+                        col.Item().Text(subtitle).FontSize(10).FontColor(MutedColor);
+                }
                 col.Item().PaddingTop(4).BorderBottom(1).BorderColor(PrimaryColor);
             });
         }
