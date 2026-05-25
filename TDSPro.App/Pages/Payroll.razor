@@ -3898,7 +3898,9 @@
             var ded    = DeductorSvc.GetAll().FirstOrDefault(d => d.Id == AppState.CurrentDeductorId) ?? new Deductor();
             var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
             Directory.CreateDirectory(folder);
-            var sdYearSum = _yearSummaries.FirstOrDefault(s => s.EmployeeId == _sdEmpId);
+            var sdYearSum = _yearSummaries.FirstOrDefault(s => s.EmployeeId == _sdEmpId)
+                ?? PayrollSvc.GetYearSummary(AppState.CurrentFY, AppState.CurrentDeductorId)
+                              .FirstOrDefault(s => s.EmployeeId == _sdEmpId);
             var path = html
                 ? SalarySlipExport.GenerateAnnualHtml(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum)
                 : SalarySlipExport.GenerateAnnualExcel(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum);
