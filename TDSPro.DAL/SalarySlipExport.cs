@@ -701,26 +701,27 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             var o = annual.OldRegime;
             var n = annual.NewRegime;
             bool chosenOld = annual.ChosenRegime == "Old";
-            var chosen       = chosenOld ? o : n;
+            var chosen = chosenOld ? o : n;
+            var ss = emp.Salary ?? new SalaryStructure();
 
-            var rows = new (string Label, double OldVal, double NewVal, bool IsSep, bool IsTot)[]
-            {
-                ("Gross Salary (incl Perqs)",     o.GrossSalary,       n.GrossSalary,       false, false),
-                ("Standard Deduction",            o.StandardDeduction, n.StandardDeduction, false, false),
-                ("HRA Exemption",                 o.HraExemption,      n.HraExemption,      false, false),
-                ("Professional Tax",              o.ProfTaxDeduction,  n.ProfTaxDeduction,  false, false),
-                ("Chapter VI-A Deductions",       o.Chapter6A,         n.Chapter6A,         false, false),
-                ("NPS Employer 80CCD(2)",         o.NpsEmployer80CCD2, n.NpsEmployer80CCD2, false, false),
-                ("Income from Other Sources",     o.IncomeOtherSources,n.IncomeOtherSources,false, false),
-                ("", 0, 0, true, false),
-                ("Taxable Income",                o.TotalIncome,       n.TotalIncome,       false, false),
-                ("Tax on Income",                 o.TaxOnIncome,       n.TaxOnIncome,       false, false),
-                ("87A Rebate",                    o.Rebate87A,         n.Rebate87A,         false, false),
-                ("Tax After Rebate",              o.TaxAfterRebate,    n.TaxAfterRebate,    false, false),
-                ("Surcharge",                     o.Surcharge,         n.Surcharge,         false, false),
-                ("Cess (4%)",                     o.Cess,              n.Cess,              false, false),
-                ("TOTAL TAX",                     o.TotalTax,          n.TotalTax,          false, true),
-            };
+            // ── helper: two-column amount cells ──────────────────────────────
+            string TwoCol(double ov, double nv, bool bold = false, bool chosen2 = false) {
+                string b = bold ? ";font-weight:700" : "";
+                string co = chosen2 ? " chosen" : "";
+                return $"<td class='num{(chosenOld?co:"")}{(bold?" b":"")}'style='color:#374151{b}'>{R(ov)}</td>" +
+                       $"<td class='num{(!chosenOld?co:"")}{(bold?" b":"")}'style='color:#374151{b}'>{R(nv)}</td>";
+            }
+            string BandRow(string label, string icon = "") =>
+                $"<tr class='band'><td colspan='3'>{icon} {Esc(label)}</td></tr>";
+            string DataRow(string label, double ov, double nv, bool indent = false, bool total = false, bool subtotal = false, string note = "") {
+                string cls = total ? " class='tot'" : subtotal ? " class='sub'" : "";
+                string pad = indent ? "style='padding-left:26px;color:#6b7280'" : "";
+                string nb = note.Length > 0 ? $" <small style='color:#94a3b8;font-size:8.5px'>[{Esc(note)}]</small>" : "";
+                return $"<tr{cls}><td {pad}>{Esc(label)}{nb}</td>{TwoCol(ov, nv, total || subtotal, total)}</tr>";
+            }
+            string SepRow() => "<tr class='sep'><td colspan='3'></td></tr>";
+            // render a value with sign (negative shown in red with parens)
+            string Signed(double v) => v == 0 ? "—" : v < 0 ? $"<span style='color:#dc2626'>(₹{Math.Abs(v):N0})</span>" : $"₹{v:N0}";
 
             var sb = new System.Text.StringBuilder();
             sb.Append($@"<!DOCTYPE html>
@@ -728,113 +729,164 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 <title>Annual Tax Computation — {Esc(emp.Name)} — {Esc(fy)}</title>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-.page{{width:180mm;margin:10mm auto;background:#fff;padding:12mm;box-shadow:0 0 8px rgba(0,0,0,.2)}}
-.hdr{{border-bottom:3px solid #1e3a8a;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end}}
+body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust:exact;-webkit-print-color-adjust:exact;font-size:10.5px}}
+.page{{width:190mm;margin:10mm auto;background:#fff;padding:12mm;box-shadow:0 0 8px rgba(0,0,0,.2)}}
+.hdr{{border-bottom:3px solid #1e3a8a;padding-bottom:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-end}}
 .co{{font-size:13px;font-weight:700;color:#1e3a8a}}
-.emp-box{{background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:9px 12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:10px}}
-.emp-row{{display:flex;gap:4px}}.lbl{{color:#6b7280;width:120px;flex-shrink:0}}.val{{font-weight:600;color:#111}}
-table{{width:100%;border-collapse:collapse;font-size:10.5px}}
-.col-hdr{{background:#1e3a8a;color:#fff;padding:6px 12px;font-weight:600;font-size:9px;text-align:center}}
+.emp-box{{background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:8px 12px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;gap:3px 20px;font-size:9.5px}}
+.emp-row{{display:flex;gap:4px}}.lbl{{color:#6b7280;width:115px;flex-shrink:0}}.val{{font-weight:600;color:#111}}
+table{{width:100%;border-collapse:collapse}}
+.col-hdr{{background:#1e3a8a;color:#fff;padding:6px 10px;font-weight:600;font-size:9px;text-align:center}}
 .col-hdr.title{{text-align:left;font-size:11px}}
-th{{background:#dbeafe;color:#1e3a8a;padding:5px 12px;font-size:9.5px}}
-th.right{{text-align:right}}
-td{{padding:5px 12px;border-bottom:1px solid #f0f2f5;color:#374151;vertical-align:middle}}
-td.num{{text-align:right;font-variant-numeric:tabular-nums}}
-tr:nth-child(even) td{{background:#f8fafc}}
-tr.sep td{{padding:2px 0;border:none;background:#e2e8f0;height:1px}}
-tr.tot td{{background:#dbeafe!important;font-weight:700;color:#1e3a8a;font-size:11.5px;border-top:2px solid #1e3a8a}}
+td{{padding:4px 10px;border-bottom:1px solid #f0f2f5;color:#374151;vertical-align:middle}}
+td.num{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}}
+td.b{{font-weight:700}}
+tr:nth-child(even) td{{background:#f9fafb}}
+tr.sep td{{padding:1px 0;border:none;background:#e2e8f0;height:1px}}
+tr.band td{{background:#1e3a8a;color:#fff;font-weight:700;font-size:9.5px;padding:5px 10px;letter-spacing:.2px}}
+tr.sub td{{background:#dbeafe;font-weight:700;color:#1e3a8a;border-top:1px solid #bfdbfe}}
+tr.tot td{{background:#1e3a8a!important;font-weight:700;color:#fff;font-size:11px;border-top:2px solid #1e4080}}
+tr.tot td.num{{color:#fff}}
 tr.chosen td.num{{font-weight:700}}
-.badge{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;margin-left:6px}}
+.badge{{display:inline-block;padding:2px 7px;border-radius:10px;font-size:8.5px;font-weight:600;margin-left:5px}}
 .old-badge{{background:#fef3c7;color:#92400e}}.new-badge{{background:#d1fae5;color:#065f46}}
-.tds-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #d1fae5;border-radius:5px;overflow:hidden;margin-top:12px;font-size:10px}}
-.tc{{text-align:center;padding:7px 4px;background:#f0fdf4}}
-.tc:nth-child(even){{background:#dcfce7}}
-.tc .tl{{color:#166534;font-size:8.5px;margin-bottom:2px}}.tc .tv{{font-weight:700;color:#14532d;font-variant-numeric:tabular-nums}}
-.footer{{font-size:8.5px;color:#9ca3af;text-align:center;margin-top:14px;border-top:1px solid #e2e8f0;padding-top:8px}}
-@media print{{body{{background:#fff}}.page{{box-shadow:none;margin:0;padding:10mm;width:100%}}}}
+.tds-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #bfdbfe;border-radius:5px;overflow:hidden;margin-top:10px;font-size:10px}}
+.tc{{text-align:center;padding:7px 4px;background:#eff6ff}}
+.tc:nth-child(odd){{background:#dbeafe}}
+.tc .tl{{color:#1e40af;font-size:8px;margin-bottom:2px}}.tc .tv{{font-weight:700;color:#1e3a8a;font-variant-numeric:tabular-nums}}
+.footer{{font-size:8px;color:#9ca3af;text-align:center;margin-top:12px;border-top:1px solid #e2e8f0;padding-top:6px}}
+@media print{{body{{background:#fff}}.page{{box-shadow:none;margin:0;padding:8mm;width:100%}}}}
 </style></head><body><div class='page'>
 
-<div style='text-align:center;background:#1e3a8a;color:#fff;padding:10px 12px;border-radius:4px 4px 0 0;margin-bottom:0'>
+<div style='text-align:center;background:#1e3a8a;color:#fff;padding:9px 12px;border-radius:4px 4px 0 0;margin-bottom:0'>
   <div style='font-size:14px;font-weight:700;letter-spacing:.3px'>{Esc(deductor?.CompanyName ?? "")}</div>
-  {(string.IsNullOrEmpty(deductor?.Tan) ? "" : $"<div style='font-size:9px;opacity:.85;margin-top:2px'>TAN: {Esc(deductor.Tan)}</div>")}
+  {(string.IsNullOrEmpty(deductor?.Tan) ? "" : $"<div style='font-size:9px;opacity:.8;margin-top:2px'>TAN: {Esc(deductor.Tan)}</div>")}
 </div>
-<div class='hdr' style='border-radius:0;margin-top:0;padding-top:8px'>
+<div class='hdr' style='margin-top:0;padding-top:8px'>
   <div>
     <div class='co'>Annual Tax Computation — FY {Esc(fy)}</div>
-    <div style='font-size:9px;color:#6b7280;margin-top:2px'>Generated by TDS Pro v3.0 &nbsp;|&nbsp; {TDSPro.Common.TaxRules.ActName(fy)}</div>
+    <div style='font-size:8.5px;color:#6b7280;margin-top:2px'>TDS Pro v3.0 &nbsp;|&nbsp; {TDSPro.Common.TaxRules.ActName(fy)}</div>
   </div>
-  <div style='text-align:right;font-size:9px;color:#6b7280'>{DateTime.Now:dd-MMM-yyyy HH:mm}</div>
+  <div style='text-align:right;font-size:8.5px;color:#6b7280'>{DateTime.Now:dd-MMM-yyyy HH:mm}</div>
 </div>
 
 <div class='emp-box'>
   <div class='emp-row'><span class='lbl'>Employee</span><span class='val'>{Esc(emp.Name)}</span></div>
   <div class='emp-row'><span class='lbl'>PAN</span><span class='val'>{Esc(emp.Pan)}</span></div>
-  <div class='emp-row'><span class='lbl'>Code</span><span class='val'>{Esc(emp.EmployeeCode)}</span></div>
+  <div class='emp-row'><span class='lbl'>Employee Code</span><span class='val'>{Esc(emp.EmployeeCode)}</span></div>
+  <div class='emp-row'><span class='lbl'>Designation</span><span class='val'>{Esc(emp.Designation)}</span></div>
   <div class='emp-row'><span class='lbl'>Chosen Regime</span>
     <span class='val'>{Esc(annual.ChosenRegime)} Regime
       <span class='badge {(annual.ChosenRegime=="New"?"new":"old")}-badge'>Chosen ✓</span>
     </span>
   </div>
-  <div class='emp-row'><span class='lbl'>Designation</span><span class='val'>{Esc(emp.Designation)}</span></div>
-  <div class='emp-row'><span class='lbl'>Annual Tax</span><span class='val'>₹{chosen.TotalTax:N0}</span></div>
+  <div class='emp-row'><span class='lbl'>Annual Tax (chosen)</span><span class='val'>₹{chosen.TotalTax:N0}</span></div>
 </div>
 
 <table>
-  <thead>
-    <tr>
-      <td class='col-hdr title' style='width:52%'>Component</td>
-      <td class='col-hdr' style='width:24%'>Old Regime<span class='badge old-badge{(annual.ChosenRegime=="Old"?" chosen":"")}'>{(annual.ChosenRegime=="Old"?"✓ Chosen":"")}</span></td>
-      <td class='col-hdr' style='width:24%'>New Regime<span class='badge new-badge{(annual.ChosenRegime=="New"?" chosen":"")}'>{(annual.ChosenRegime=="New"?"✓ Chosen":"")}</span></td>
-    </tr>
-  </thead>
-  <tbody>");
+<thead><tr>
+  <td class='col-hdr title' style='width:54%'>Particulars</td>
+  <td class='col-hdr' style='width:23%'>Old Regime<span class='badge old-badge{(chosenOld?" chosen":"")}'>{(chosenOld?"✓ Chosen":"")}</span></td>
+  <td class='col-hdr' style='width:23%'>New Regime<span class='badge new-badge{(!chosenOld?" chosen":"")}'>{(!chosenOld?"✓ Chosen":"")}</span></td>
+</tr></thead>
+<tbody>");
 
-            bool chosenOldBool = annual.ChosenRegime == "Old";
-            var alwaysShow = new HashSet<string> {
-                "Gross Salary (incl Perqs)", "Standard Deduction",
-                "Taxable Income", "Tax on Income", "Tax After Rebate", "TOTAL TAX"
-            };
-            // Strip trailing separator rows before any always-show rows to avoid orphan dividers
-            var filteredRows = rows
-                .Where((r, i) => r.IsSep || r.IsTot || alwaysShow.Contains(r.Label) || r.OldVal != 0 || r.NewVal != 0)
-                .ToArray();
-            // Remove consecutive/leading/trailing separators
-            var cleanRows = new List<(string Label, double OldVal, double NewVal, bool IsSep, bool IsTot)>();
-            bool lastWasSep = true;
-            foreach (var row in filteredRows)
-            {
-                if (row.IsSep) { if (!lastWasSep) cleanRows.Add(row); lastWasSep = true; }
-                else { cleanRows.Add(row); lastWasSep = false; }
-            }
-            while (cleanRows.Count > 0 && cleanRows[^1].IsSep) cleanRows.RemoveAt(cleanRows.Count - 1);
+            // ── A. GROSS SALARY ───────────────────────────────────────────────
+            sb.Append(BandRow("A. Gross Salary"));
+            // Fixed components
+            if (ss.Basic > 0)            sb.Append(DataRow("Basic Salary",          ss.Basic*12,           ss.Basic*12,           indent:true));
+            if (ss.Hra > 0)              sb.Append(DataRow("House Rent Allowance",   ss.Hra*12,             ss.Hra*12,             indent:true));
+            if (ss.Da > 0)               sb.Append(DataRow("Dearness Allowance",     ss.Da*12,              ss.Da*12,              indent:true));
+            if (ss.SpecialAllowance > 0) sb.Append(DataRow("Special Allowance",      ss.SpecialAllowance*12,ss.SpecialAllowance*12,indent:true));
+            if (ss.MedicalAllowance > 0) sb.Append(DataRow("Medical Allowance",      ss.MedicalAllowance*12,ss.MedicalAllowance*12,indent:true));
+            if (ss.Lta > 0)              sb.Append(DataRow("Leave Travel Allowance", ss.Lta*12,             ss.Lta*12,             indent:true));
+            // Named components
+            foreach (var c in ss.Components.Where(c => c.Received > 0))
+                sb.Append(DataRow(c.Name, c.Received*12, c.Received*12, indent:true, note:c.RuleRef));
+            // Variable pay
+            if (ss.AnnualBonus > 0)     sb.Append(DataRow("Performance Bonus",   ss.AnnualBonus,   ss.AnnualBonus,   indent:true));
+            if (ss.AnnualIncentive > 0) sb.Append(DataRow("Sales / Incentive",   ss.AnnualIncentive,ss.AnnualIncentive,indent:true));
+            sb.Append(DataRow("Gross Salary (A)", o.GrossSalary, n.GrossSalary, subtotal:true));
 
-            foreach (var row in cleanRows)
+            // ── B. EXEMPTIONS (Sec 10) ────────────────────────────────────────
+            bool hasExemptions = o.HraExemption > 0 || n.HraExemption > 0
+                || o.Sec10Items.Any(x => x.OldRegime > 0 || x.NewRegime > 0);
+            if (hasExemptions)
             {
-                if (row.IsSep)
-                {
-                    sb.Append("<tr class='sep'><td colspan='3'></td></tr>");
-                    continue;
-                }
-                string cls = row.IsTot ? " class='tot'" : "";
-                sb.Append($"<tr{cls}>" +
-                    $"<td>{Esc(row.Label)}</td>" +
-                    $"<td class='num{(row.IsTot&&chosenOldBool?" chosen":"")}'>{R(row.OldVal)}</td>" +
-                    $"<td class='num{(row.IsTot&&!chosenOldBool?" chosen":"")}'>{R(row.NewVal)}</td>" +
-                    $"</tr>");
+                sb.Append(SepRow());
+                sb.Append(BandRow("B. Less: Exemptions u/s 10"));
+                if (o.HraExemption > 0 || n.HraExemption > 0)
+                    sb.Append(DataRow("HRA Exemption", o.HraExemption, n.HraExemption, indent:true, note:"Sec 10(13A)"));
+                foreach (var item in o.Sec10Items.Where(x => x.Name != "HRA"))
+                    sb.Append(DataRow(item.Name, item.OldRegime, item.NewRegime, indent:true, note:item.RuleRef));
+                double totalExOld = o.HraExemption + o.Sec10Items.Where(x=>x.Name!="HRA").Sum(x=>x.OldRegime);
+                double totalExNew = n.HraExemption + o.Sec10Items.Where(x=>x.Name!="HRA").Sum(x=>x.NewRegime);
+                sb.Append(DataRow("Total Exemptions (B)", totalExOld, totalExNew, subtotal:true));
             }
 
-            sb.Append($@"  </tbody>
-</table>
+            // ── C. NET TAXABLE SALARY ─────────────────────────────────────────
+            sb.Append(SepRow());
+            sb.Append(BandRow("C. Net Taxable Salary (A − B)"));
+            double netOld = o.GrossSalary - (o.HraExemption + o.Sec10Items.Where(x=>x.Name!="HRA").Sum(x=>x.OldRegime));
+            double netNew = n.GrossSalary - (n.HraExemption + o.Sec10Items.Where(x=>x.Name!="HRA").Sum(x=>x.NewRegime));
+            sb.Append(DataRow("Net Taxable Salary (C)", netOld, netNew, subtotal:true));
 
-<div class='tds-grid'>
-  <div class='tc'><div class='tl'>Annual Tax (chosen)</div><div class='tv'>₹{chosen.TotalTax:N0}</div></div>
-  <div class='tc'><div class='tl'>YTD TDS Deducted</div><div class='tv'>₹{annual.YtdTdsDeducted:N0}</div></div>
-  <div class='tc'><div class='tl'>Balance Tax</div><div class='tv'>₹{Math.Abs(annual.BalanceTax):N0}{(annual.BalanceTax<0?" (excess)":"")}</div></div>
-  <div class='tc'><div class='tl'>Monthly TDS</div><div class='tv'>₹{annual.ThisMonthTds:N0}</div></div>
+            // ── D. DEDUCTIONS ─────────────────────────────────────────────────
+            sb.Append(SepRow());
+            sb.Append(BandRow("D. Less: Deductions"));
+            sb.Append(DataRow("Standard Deduction", o.StandardDeduction, n.StandardDeduction, indent:true, note:"u/s 16(ia)"));
+            if (o.ProfTaxDeduction > 0 || n.ProfTaxDeduction > 0)
+                sb.Append(DataRow("Professional Tax", o.ProfTaxDeduction, n.ProfTaxDeduction, indent:true, note:"u/s 16(iii)"));
+            // Chapter VI-A (old regime only — new shows zero)
+            bool hasChap6A = o.Chapter6A > 0;
+            if (hasChap6A)
+            {
+                sb.Append(DataRow("Chapter VI-A Deductions", o.Chapter6A, 0, indent:true, note:"80C/80D/80G etc."));
+            }
+            if (o.NpsEmployer80CCD2 > 0 || n.NpsEmployer80CCD2 > 0)
+                sb.Append(DataRow("NPS Employer 80CCD(2)", o.NpsEmployer80CCD2, n.NpsEmployer80CCD2, indent:true));
+            double totalDedOld = o.StandardDeduction + o.ProfTaxDeduction + o.Chapter6A + o.NpsEmployer80CCD2;
+            double totalDedNew = n.StandardDeduction + n.ProfTaxDeduction + n.Chapter6A + n.NpsEmployer80CCD2;
+            sb.Append(DataRow("Total Deductions (D)", totalDedOld, totalDedNew, subtotal:true));
+
+            // ── E. OTHER SOURCES ──────────────────────────────────────────────
+            if (o.IncomeOtherSources > 0 || n.IncomeOtherSources > 0)
+            {
+                sb.Append(SepRow());
+                sb.Append(BandRow("E. Add: Income from Other Sources"));
+                sb.Append(DataRow("Interest / Other Income", o.IncomeOtherSources, n.IncomeOtherSources, indent:true));
+            }
+
+            // ── F. NET TAXABLE INCOME ─────────────────────────────────────────
+            sb.Append(SepRow());
+            sb.Append($"<tr class='sub'><td><strong>Net Taxable Income (C − D + E)</strong></td>{TwoCol(o.TotalIncome, n.TotalIncome, bold:true, chosen2:true)}</tr>");
+
+            // ── G. TAX COMPUTATION ────────────────────────────────────────────
+            sb.Append(SepRow());
+            sb.Append(BandRow("F. Tax Computation"));
+            sb.Append(DataRow("Tax on Income (Slab)", o.TaxOnIncome, n.TaxOnIncome, indent:true));
+            if (o.Rebate87A > 0 || n.Rebate87A > 0)
+                sb.Append(DataRow("Less: Rebate u/s 87A", o.Rebate87A, n.Rebate87A, indent:true));
+            sb.Append(DataRow("Tax After Rebate", o.TaxAfterRebate, n.TaxAfterRebate, indent:true));
+            if (o.Surcharge > 0 || n.Surcharge > 0)
+                sb.Append(DataRow("Add: Surcharge", o.Surcharge, n.Surcharge, indent:true));
+            if (o.Cess > 0 || n.Cess > 0)
+                sb.Append(DataRow("Add: Health & Education Cess (4%)", o.Cess, n.Cess, indent:true));
+            sb.Append($"<tr class='tot'><td>TOTAL TAX PAYABLE</td>{TwoCol(o.TotalTax, n.TotalTax, bold:true, chosen2:true)}</tr>");
+
+            sb.Append("</tbody></table>");
+
+            // ── G. TDS SUMMARY ────────────────────────────────────────────────
+            double balance = annual.BalanceTax;
+            sb.Append($@"
+<div class='tds-grid' style='margin-top:10px'>
+  <div class='tc'><div class='tl'>Tax Payable (Chosen)</div><div class='tv'>₹{chosen.TotalTax:N0}</div></div>
+  <div class='tc'><div class='tl'>TDS Paid (YTD)</div><div class='tv'>₹{annual.YtdTdsDeducted:N0}</div></div>
+  <div class='tc'><div class='tl'>Balance Tax</div><div class='tv' style='color:{(balance<0?"#166534":balance>0?"#dc2626":"#1e3a8a")}'>{Signed(balance)}</div></div>
+  <div class='tc'><div class='tl'>Monthly TDS (Remaining)</div><div class='tv'>₹{annual.ThisMonthTds:N0}</div></div>
 </div>
 
-<div class='footer'>Computer-generated &nbsp;|&nbsp; TDS Pro v3.0 &nbsp;|&nbsp; Not a legal document</div>
+<div class='footer'>Computer-generated &nbsp;|&nbsp; TDS Pro v3.0 &nbsp;|&nbsp; Not a legal document &nbsp;|&nbsp; {TDSPro.Common.TaxRules.ActName(fy)}</div>
 </div></body></html>");
 
             Directory.CreateDirectory(outputFolder);
