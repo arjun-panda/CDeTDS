@@ -1135,6 +1135,184 @@ tfoot td.ded{{color:#fca5a5}}
             return path2;
         }
 
+        public static string GenerateMonthlySalaryExcel(
+            Employee emp,
+            string fy,
+            string outputFolder,
+            Deductor? deductor = null,
+            EmployeeYearSummary? yearSummary = null)
+        {
+            var runs = yearSummary?.MonthlyRuns ?? new Dictionary<int, PayrollRun>();
+            int[] fyM = { 4,5,6,7,8,9,10,11,12,1,2,3 };
+            string[] mn = { "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
+
+            bool hasBasic   = runs.Values.Any(r => r.Basic   > 0);
+            bool hasHra     = runs.Values.Any(r => r.Hra     > 0);
+            bool hasDa      = runs.Values.Any(r => r.Da      > 0);
+            bool hasSpecial = runs.Values.Any(r => r.Special  > 0);
+            bool hasMedical = runs.Values.Any(r => r.Medical  > 0);
+            bool hasLta     = runs.Values.Any(r => r.Lta     > 0);
+            bool hasOther   = runs.Values.Any(r => r.Other   > 0);
+            bool hasPf      = runs.Values.Any(r => r.PfEmployee    > 0);
+            bool hasEsi     = runs.Values.Any(r => r.EsiEmployee   > 0);
+            bool hasPt      = runs.Values.Any(r => r.ProfessionalTax > 0);
+            bool hasTds     = runs.Values.Any(r => r.TdsDeducted   > 0);
+            bool hasOtherD  = runs.Values.Any(r => r.OtherDeductions > 0);
+
+            var payCols = new List<(string label, Func<PayrollRun,double> fn)>();
+            var dedCols = new List<(string label, Func<PayrollRun,double> fn)>();
+            if (hasBasic)   payCols.Add(("Basic",        r => r.Basic));
+            if (hasHra)     payCols.Add(("HRA",          r => r.Hra));
+            if (hasDa)      payCols.Add(("DA",           r => r.Da));
+            if (hasSpecial) payCols.Add(("Special Allw", r => r.Special));
+            if (hasMedical) payCols.Add(("Medical",      r => r.Medical));
+            if (hasLta)     payCols.Add(("LTA",          r => r.Lta));
+            if (hasOther)   payCols.Add(("Other",        r => r.Other));
+            if (hasPf)      dedCols.Add(("PF",           r => r.PfEmployee));
+            if (hasEsi)     dedCols.Add(("ESI",          r => r.EsiEmployee));
+            if (hasPt)      dedCols.Add(("PT",           r => r.ProfessionalTax));
+            if (hasTds)     dedCols.Add(("TDS",          r => r.TdsDeducted));
+            if (hasOtherD)  dedCols.Add(("Other Ded",    r => r.OtherDeductions));
+
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("Monthly Salary");
+
+            // Title
+            int lastCol = 1 + payCols.Count + 1 + dedCols.Count + 1 + 1;
+            ws.Range(1,1,1,lastCol).Merge();
+            ws.Cell(1,1).Value = $"{deductor?.CompanyName ?? ""} — Monthly Salary Statement — FY {fy}";
+            ws.Cell(1,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
+            ws.Cell(1,1).Style.Font.FontColor = XLColor.White;
+            ws.Cell(1,1).Style.Font.Bold = true;
+            ws.Cell(1,1).Style.Font.FontSize = 12;
+            ws.Cell(1,1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Row(1).Height = 20;
+
+            ws.Range(2,1,2,lastCol).Merge();
+            ws.Cell(2,1).Value = $"Employee: {emp.Name}   |   PAN: {emp.Pan}   |   FY: {fy}";
+            ws.Cell(2,1).Style.Font.Bold = true;
+            ws.Cell(2,1).Style.Font.FontSize = 10;
+            ws.Cell(2,1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Row(2).Height = 16;
+
+            // Group header row 3
+            int earningsStart = 2; int earningsEnd = 1 + payCols.Count + 1;
+            int dedStart = earningsEnd + 1; int dedEnd = earningsEnd + dedCols.Count + 1;
+            ws.Range(3, earningsStart, 3, earningsEnd).Merge();
+            ws.Cell(3, earningsStart).Value = "EARNINGS";
+            ws.Cell(3, earningsStart).Style.Fill.BackgroundColor = XLColor.FromHtml("#1565c0");
+            ws.Cell(3, earningsStart).Style.Font.FontColor = XLColor.White;
+            ws.Cell(3, earningsStart).Style.Font.Bold = true;
+            ws.Cell(3, earningsStart).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Range(3, dedStart, 3, dedEnd).Merge();
+            ws.Cell(3, dedStart).Value = "DEDUCTIONS";
+            ws.Cell(3, dedStart).Style.Fill.BackgroundColor = XLColor.FromHtml("#dc2626");
+            ws.Cell(3, dedStart).Style.Font.FontColor = XLColor.White;
+            ws.Cell(3, dedStart).Style.Font.Bold = true;
+            ws.Cell(3, dedStart).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            // Column headers row 4
+            int c4 = 1;
+            void Hdr(string lbl, string? bg = null)
+            {
+                ws.Cell(4, c4).Value = lbl;
+                ws.Cell(4, c4).Style.Fill.BackgroundColor = bg != null ? XLColor.FromHtml(bg) : XLColor.FromHtml("#1e3a8a");
+                ws.Cell(4, c4).Style.Font.FontColor = XLColor.White;
+                ws.Cell(4, c4).Style.Font.Bold = true;
+                ws.Cell(4, c4).Style.Alignment.Horizontal = c4 == 1 ? XLAlignmentHorizontalValues.Left : XLAlignmentHorizontalValues.Right;
+                ws.Cell(4, c4).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                c4++;
+            }
+            Hdr("Month");
+            foreach (var (lbl2, _) in payCols) Hdr(lbl2);
+            Hdr("Gross", "#15803d");
+            foreach (var (lbl2, _) in dedCols) Hdr(lbl2, "#b91c1c");
+            Hdr("Total Ded.", "#b91c1c");
+            Hdr("Net Pay", "#14532d");
+            ws.Row(4).Height = 16;
+
+            // Data rows
+            var totPay  = new double[payCols.Count];
+            double totGross3=0, totTDed=0, totNet3=0;
+            var totDed3 = new double[dedCols.Count];
+            int r2 = 5;
+            for (int mi = 0; mi < 12; mi++)
+            {
+                int m = fyM[mi];
+                string rowBg = mi % 2 == 0 ? "#ffffff" : "#f8fafc";
+                if (!runs.TryGetValue(m, out var pr))
+                {
+                    ws.Cell(r2, 1).Value = mn[mi];
+                    ws.Range(r2, 2, r2, lastCol).Merge();
+                    ws.Cell(r2, 2).Value = "— not entered —";
+                    ws.Cell(r2, 2).Style.Font.FontColor = XLColor.FromHtml("#d1d5db");
+                    ws.Cell(r2, 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    ws.Row(r2).Style.Fill.BackgroundColor = XLColor.FromHtml(rowBg);
+                    r2++; continue;
+                }
+                int ci = 1;
+                void V(double v, bool bold = false, string? fg = null)
+                {
+                    var cell = ws.Cell(r2, ci);
+                    if (v == 0) cell.Value = "—";
+                    else { cell.Value = v; cell.Style.NumberFormat.Format = "#,##0"; }
+                    if (bold) cell.Style.Font.Bold = true;
+                    if (fg != null) cell.Style.Font.FontColor = XLColor.FromHtml(fg);
+                    cell.Style.Alignment.Horizontal = ci == 1 ? XLAlignmentHorizontalValues.Left : XLAlignmentHorizontalValues.Right;
+                    cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    cell.Style.Border.OutsideBorderColor = XLColor.FromHtml("#e2e8f0");
+                    cell.Style.Fill.BackgroundColor = XLColor.FromHtml(rowBg);
+                    ci++;
+                }
+                ws.Cell(r2, ci).Value = mn[mi]; ws.Cell(r2, ci).Style.Font.Bold = true;
+                ws.Cell(r2, ci).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                ws.Cell(r2, ci).Style.Border.OutsideBorderColor = XLColor.FromHtml("#e2e8f0");
+                ws.Cell(r2, ci).Style.Fill.BackgroundColor = XLColor.FromHtml(rowBg); ci++;
+                for (int pi = 0; pi < payCols.Count; pi++) { double v = payCols[pi].fn(pr); totPay[pi]+=v; V(v); }
+                totGross3 += pr.GrossSalary; V(pr.GrossSalary, bold:true, fg:"#1e3a8a");
+                for (int di = 0; di < dedCols.Count; di++) { double v = dedCols[di].fn(pr); totDed3[di]+=v; V(v, fg:"#dc2626"); }
+                totTDed += pr.TotalDeductions; V(pr.TotalDeductions, bold:true, fg:"#dc2626");
+                totNet3 += pr.NetPay; V(pr.NetPay, bold:true, fg:"#15803d");
+                r2++;
+            }
+
+            // Total row
+            int ct = 1;
+            void Tot(double v, string? fg = null)
+            {
+                var cell = ws.Cell(r2, ct);
+                if (v == 0) cell.Value = "—";
+                else { cell.Value = v; cell.Style.NumberFormat.Format = "#,##0"; }
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
+                cell.Style.Font.FontColor = fg != null ? XLColor.FromHtml(fg) : XLColor.White;
+                cell.Style.Font.Bold = true;
+                cell.Style.Alignment.Horizontal = ct == 1 ? XLAlignmentHorizontalValues.Left : XLAlignmentHorizontalValues.Right;
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                cell.Style.Border.OutsideBorderColor = XLColor.FromHtml("#1565c0");
+                ct++;
+            }
+            ws.Cell(r2, ct).Value = "Total"; ws.Cell(r2, ct).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
+            ws.Cell(r2, ct).Style.Font.FontColor = XLColor.White; ws.Cell(r2, ct).Style.Font.Bold = true;
+            ws.Cell(r2, ct).Style.Border.OutsideBorder = XLBorderStyleValues.Thin; ct++;
+            for (int pi = 0; pi < payCols.Count; pi++) Tot(totPay[pi]);
+            Tot(totGross3, "#86efac");
+            for (int di = 0; di < dedCols.Count; di++) Tot(totDed3[di], "#fca5a5");
+            Tot(totTDed, "#fca5a5");
+            Tot(totNet3, "#86efac");
+            ws.Row(r2).Height = 16;
+
+            // Column widths
+            ws.Column(1).Width = 10;
+            for (int ci2 = 2; ci2 <= lastCol; ci2++) ws.Column(ci2).Width = 14;
+
+            Directory.CreateDirectory(outputFolder);
+            string safeName3 = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName3 = $"MonthlySalary_{safeName3}({emp.Pan})_{fy.Replace("/","-")}.xlsx";
+            string path3 = Path.Combine(outputFolder, fileName3);
+            wb.SaveAs(path3);
+            return path3;
+        }
+
         public static string GenerateAnnualExcel(
             AnnualComputation annual,
             Employee emp,
