@@ -211,8 +211,8 @@ namespace TDSPro.DAL
                 "0",                                            // 48: Unmatched Challan Count (FVU 9.4 T-FV-2208 requires "0")
                 nsdlForm == "24Q"
                     ? (h.Quarter == "Q4"
-                        ? (data.SalaryDetails.Count > 0                         // Q4: count of SD records
-                            ? data.SalaryDetails.Count
+                        ? (data.SalaryDetails.Count > 0                         // Q4: count of SD records (exclude zero-salary/zero-TDS)
+                            ? data.SalaryDetails.Count(s => (s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3 + s.PrevEmpSalary) > 0 || (s.TdsDeducted + s.PrevEmpTds) > 0)
                             : data.Deductees.Select(d => (d.Pan ?? "").Trim().ToUpper()).Distinct().Count()
                           ).ToString()
                         : "0")                                  // Q1/Q2/Q3: SD count = 0 (T-FV-2142 if non-zero, T-FV-2127 if empty)
@@ -415,13 +415,21 @@ namespace TDSPro.DAL
                 int sdSeq = 1;
                 foreach (var sd in sdList)
                 {
+                    // NSDL spec: SD record required only when employee has salary or TDS.
+                    // Zero-salary + zero-TDS employees must be excluded — FVU rejects all-zero SD records.
+                    double totalIncome = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3 + sd.PrevEmpSalary;
+                    double totalTds = sd.TdsDeducted + sd.PrevEmpTds;
+                    if (totalIncome == 0 && totalTds == 0)
+                        continue;
+
                     // Find challan sl no for this SD (match by ChallanNo or first challan)
                     var ch = data.Challans.FirstOrDefault(c => c.ChallanNo == sd.ChallanNo)
                           ?? data.Challans.FirstOrDefault();
                     string sdChallanSlNo = ch?.SlNo.ToString() ?? "1";
                     lines.Add(BuildSD(sd, sdSeq, L(), sdChallanSlNo, h.FinancialYear));
-                    if (sd.StandardDeduction > 0)
-                        lines.Add(BuildS16(sd, sdSeq, L()));
+                    // S16 always emits once per employee — standard deduction u/s 16(ia).
+                    // Amount must match SD[15]; FVU T-FV-4045 validates SD[15] == sum of S16 sub-records.
+                    lines.Add(BuildS16(sd, sdSeq, L()));
                     // C6A: emit a consolidated row when Chapter VI-A total > 0 (NSDL spec v6.2 section "C6A").
                     // Without this, SD field 21 (count) > 0 but no C6A line → FVU validator rejects.
                     if (sd.Chapter6ATotal > 0)
@@ -586,18 +594,16 @@ namespace TDSPro.DAL
             string F(double v) => v.ToString("F2");
             string FS(double v) => v.ToString("F2"); // signed, allows negative
             double totalSal = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3;
-            double balanceAfter10 = Math.Max(0, totalSal - sd.ExemptU10);
-            double gti = sd.GrossTotalIncome > 0 ? sd.GrossTotalIncome : balanceAfter10;
+            double stdDed16 = sd.StandardDeduction > 0 ? sd.StandardDeduction : 75000; // Section 16(ia) std deduction
+            double balanceAfterSec16 = Math.Max(0, totalSal - stdDed16);               // [16]: salary - stdDed
+            double gtiBeforeChap6A = sd.GrossTotalIncome > 0 ? sd.GrossTotalIncome : balanceAfterSec16;
+            double gti = Math.Max(0, gtiBeforeChap6A - sd.Chapter6ATotal);             // [22]: after Chapter VI-A
             double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
             double grossTax = tax + sd.Surcharge + sd.Cess;
-            // FVU 9.4 validates [27] = [23]+[24]+[25]-[26] AND [29] = [27]-[28].
-            // Rebate87A goes in a separate NSDL field outside this record; it does NOT affect [27] or [29].
-            double relief89 = 0;  // not currently tracked in model; default 0
-            // FVU 9.4 validates [27] = [23]+[24]+[25]-[26] AND [29] = [27]-[28].
-            // rebate87A is NOT part of either FVU formula — it goes in a separate NSDL field not in this record.
-            double netTax = grossTax - relief89;            // [27]: FVU formula field (no rebate87A here)
+            double relief89 = 0;
+            double netTax = grossTax - relief89;            // [27]: FVU validates [23]+[24]+[25]-[26]
             double tdsDeducted = sd.TdsDeducted + sd.PrevEmpTds;
-            double shortfall = netTax - tdsDeducted;        // [29]: FVU formula field = [27]-[28]
+            double shortfall = netTax - tdsDeducted;        // [29]: FVU validates [27]-[28]
 
             return PipeL(lineNo, "SD",
                 "1",                                        //  [2]: Batch Number (always 1)
@@ -612,15 +618,15 @@ namespace TDSPro.DAL
                 sd.EmploymentTo.ToString("ddMMyyyy"),       // [11]: Period To
                 F(sd.Salary17_1),                           // [12]: Salary u/s 17(1)
                 sd.Perquisites17_2 == 0 ? "" : F(sd.Perquisites17_2), // [13]: Perquisites (blank if zero)
-                sd.ExemptU10Count.ToString(),               // [14]: Count of u/s 10 allowances
-                F(sd.ExemptU10),                            // [15]: Total exempt u/s 10
-                F(balanceAfter10),                          // [16]: Balance after u/s 10
+                "1",                                        // [14]: Section 16 deduction count (always 1 — std deduction)
+                F(stdDed16),                                // [15]: Section 16 total = standard deduction; FVU T-FV-4045 checks this == sum of S16 sub-records
+                F(balanceAfterSec16),                       // [16]: Balance after Section 16
                 "0.00",                                     // [17]: Entertainment allowance (Govt only)
-                F(gti),                                     // [18]: GTI (stdDed is in S16, not subtracted here)
+                F(gtiBeforeChap6A),                         // [18]: Income before Chapter VI-A deductions
                 "",                                         // [19]: blank
                 sd.Chapter6ACount.ToString(),               // [20]: Chapter VI-A count
                 F(sd.Chapter6ATotal),                       // [21]: Chapter VI-A total
-                F(gti),                                     // [22]: Gross Total Income
+                F(gti),                                     // [22]: Gross Total Income (after Chapter VI-A)
                 F(tax),                                     // [23]: Income Tax on total income
                 F(sd.Surcharge),                            // [24]: Surcharge
                 F(sd.Cess),                                 // [25]: Health & Education Cess
