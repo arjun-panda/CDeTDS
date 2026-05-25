@@ -103,7 +103,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 .emp-lbl{{color:#6b7280;width:130px;flex-shrink:0}}
 .emp-val{{font-weight:600;color:#111}}
 /* ── Days row ── */
-.days-bar{{display:grid;grid-template-columns:repeat(4,1fr);background:#1e3a8a;color:#fff;border-radius:5px;padding:7px 14px;margin-bottom:12px;font-size:10px}}
+.days-bar{{display:grid;grid-template-columns:repeat(2,1fr);background:#1e3a8a;color:#fff;border-radius:5px;padding:7px 14px;margin-bottom:12px;font-size:10px}}
 .days-bar span{{text-align:center}}
 .days-bar strong{{display:block;font-size:15px;font-weight:700}}
 /* ── Earnings / Deductions table ── */
@@ -171,8 +171,6 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 
 <!-- DAYS -->
 <div class='days-bar'>
-  <span><strong>{htmlDim}</strong>Days in Month</span>
-  <span><strong>{htmlDaysPaid}</strong>Days Present</span>
   <span><strong>{htmlLopDays}</strong>Loss of Pay Days</span>
   <span><strong>{monthLabel}</strong>Pay Period</span>
 </div>
