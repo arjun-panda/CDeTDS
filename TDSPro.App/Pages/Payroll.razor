@@ -3663,7 +3663,8 @@
         _sdLopDays = e.LopDays;
         _sdVarEarnRows = new();
         _sdVarDedRows  = new();
-        _ = SdCompute();
+        if (_sdEmpId > 0 && _sdMonth > 0)
+            _ = SdCompute();
     }
 
     MonthlySalaryEntry BuildSdEntry()
@@ -3715,7 +3716,7 @@
     async Task SdCompute()
     {
         if (_sdEmpId == 0 || _sdMonth == 0) return;
-        if (_sdComputing) return;
+        while (_sdComputing) await Task.Delay(50); // wait if already running
         _sdComputing = true;
         StateHasChanged();
         try
@@ -3824,7 +3825,8 @@
 
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
-            StateHasChanged();
+            _sdAnnual = null;
+            _ = SdCompute();
             Snackbar.Add($"Saved {new DateTime(1, _sdMonth, 1):MMMM} salary for {entry.EmployeeName}.", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Save error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
