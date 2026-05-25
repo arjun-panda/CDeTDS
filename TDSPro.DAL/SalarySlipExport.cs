@@ -945,11 +945,15 @@ tr.chosen td.num{{font-weight:700}}
             }
 
             // ── TDS SUMMARY ────────────────────────────────────────────────
-            double balance = annual.BalanceTax;
+            // Use actual total TDS from monthly runs if available (includes all 12 months)
+            double totalTdsPaid = runs.Count > 0
+                ? runs.Values.Sum(r => r.TdsDeducted)
+                : annual.YtdTdsDeducted;
+            double balance = chosen.TotalTax - totalTdsPaid;
             sb.Append($@"
 <div class='tds-grid' style='margin-top:10px'>
   <div class='tc'><div class='tl'>Tax Payable (Chosen)</div><div class='tv'>₹{chosen.TotalTax:N0}</div></div>
-  <div class='tc'><div class='tl'>TDS Paid (YTD)</div><div class='tv'>₹{annual.YtdTdsDeducted:N0}</div></div>
+  <div class='tc'><div class='tl'>TDS Paid (YTD)</div><div class='tv'>₹{totalTdsPaid:N0}</div></div>
   <div class='tc'><div class='tl'>Balance Tax</div><div class='tv' style='color:{(balance<0?"#166534":balance>0?"#dc2626":"#1e3a8a")}'>{Signed(balance)}</div></div>
   <div class='tc'><div class='tl'>Monthly TDS (Remaining)</div><div class='tv'>₹{annual.ThisMonthTds:N0}</div></div>
 </div>
@@ -1091,9 +1095,12 @@ tr.chosen td.num{{font-weight:700}}
             }
             r++;
 
-            // TDS position
+            // TDS position — use actual total from monthly runs if available
+            var xlRuns = yearSummary?.MonthlyRuns ?? new Dictionary<int, PayrollRun>();
+            double xlTdsPaid = xlRuns.Count > 0 ? xlRuns.Values.Sum(r2 => r2.TdsDeducted) : annual.YtdTdsDeducted;
+            double xlBalance = chosen.TotalTax - xlTdsPaid;
             ws.Range(r,1,r,3).Merge();
-            ws.Cell(r,1).Value = $"Annual Tax: ₹{chosen.TotalTax:N0}   |   YTD TDS: ₹{annual.YtdTdsDeducted:N0}   |   Balance: ₹{annual.BalanceTax:N0}   |   Monthly TDS: ₹{annual.ThisMonthTds:N0}";
+            ws.Cell(r,1).Value = $"Annual Tax: ₹{chosen.TotalTax:N0}   |   TDS Paid: ₹{xlTdsPaid:N0}   |   Balance: ₹{xlBalance:N0}   |   Monthly TDS: ₹{annual.ThisMonthTds:N0}";
             ws.Cell(r,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#f0fdf4");
             ws.Cell(r,1).Style.Font.FontColor = XLColor.FromHtml("#14532d");
             ws.Cell(r,1).Style.Font.Bold = true;
