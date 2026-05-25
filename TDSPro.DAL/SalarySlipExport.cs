@@ -890,7 +890,8 @@ tr.chosen td.num{{font-weight:700}}
 </div></body></html>");
 
             Directory.CreateDirectory(outputFolder);
-            string fileName = $"AnnualTax_{emp.EmployeeCode}_{fy.Replace("/","-")}.html";
+            string safeName = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName = $"AnnualTax_{emp.EmployeeCode}_{safeName}_{fy.Replace("/","-")}.html";
             string path = Path.Combine(outputFolder, fileName);
             File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
             return path;
@@ -1037,7 +1038,8 @@ tr.chosen td.num{{font-weight:700}}
             ws.Cell(r,1).Style.Alignment.Indent = 1;
 
             Directory.CreateDirectory(outputFolder);
-            string fileName = $"AnnualTax_{emp.EmployeeCode}_{fy.Replace("/","-")}.xlsx";
+            string safeNameXl = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName = $"AnnualTax_{emp.EmployeeCode}_{safeNameXl}_{fy.Replace("/","-")}.xlsx";
             string path = Path.Combine(outputFolder, fileName);
             wb.SaveAs(path);
             return path;
