@@ -968,6 +968,173 @@ tr.chosen td.num{{font-weight:700}}
             return path;
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        // MONTHLY SALARY STATEMENT — separate standalone report
+        // ════════════════════════════════════════════════════════════════════
+
+        public static string GenerateMonthlySalaryHtml(
+            Employee emp,
+            string fy,
+            string outputFolder,
+            Deductor? deductor = null,
+            EmployeeYearSummary? yearSummary = null)
+        {
+            var runs = yearSummary?.MonthlyRuns ?? new Dictionary<int, PayrollRun>();
+            int[] fyM = { 4,5,6,7,8,9,10,11,12,1,2,3 };
+            string[] mn = { "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
+            string co = deductor?.CompanyName ?? "";
+            string addr = string.Join(", ", new[]{ deductor?.Address, deductor?.City, deductor?.State }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+            // Determine which pay components have any value across the year
+            bool hasBasic   = runs.Values.Any(r => r.Basic   > 0);
+            bool hasHra     = runs.Values.Any(r => r.Hra     > 0);
+            bool hasDa      = runs.Values.Any(r => r.Da      > 0);
+            bool hasSpecial = runs.Values.Any(r => r.Special  > 0);
+            bool hasMedical = runs.Values.Any(r => r.Medical  > 0);
+            bool hasLta     = runs.Values.Any(r => r.Lta     > 0);
+            bool hasOther   = runs.Values.Any(r => r.Other   > 0);
+            bool hasPf      = runs.Values.Any(r => r.PfEmployee    > 0);
+            bool hasEsi     = runs.Values.Any(r => r.EsiEmployee   > 0);
+            bool hasPt      = runs.Values.Any(r => r.ProfessionalTax > 0);
+            bool hasTds     = runs.Values.Any(r => r.TdsDeducted   > 0);
+            bool hasOtherD  = runs.Values.Any(r => r.OtherDeductions > 0);
+
+            // Build column list: Month, [pay cols...], Gross, [ded cols...], Total Ded, Net Pay
+            var payCols  = new List<(string label, Func<PayrollRun,double> fn)>();
+            var dedCols  = new List<(string label, Func<PayrollRun,double> fn)>();
+            if (hasBasic)   payCols.Add(("Basic",        r => r.Basic));
+            if (hasHra)     payCols.Add(("HRA",          r => r.Hra));
+            if (hasDa)      payCols.Add(("DA",           r => r.Da));
+            if (hasSpecial) payCols.Add(("Special Allw", r => r.Special));
+            if (hasMedical) payCols.Add(("Medical",      r => r.Medical));
+            if (hasLta)     payCols.Add(("LTA",          r => r.Lta));
+            if (hasOther)   payCols.Add(("Other",        r => r.Other));
+            if (hasPf)      dedCols.Add(("PF",           r => r.PfEmployee));
+            if (hasEsi)     dedCols.Add(("ESI",          r => r.EsiEmployee));
+            if (hasPt)      dedCols.Add(("PT",           r => r.ProfessionalTax));
+            if (hasTds)     dedCols.Add(("TDS",          r => r.TdsDeducted));
+            if (hasOtherD)  dedCols.Add(("Other Ded",    r => r.OtherDeductions));
+
+            int totalCols = 1 + payCols.Count + 1 + dedCols.Count + 1 + 1; // Month + pays + Gross + deds + TotalDed + Net
+
+            string C(double v) => v == 0 ? "—" : "₹" + v.ToString("N0");
+
+            var sb2 = new System.Text.StringBuilder();
+            sb2.Append($@"<!DOCTYPE html><html><head><meta charset='utf-8'>
+<title>Monthly Salary Statement — {Esc(emp.Name)} — FY {fy}</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:Arial,sans-serif;font-size:10px;color:#1a1a2e;background:#fff;padding:20px}}
+.hdr{{text-align:center;margin-bottom:14px}}
+.hdr .co{{font-size:14px;font-weight:700;color:#1e3a8a;letter-spacing:.3px}}
+.hdr .addr{{font-size:9px;color:#64748b;margin-top:2px}}
+.hdr .title{{margin-top:10px;font-size:12px;font-weight:700;color:#fff;background:#1e3a8a;display:inline-block;padding:4px 24px;border-radius:3px;letter-spacing:.5px}}
+.hdr .emp{{margin-top:8px;font-size:9.5px;color:#374151}}
+.hdr .emp b{{color:#1e3a8a}}
+table{{width:100%;border-collapse:collapse;margin-top:10px;font-size:9px}}
+thead th{{background:#1e3a8a;color:#fff;font-weight:600;padding:5px 6px;text-align:right;border:1px solid #1e3a8a;white-space:nowrap}}
+thead th:first-child{{text-align:left}}
+thead th.grp{{background:#1565c0;font-size:8px;letter-spacing:.3px;text-align:center}}
+tbody tr:nth-child(even){{background:#f8fafc}}
+tbody tr:hover{{background:#eff6ff}}
+tbody td{{padding:4px 6px;text-align:right;border:1px solid #e2e8f0;font-variant-numeric:tabular-nums}}
+tbody td:first-child{{text-align:left;font-weight:600;color:#374151}}
+tbody td.zero{{color:#d1d5db}}
+tbody td.gross{{font-weight:700;color:#1e3a8a;background:#eff6ff}}
+tbody td.ded{{color:#dc2626}}
+tbody td.tded{{font-weight:700;color:#dc2626;background:#fff5f5}}
+tbody td.net{{font-weight:700;color:#15803d;background:#f0fdf4}}
+tbody td.tds-cell{{color:#b45309;font-weight:600}}
+tfoot tr{{background:#1e3a8a;color:#fff;font-weight:700}}
+tfoot td{{padding:5px 6px;text-align:right;border:1px solid #1565c0;font-variant-numeric:tabular-nums}}
+tfoot td:first-child{{text-align:left}}
+tfoot td.net{{color:#86efac}}
+tfoot td.ded{{color:#fca5a5}}
+.footer{{margin-top:12px;text-align:center;font-size:8px;color:#94a3b8}}
+</style></head><body>
+<div class='hdr'>
+  <div class='co'>{Esc(co)}</div>
+  <div class='addr'>{Esc(addr)}</div>
+  <div class='title'>Monthly Salary Statement</div>
+  <div class='emp'>Employee: <b>{Esc(emp.Name)}</b> &nbsp;|&nbsp; PAN: <b>{Esc(emp.Pan)}</b> &nbsp;|&nbsp; FY: <b>{fy}</b></div>
+</div>
+<table>
+<thead>
+<tr>
+  <th rowspan='2' style='text-align:left;vertical-align:bottom'>Month</th>
+  <th colspan='{payCols.Count + 1}' class='grp'>EARNINGS</th>
+  <th colspan='{dedCols.Count + 1}' class='grp'>DEDUCTIONS</th>
+  <th rowspan='2' style='background:#14532d'>Net Pay</th>
+</tr>
+<tr>");
+            foreach (var (lbl, _) in payCols)
+                sb2.Append($"<th>{Esc(lbl)}</th>");
+            sb2.Append("<th>Gross</th>");
+            foreach (var (lbl, _) in dedCols)
+                sb2.Append($"<th>{Esc(lbl)}</th>");
+            sb2.Append("<th>Total Ded.</th>");
+            sb2.Append("</tr></thead><tbody>");
+
+            // Totals
+            var totPay  = new double[payCols.Count];
+            double totGross2=0, totTotalDed=0, totNet2=0;
+            var totDed  = new double[dedCols.Count];
+
+            for (int mi = 0; mi < 12; mi++)
+            {
+                int m = fyM[mi];
+                if (!runs.TryGetValue(m, out var pr))
+                {
+                    sb2.Append($"<tr><td>{mn[mi]}</td><td colspan='{totalCols-1}' style='color:#d1d5db;text-align:center'>— not entered —</td></tr>");
+                    continue;
+                }
+                sb2.Append($"<tr><td>{mn[mi]}</td>");
+                for (int pi = 0; pi < payCols.Count; pi++)
+                {
+                    double v = payCols[pi].fn(pr);
+                    totPay[pi] += v;
+                    sb2.Append($"<td>{C(v)}</td>");
+                }
+                totGross2 += pr.GrossSalary;
+                sb2.Append($"<td class='gross'>{C(pr.GrossSalary)}</td>");
+                for (int di = 0; di < dedCols.Count; di++)
+                {
+                    double v = dedCols[di].fn(pr);
+                    totDed[di] += v;
+                    bool isTds = dedCols[di].label == "TDS";
+                    sb2.Append($"<td class='{(isTds?"tds-cell":"ded")}'>{C(v)}</td>");
+                }
+                double totalDed = pr.TotalDeductions;
+                totTotalDed += totalDed;
+                totNet2 += pr.NetPay;
+                sb2.Append($"<td class='tded'>{C(totalDed)}</td>");
+                sb2.Append($"<td class='net'>{C(pr.NetPay)}</td></tr>");
+            }
+
+            // Total row
+            sb2.Append("<tr style='display:none'></tr>"); // spacer trick for tfoot styling
+            sb2.Append("</tbody><tfoot><tr><td>Total</td>");
+            for (int pi = 0; pi < payCols.Count; pi++)
+                sb2.Append($"<td>{C(totPay[pi])}</td>");
+            sb2.Append($"<td>{C(totGross2)}</td>");
+            for (int di = 0; di < dedCols.Count; di++)
+            {
+                bool isTds = dedCols[di].label == "TDS";
+                sb2.Append($"<td class='{(isTds?"":"ded")}'>{C(totDed[di])}</td>");
+            }
+            sb2.Append($"<td class='ded'>{C(totTotalDed)}</td>");
+            sb2.Append($"<td class='net'>{C(totNet2)}</td></tr></tfoot></table>");
+            sb2.Append($"<div class='footer'>Computer-generated &nbsp;|&nbsp; TDS Pro &nbsp;|&nbsp; {DateTime.Now:dd-MMM-yyyy HH:mm} &nbsp;|&nbsp; Not a legal document</div>");
+            sb2.Append("</body></html>");
+
+            Directory.CreateDirectory(outputFolder);
+            string safeName2 = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName2 = $"MonthlySalary_{safeName2}({emp.Pan})_{fy.Replace("/","-")}.html";
+            string path2 = Path.Combine(outputFolder, fileName2);
+            File.WriteAllText(path2, sb2.ToString(), System.Text.Encoding.UTF8);
+            return path2;
+        }
+
         public static string GenerateAnnualExcel(
             AnnualComputation annual,
             Employee emp,

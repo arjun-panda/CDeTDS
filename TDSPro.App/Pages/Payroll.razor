@@ -1575,6 +1575,7 @@
                         <button class="sd-btn sd-btn-outlined" @onclick="SdCopyToAll" title="Copy current month's values to all subsequent months and save. Skips locked months.">📋 Copy Forward &amp; Save</button>
                         <button class="sd-btn sd-btn-outlined" style="border-color:#1565c0;color:#1565c0" @onclick="() => SdDownloadAnnual(html: true)">📄 Income Tax PDF</button>
                         <button class="sd-btn sd-btn-outlined" style="border-color:#1b5e20;color:#1b5e20" @onclick="() => SdDownloadAnnual(html: false)">📊 Income Tax Excel</button>
+                        <button class="sd-btn sd-btn-outlined" style="border-color:#7c3aed;color:#7c3aed" @onclick="SdDownloadMonthly">📋 Monthly Statement</button>
                     </div>
                 </div>
             </div>
@@ -2377,11 +2378,14 @@
                                 </td>
                                 <td style="padding:9px 12px;text-align:center">
                                     <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small"
-                                                   Color="Color.Error" title="Download PDF"
+                                                   Color="Color.Error" title="Download Annual Tax Computation"
                                                    OnClick="() => DownloadAnnual(s, html: true)" />
                                     <MudIconButton Icon="@Icons.Material.Filled.TableChart" Size="Size.Small"
-                                                   Color="Color.Success" title="Download Excel"
+                                                   Color="Color.Success" title="Download Annual Tax Excel"
                                                    OnClick="() => DownloadAnnual(s, html: false)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small"
+                                                   Color="Color.Secondary" title="Download Monthly Salary Statement"
+                                                   OnClick="() => DownloadMonthly(s)" />
                                 </td>
                             </tr>
                         }
@@ -3358,6 +3362,22 @@
         catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
+    void DownloadMonthly(EmployeeYearSummary summary)
+    {
+        try
+        {
+            var emp = _employees.FirstOrDefault(e => e.Id == summary.EmployeeId)
+                      ?? new Employee { Id = summary.EmployeeId, EmployeeCode = summary.EmployeeCode, Name = summary.EmployeeName };
+            var ded = DeductorSvc.GetAll().FirstOrDefault(d => d.Id == AppState.CurrentDeductorId) ?? new Deductor();
+            var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
+            Directory.CreateDirectory(folder);
+            var path = SalarySlipExport.GenerateMonthlySalaryHtml(emp, AppState.CurrentFY, folder, ded, summary);
+            FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
+            Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+    }
+
     // ── Salary Data Tab ──────────────────────────────────────────────────────
 
     private bool _tabLoading = false;
@@ -3904,6 +3924,25 @@
             var path = html
                 ? SalarySlipExport.GenerateAnnualHtml(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum)
                 : SalarySlipExport.GenerateAnnualExcel(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum);
+            FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
+            Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+    }
+
+    void SdDownloadMonthly()
+    {
+        if (_sdEmpId == 0) { Snackbar.Add("Select an employee first.", Severity.Warning); return; }
+        try
+        {
+            var emp    = _employees.FirstOrDefault(e => e.Id == _sdEmpId) ?? new Employee();
+            var ded    = DeductorSvc.GetAll().FirstOrDefault(d => d.Id == AppState.CurrentDeductorId) ?? new Deductor();
+            var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
+            Directory.CreateDirectory(folder);
+            var sdYearSum = _yearSummaries.FirstOrDefault(s => s.EmployeeId == _sdEmpId)
+                ?? PayrollSvc.GetYearSummary(AppState.CurrentFY, AppState.CurrentDeductorId)
+                              .FirstOrDefault(s => s.EmployeeId == _sdEmpId);
+            var path = SalarySlipExport.GenerateMonthlySalaryHtml(emp, AppState.CurrentFY, folder, ded, sdYearSum);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }
