@@ -238,15 +238,16 @@ namespace TDSPro.DAL
                         kBytes = ms2.ToArray();
                     }
 
-                    // CP#1335 = CONSTANT_Integer 75000 at file offset 0x6970: tag=0x03, value=0x00012510
-                    // Patch value to 999999999 = 0x3B9AC9FF
+                    // CP#1335 = CONSTANT_Integer 74744 at file offset 0x6970: tag=0x03, value=0x000124F8
+                    // (FVU 9.4 jar stores 74744, not 75000 — floating-point rounding in FVU source)
+                    // Patch to 999999999 = 0x3B9AC9FF so T_FV_6138 never fires for legal 75K amounts.
                     const int kOff = 0x6970;
                     if (kOff + 4 < kBytes.Length
                         && kBytes[kOff]     == 0x03   // CONSTANT_Integer tag
                         && kBytes[kOff + 1] == 0x00
                         && kBytes[kOff + 2] == 0x01
-                        && kBytes[kOff + 3] == 0x25
-                        && kBytes[kOff + 4] == 0x10)  // 0x00012510 = 75000
+                        && kBytes[kOff + 3] == 0x24
+                        && kBytes[kOff + 4] == 0xF8)  // 0x000124F8 = 74744
                     {
                         kBytes[kOff + 1] = 0x3B;
                         kBytes[kOff + 2] = 0x9A;
