@@ -150,10 +150,10 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
 
 <!-- HEADER -->
 <div class='slip-header'>
+  <div class='slip-title-box'>SALARY SLIP</div>
   <div class='co-name'>{Esc(deductor.CompanyName)}</div>
   {(string.IsNullOrWhiteSpace(deductor.Address) ? "" : $"<div class='co-addr'>{Esc(deductor.Address)}{(string.IsNullOrWhiteSpace(deductor.City) ? "" : ", " + Esc(deductor.City))}{(string.IsNullOrWhiteSpace(deductor.State) ? "" : ", " + Esc(deductor.State))}{(string.IsNullOrWhiteSpace(deductor.Pincode) ? "" : " — " + Esc(deductor.Pincode))}</div>")}
   <div class='co-ids'>{(string.IsNullOrWhiteSpace(deductor.Pan) ? "" : $"PAN: {Esc(deductor.Pan)}")} {((!string.IsNullOrWhiteSpace(deductor.Pan) && !string.IsNullOrWhiteSpace(deductor.Tan)) ? "&nbsp;|&nbsp;" : "")} {(string.IsNullOrWhiteSpace(deductor.Tan) ? "" : $"TAN: {Esc(deductor.Tan)}")}</div>
-  <div class='slip-title-box'>SALARY SLIP</div>
   <div class='slip-period'>Pay Period: {monthLabel}</div>
 </div>
 
