@@ -608,10 +608,12 @@ namespace TDSPro.DAL
                 if (rules.Rebate87AThreshold > 0 && taxableBasis <= rules.Rebate87AThreshold)
                     rebate87A = Math.Min(tax, rules.Rebate87AMaxAmount);
             }
-            // [27] = NetTax = grossTax − rebate87A − relief89; [29] = netTax − tdsDeducted
-            double netTax = grossTax - rebate87A - relief89;
+            // FVU 9.4 validates [27] = [23]+[24]+[25]-[26] (relief89 only; rebate87A is NOT in this formula).
+            // rebate87A is tracked internally for shortfall calculation only.
+            double netTax = grossTax - relief89;            // [27]: FVU formula field
             double tdsDeducted = sd.TdsDeducted + sd.PrevEmpTds;
-            double shortfall = netTax - tdsDeducted;
+            double effectiveTax = netTax - rebate87A;       // actual tax after rebate, for shortfall
+            double shortfall = effectiveTax - tdsDeducted;
 
             return PipeL(lineNo, "SD",
                 "1",                                        //  [2]: Batch Number (always 1)
@@ -639,9 +641,9 @@ namespace TDSPro.DAL
                 F(sd.Surcharge),                            // [24]: Surcharge
                 F(sd.Cess),                                 // [25]: Health & Education Cess
                 F(relief89),                                // [26]: Income Tax Relief u/s 89 (NSDL field 372 — NOT rebate 87A)
-                F(netTax),                                  // [27]: Net Income Tax Payable = [23]+[24]+[25]-[26]
+                F(netTax),                                  // [27]: Net Income Tax Payable = [23]+[24]+[25]-[26]; FVU validates this formula exactly
                 F(tdsDeducted),                             // [28]: TDS Deducted (annual total)
-                FS(shortfall),                              // [29]: Shortfall(+)/Excess(-) = field27-field28
+                FS(shortfall),                              // [29]: Shortfall(+)/Excess(-) = (netTax-rebate87A) - tdsDeducted
                 "0.00",                                     // [30]: 0.00
                 "",                                         // [31]: blank
                 "",                                         // [32]: blank
@@ -649,7 +651,7 @@ namespace TDSPro.DAL
                 F(sd.PrevEmpSalary),                        // [34]: Previous employer salary
                 F(sd.TdsDeducted),                          // [35]: TDS current employer only
                 F(sd.PrevEmpTds),                           // [36]: Previous employer TDS (FVU: [28]=[35]+[36])
-                sd.TaxRegime ?? "N",                        // [37]: Tax Regime (N/O)
+                "N",                                        // [37]: Whether TDS at higher rate for non-furnishing of PAN (Y/N) — FVU validates Y/N only
                 "N",                                        // [38]: HRA claim exceeds ₹1L (Y/N)
                 "0",                                        // [39]: integer
                 "", "", "", "", "", "", "", "",             // [40-47]: blank (8) — landlord PAN/Name slots
@@ -661,11 +663,11 @@ namespace TDSPro.DAL
                 F(totalSal),                                // [66]: Total salary
                 F(sd.PrevEmpSalary),                        // [67]: Previous employer salary (repeat)
                 "0.00",                                     // [68]: 0.00
-                "",                                         // [69]: blank
+                "0.00",                                     // [69]: Travel concession [section 10(5)] — FVU case 70 mandatory for 115BAC=Y employees
                 "0.00",                                     // [70]: 0.00
                 "0.00",                                     // [71]: 0.00
                 "0.00",                                     // [72]: 0.00
-                "",                                         // [73]: blank
+                "0.00",                                     // [73]: HRA [section 10(13A)] — FVU case 74 mandatory for 115BAC=Y employees
                 "0.00",                                     // [74]: 0.00
                 "0.00",                                     // [75]: 0.00
                 "0.00",                                     // [76]: 0.00
