@@ -657,22 +657,24 @@ namespace TDSPro.DAL
                 "0",                                        // [49]: integer
                 "", "", "", "", "", "", "", "",             // [50-57]: blank (8)
                 "N",                                        // [58]: Whether superannuation contributions (Y/N)
-                "", "", "", "", "", "", "", "",             // [59-66]: blank (8) — superannuation cert/fund slots (filled when [58]=Y)
-                F(totalSal),                                // [67]: Total salary
-                F(sd.PrevEmpSalary),                        // [68]: Previous employer salary (repeat)
-                "0.00",                                     // [69]: 0.00
-                "",                                         // [70]: blank
+                "", "", "", "", "", "", "",                 // [59-65]: blank (7) — superannuation cert/fund slots (filled when [58]=Y)
+                F(totalSal),                                // [66]: Total salary
+                F(sd.PrevEmpSalary),                        // [67]: Previous employer salary (repeat)
+                "0.00",                                     // [68]: 0.00
+                "",                                         // [69]: blank
+                "0.00",                                     // [70]: 0.00
                 "0.00",                                     // [71]: 0.00
                 "0.00",                                     // [72]: 0.00
-                "0.00",                                     // [73]: 0.00
-                "",                                         // [74]: blank
+                "",                                         // [73]: blank
+                "0.00",                                     // [74]: 0.00
                 "0.00",                                     // [75]: 0.00
                 "0.00",                                     // [76]: 0.00
-                "0.00",                                     // [77]: 0.00
-                // [78]: 115BAC opt-in flag (T_FV_6198 — Y if opted to new regime, else N)
+                F(grossTax),                                // [77]: Total TDS for whole year (tax+sur+cess, before rebate)
+                // [78]: 115BAC opt-in flag (Y=new regime, N=old regime)
                 sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N",
-                // [79-86]: FVU 9.4 new fields (FY 2024-25+); field [79] forced blank for FY>=202425 by FVU
-                "", "", "", "", "", "", "", ""               // [79-86]: blank (8)
+                "0.00",                                     // [79]: 0.00
+                "0.00",                                     // [80]: 0.00
+                "", "", "", "", "", ""                      // [81-86]: blank (6)
             );
         }
 
