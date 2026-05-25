@@ -172,8 +172,11 @@ namespace TDSPro.DAL.Models
         public double TotalGrossSalary  => SalaryDetails.Any()
             ? SalaryDetails.Sum(s => {
                 // Must match BuildSD [22]: GTI = Max(0, (salary-stdDed) - Chapter6ATotal)
+                // TaxRegime NSDL code: "O"=new regime (75K stdDed), "N"=old regime (50K)
                 double totalSal = s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3;
-                double stdDed   = s.StandardDeduction > 0 ? s.StandardDeduction : 50000; // FVU cap = 50K for both regimes
+                bool isOldRegime = s.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+                double legalStdDed = isOldRegime ? 50000 : 75000;
+                double stdDed   = s.StandardDeduction > 0 ? Math.Min(s.StandardDeduction, legalStdDed) : legalStdDed;
                 double bal      = Math.Max(0, totalSal - stdDed);
                 return Math.Max(0, bal - s.Chapter6ATotal);
             })

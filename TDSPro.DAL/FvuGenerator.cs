@@ -601,10 +601,10 @@ namespace TDSPro.DAL
             string F(double v) => v.ToString("F2");
             string FS(double v) => v.ToString("F2"); // signed, allows negative
             double totalSal = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3;
-            // FVU 9.4 T_FV_6138: new-regime employees (115BAC=Y) only accept stdDed ≤ 50000.
-            // Old-regime ("O"): legal limit ₹50K (Budget 2024 raised only new regime to ₹75K).
+            // New regime (115BAC=Y/"O"): std ded ₹75,000 (Budget 2024, FVU 9.4 accepts 75K).
+            // Old regime: std ded ₹50,000.
             bool isOldRegime = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
-            double legalStdDed = isOldRegime ? 50000 : 50000; // FVU 9.4 T_FV_6138 caps new regime at 50K too
+            double legalStdDed = isOldRegime ? 50000 : 75000;
             double stdDed16 = Math.Min(
                 sd.StandardDeduction > 0 ? sd.StandardDeduction : legalStdDed,
                 legalStdDed);
@@ -693,8 +693,9 @@ namespace TDSPro.DAL
         private static string BuildS16(ReturnSalaryDetail sd, int seq, string lineNo)
         {
             string F(double v) => v.ToString("F2");
-            // FVU 9.4 T_FV_6138: both regimes capped at 50K (old regime legal = 50K; new regime FVU bug = 50K)
-            double fvuLimit = 50000;
+            // New regime: ₹75,000 (Budget 2024); Old regime: ₹50,000
+            bool isOld = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+            double fvuLimit = isOld ? 50000 : 75000;
             double stdDed = Math.Min(sd.StandardDeduction > 0 ? sd.StandardDeduction : fvuLimit, fvuLimit);
             return PipeL(lineNo, "S16",
                 "1",                    // [2]: Batch Number (always 1)
