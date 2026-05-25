@@ -222,11 +222,13 @@ namespace TDSPro.DAL
                 File.WriteAllBytes(Path.Combine(fvuClassDir, "FVU.class"), fvuBytes);
 
                 // 3. Extract k.class from jar, apply T_FV_6138 new-regime 75K patch, write to package path
-                // FVU 9.4 k.class constant pool entry CP#1335 (file offset 0x6970) holds integer 75000
-                // (= 0x00012510). The T_FV_6138 validator for new regime uses this constant as the limit.
-                // Due to floating-point precision, the ifle comparison fires when S16 == 75000 exactly.
-                // Fix: change CP#1335 from 75000 → 999999999 (0x3B9AC9FF) so the limit check never
-                // triggers for any realistic amount. Control flow is unchanged → StackMapTable stays valid.
+                // FVU 9.4 k.class bug: the new-regime (115BAC=Y) validation block at bytecode offset
+                // 0x13BAC loads local_29 (= 50000, old-regime limit) via "iload 0x1D" instead of
+                // local_30 (= 75000, new-regime limit, "iload 0x1E"). This causes T_FV_6138 even for
+                // legally correct 75K S16 amounts when the employee chose new regime.
+                // Fix: change the single operand byte 0x1D → 0x1E at file offset 0x13BAD.
+                // Context: preceding bytes 15 1D 87 97 9E = iload, i2d, dcmpl, ifle.
+                // No branch offsets change → StackMapTable stays valid (no VerifyError).
                 var kEntry = za.GetEntry("com/tin/tds/k.class");
                 if (kEntry != null)
                 {
@@ -238,21 +240,17 @@ namespace TDSPro.DAL
                         kBytes = ms2.ToArray();
                     }
 
-                    // CP#1335 = CONSTANT_Integer 74744 at file offset 0x6970: tag=0x03, value=0x000124F8
-                    // (FVU 9.4 jar stores 74744, not 75000 — floating-point rounding in FVU source)
-                    // Patch to 999999999 = 0x3B9AC9FF so T_FV_6138 never fires for legal 75K amounts.
-                    const int kOff = 0x6970;
+                    // Patch: at 0x13BAC, "15 1D 87 97 9E" = iload 29, i2d, dcmpl, ifle
+                    // Change 0x13BAD (iload operand) from 0x1D (local_29 = 50000) to 0x1E (local_30 = 75000)
+                    const int kOff = 0x13BAC;
                     if (kOff + 4 < kBytes.Length
-                        && kBytes[kOff]     == 0x03   // CONSTANT_Integer tag
-                        && kBytes[kOff + 1] == 0x00
-                        && kBytes[kOff + 2] == 0x01
-                        && kBytes[kOff + 3] == 0x24
-                        && kBytes[kOff + 4] == 0xF8)  // 0x000124F8 = 74744
+                        && kBytes[kOff]     == 0x15   // iload opcode
+                        && kBytes[kOff + 1] == 0x1D   // operand: local_29 (50000)
+                        && kBytes[kOff + 2] == 0x87   // i2d
+                        && kBytes[kOff + 3] == 0x97   // dcmpl
+                        && kBytes[kOff + 4] == 0x9E)  // ifle
                     {
-                        kBytes[kOff + 1] = 0x3B;
-                        kBytes[kOff + 2] = 0x9A;
-                        kBytes[kOff + 3] = 0xC9;
-                        kBytes[kOff + 4] = 0xFF;       // 999999999 — new regime limit never exceeded
+                        kBytes[kOff + 1] = 0x1E;       // load local_30 (75000) instead of local_29 (50000)
                         progress?.Report("FVU k.class patch applied (T_FV_6138 new-regime 75K fix).");
                     }
                     else
