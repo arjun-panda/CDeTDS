@@ -657,7 +657,8 @@ namespace TDSPro.DAL
                 "0.00",                                     // [74]: 0.00
                 "0.00",                                     // [75]: 0.00
                 "0.00",                                     // [76]: 0.00
-                F(grossTax),                                // [77]: Total TDS for whole year (tax+sur+cess, before rebate)
+                // [77]: grossTax when netTax==0 (rebate/exempt cases); 0.00 when netTax>0 (FVU validated pattern from reference)
+                netTax == 0 ? F(grossTax) : "0.00",
                 // [78]: 115BAC opt-in flag (Y=new regime, N=old regime)
                 sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N",
                 "0.00",                                     // [79]: 0.00
