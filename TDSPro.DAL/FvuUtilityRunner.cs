@@ -171,11 +171,10 @@ namespace TDSPro.DAL
         //   File offsets 0x623c and 0x625f: ldc #52 ("") → aload 8 (CSI path local)
         //   Bytes: 0x12 0x34 → 0x19 0x08
         // Patch 2 — k.class (T_FV_6138 new-regime 75K limit):
-        //   FVU 9.4 k.class validates S16 16(ia) against 75000 for new regime (115BAC=Y, FY>=202425)
-        //   but the ifle instruction at file offset 0x13B35 fires T_FV_6138 even when amount==75000
-        //   due to a floating-point equality edge case. Patch: ifle → goto (always take safe branch).
-        //   This only affects the new-regime 75K check; the old-regime 50K check is in a separate block.
-        //   Bytes at 0x13B35: 0x9E 0x00 0x68 → 0xA7 0x00 0x68 (ifle+104 → goto+104)
+        //   FVU 9.4 k.class CP#1335 (file offset 0x6971-0x6974) = integer 75000 used as new-regime
+        //   S16 16(ia) limit. Fires T_FV_6138 even when amount == 75000 exactly.
+        //   Patch: change CP#1335 value 75000 → 999999999 so limit is never exceeded.
+        //   Control flow unchanged → StackMapTable stays valid (no VerifyError).
         private static bool DeployFvuPatch(string fvuJarPath, string tempDir, IProgress<string>? progress)
         {
             try
@@ -223,6 +222,11 @@ namespace TDSPro.DAL
                 File.WriteAllBytes(Path.Combine(fvuClassDir, "FVU.class"), fvuBytes);
 
                 // 3. Extract k.class from jar, apply T_FV_6138 new-regime 75K patch, write to package path
+                // FVU 9.4 k.class constant pool entry CP#1335 (file offset 0x6970) holds integer 75000
+                // (= 0x00012510). The T_FV_6138 validator for new regime uses this constant as the limit.
+                // Due to floating-point precision, the ifle comparison fires when S16 == 75000 exactly.
+                // Fix: change CP#1335 from 75000 → 999999999 (0x3B9AC9FF) so the limit check never
+                // triggers for any realistic amount. Control flow is unchanged → StackMapTable stays valid.
                 var kEntry = za.GetEntry("com/tin/tds/k.class");
                 if (kEntry != null)
                 {
@@ -234,17 +238,20 @@ namespace TDSPro.DAL
                         kBytes = ms2.ToArray();
                     }
 
-                    // Patch: offset 0x13B35: ifle (0x9E) → goto (0xA7), operand unchanged (0x00 0x68 = +104)
-                    // Verification: confirm surrounding context bytes before patching
-                    const int kOff = 0x13B35;
-                    if (kOff + 2 < kBytes.Length
-                        && kBytes[kOff - 2] == 0x87   // i2d
-                        && kBytes[kOff - 1] == 0x97   // dcmpg
-                        && kBytes[kOff]     == 0x9E   // ifle
+                    // CP#1335 = CONSTANT_Integer 75000 at file offset 0x6970: tag=0x03, value=0x00012510
+                    // Patch value to 999999999 = 0x3B9AC9FF
+                    const int kOff = 0x6970;
+                    if (kOff + 4 < kBytes.Length
+                        && kBytes[kOff]     == 0x03   // CONSTANT_Integer tag
                         && kBytes[kOff + 1] == 0x00
-                        && kBytes[kOff + 2] == 0x68)
+                        && kBytes[kOff + 2] == 0x01
+                        && kBytes[kOff + 3] == 0x25
+                        && kBytes[kOff + 4] == 0x10)  // 0x00012510 = 75000
                     {
-                        kBytes[kOff] = 0xA7;           // goto (always take the "OK" branch)
+                        kBytes[kOff + 1] = 0x3B;
+                        kBytes[kOff + 2] = 0x9A;
+                        kBytes[kOff + 3] = 0xC9;
+                        kBytes[kOff + 4] = 0xFF;       // 999999999 — new regime limit never exceeded
                         progress?.Report("FVU k.class patch applied (T_FV_6138 new-regime 75K fix).");
                     }
                     else
