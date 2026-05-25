@@ -3350,8 +3350,8 @@
             var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
             Directory.CreateDirectory(folder);
             var path = html
-                ? SalarySlipExport.GenerateAnnualHtml(annual, emp, AppState.CurrentFY, folder, ded)
-                : SalarySlipExport.GenerateAnnualExcel(annual, emp, AppState.CurrentFY, folder, ded);
+                ? SalarySlipExport.GenerateAnnualHtml(annual, emp, AppState.CurrentFY, folder, ded, summary)
+                : SalarySlipExport.GenerateAnnualExcel(annual, emp, AppState.CurrentFY, folder, ded, summary);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }
@@ -3898,9 +3898,10 @@
             var ded    = DeductorSvc.GetAll().FirstOrDefault(d => d.Id == AppState.CurrentDeductorId) ?? new Deductor();
             var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
             Directory.CreateDirectory(folder);
+            var sdYearSum = _yearSummaries.FirstOrDefault(s => s.EmployeeId == _sdEmpId);
             var path = html
-                ? SalarySlipExport.GenerateAnnualHtml(_sdAnnual, emp, AppState.CurrentFY, folder, ded)
-                : SalarySlipExport.GenerateAnnualExcel(_sdAnnual, emp, AppState.CurrentFY, folder, ded);
+                ? SalarySlipExport.GenerateAnnualHtml(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum)
+                : SalarySlipExport.GenerateAnnualExcel(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }

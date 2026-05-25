@@ -696,7 +696,8 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             Employee emp,
             string fy,
             string outputFolder,
-            Deductor? deductor = null)
+            Deductor? deductor = null,
+            EmployeeYearSummary? yearSummary = null)
         {
             var o = annual.OldRegime;
             var n = annual.NewRegime;
@@ -876,7 +877,75 @@ tr.chosen td.num{{font-weight:700}}
 
             sb.Append("</tbody></table>");
 
-            // ── G. TDS SUMMARY ────────────────────────────────────────────────
+            // ── MONTHLY BREAKDOWN ─────────────────────────────────────────────
+            var fyMonths = new[]{ 4,5,6,7,8,9,10,11,12,1,2,3 };
+            var monthNames = new[]{ "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
+            var runs = yearSummary?.MonthlyRuns ?? new Dictionary<int, PayrollRun>();
+            if (runs.Count > 0)
+            {
+                sb.Append(@"
+<div style='margin-top:14px'>
+<div style='background:#1e3a8a;color:#fff;font-weight:700;font-size:10px;padding:6px 10px;border-radius:4px 4px 0 0;letter-spacing:.3px'>Monthly Salary Statement — April to March</div>
+<table style='width:100%;border-collapse:collapse;font-size:9.5px'>
+<thead><tr style='background:#dbeafe;color:#1e3a8a;font-weight:600;font-size:9px'>
+  <th style='padding:5px 8px;text-align:left'>Month</th>
+  <th style='padding:5px 8px;text-align:right'>Gross</th>
+  <th style='padding:5px 8px;text-align:right'>HRA Ex.</th>
+  <th style='padding:5px 8px;text-align:right'>Std. Ded.</th>
+  <th style='padding:5px 8px;text-align:right'>Taxable</th>
+  <th style='padding:5px 8px;text-align:right'>TDS</th>
+  <th style='padding:5px 8px;text-align:right'>PF</th>
+  <th style='padding:5px 8px;text-align:right'>PT</th>
+  <th style='padding:5px 8px;text-align:right'>Net Pay</th>
+</tr></thead><tbody>");
+                double totGross=0,totHra=0,totStd=0,totTax=0,totTds=0,totPf=0,totPt=0,totNet=0;
+                for (int mi=0; mi<12; mi++)
+                {
+                    int m = fyMonths[mi];
+                    string bg = mi%2==0 ? "#fff" : "#f8fafc";
+                    if (runs.TryGetValue(m, out var pr))
+                    {
+                        double stdM = pr.StandardDeduction > 0 ? pr.StandardDeduction : (chosenOld ? o.StandardDeduction : n.StandardDeduction) / 12.0;
+                        totGross+=pr.GrossSalary; totHra+=pr.HraExemption; totStd+=stdM;
+                        totTax+=pr.TaxableIncome; totTds+=pr.TdsDeducted;
+                        totPf+=pr.PfEmployee; totPt+=pr.ProfessionalTax; totNet+=pr.NetPay;
+                        string M(double v) => v==0?"—":"₹"+v.ToString("N0");
+                        sb.Append($"<tr style='background:{bg};border-bottom:1px solid #f0f2f5'>" +
+                            $"<td style='padding:4px 8px;font-weight:600;color:#374151'>{monthNames[mi]}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums'>{M(pr.GrossSalary)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280'>{M(pr.HraExemption)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280'>{M(stdM)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums'>{M(pr.TaxableIncome)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#dc2626;font-weight:600'>{M(pr.TdsDeducted)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280'>{M(pr.PfEmployee)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280'>{M(pr.ProfessionalTax)}</td>" +
+                            $"<td style='padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#15803d;font-weight:600'>{M(pr.NetPay)}</td>" +
+                            "</tr>");
+                    }
+                    else
+                    {
+                        sb.Append($"<tr style='background:{bg};border-bottom:1px solid #f0f2f5'>" +
+                            $"<td style='padding:4px 8px;color:#9ca3af'>{monthNames[mi]}</td>" +
+                            $"<td colspan='8' style='padding:4px 8px;color:#d1d5db;font-size:9px'>— not entered —</td></tr>");
+                    }
+                }
+                // Total row
+                string T(double v) => v==0?"₹0":"₹"+v.ToString("N0");
+                sb.Append($"<tr style='background:#1e3a8a;color:#fff;font-weight:700;font-size:10px'>" +
+                    $"<td style='padding:5px 8px'>Total</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums'>{T(totGross)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums'>{T(totHra)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums'>{T(totStd)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums'>{T(totTax)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#fca5a5'>{T(totTds)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums'>{T(totPf)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums'>{T(totPt)}</td>" +
+                    $"<td style='padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#86efac'>{T(totNet)}</td>" +
+                    "</tr>");
+                sb.Append("</tbody></table></div>");
+            }
+
+            // ── TDS SUMMARY ────────────────────────────────────────────────
             double balance = annual.BalanceTax;
             sb.Append($@"
 <div class='tds-grid' style='margin-top:10px'>
@@ -902,7 +971,8 @@ tr.chosen td.num{{font-weight:700}}
             Employee emp,
             string fy,
             string outputFolder,
-            Deductor? deductor = null)
+            Deductor? deductor = null,
+            EmployeeYearSummary? yearSummary = null)
         {
             var o = annual.OldRegime;
             var n = annual.NewRegime;
@@ -1036,6 +1106,96 @@ tr.chosen td.num{{font-weight:700}}
             ws.Cell(r,1).Style.Font.Italic = true;
             ws.Cell(r,1).Style.Font.FontColor = XLColor.Gray;
             ws.Cell(r,1).Style.Alignment.Indent = 1;
+
+            // ── Monthly Salary Sheet ──────────────────────────────────────────
+            var runs = yearSummary?.MonthlyRuns ?? new Dictionary<int, PayrollRun>();
+            if (runs.Count > 0)
+            {
+                var wm = wb.Worksheets.Add("Monthly Salary");
+                wm.PageSetup.PaperSize = XLPaperSize.A4Paper;
+                wm.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+                wm.PageSetup.FitToPages(1, 1);
+
+                // Header
+                wm.Range(1,1,1,9).Merge();
+                wm.Cell(1,1).Value = $"{deductor?.CompanyName ?? ""} — Monthly Salary Statement — FY {fy}";
+                wm.Cell(1,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
+                wm.Cell(1,1).Style.Font.FontColor = XLColor.White;
+                wm.Cell(1,1).Style.Font.Bold = true; wm.Cell(1,1).Style.Font.FontSize = 11;
+                wm.Cell(1,1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                wm.Row(1).Height = 22;
+
+                wm.Range(2,1,2,9).Merge();
+                wm.Cell(2,1).Value = $"Employee: {emp.Name}  |  Code: {emp.EmployeeCode}  |  PAN: {emp.Pan}  |  Regime: {annual.ChosenRegime}";
+                wm.Cell(2,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#dbeafe");
+                wm.Cell(2,1).Style.Font.Bold = true;
+                wm.Row(2).Height = 18;
+
+                string[] mHdrs = { "Month","Gross Salary","HRA Exemption","Std. Deduction","Taxable Income","TDS Deducted","PF Employee","Prof. Tax","Net Pay" };
+                for (int i=0;i<9;i++)
+                {
+                    wm.Cell(3,i+1).Value = mHdrs[i];
+                    wm.Cell(3,i+1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
+                    wm.Cell(3,i+1).Style.Font.FontColor = XLColor.White;
+                    wm.Cell(3,i+1).Style.Font.Bold = true;
+                    wm.Cell(3,i+1).Style.Alignment.Horizontal =
+                        i==0 ? XLAlignmentHorizontalValues.Left : XLAlignmentHorizontalValues.Right;
+                }
+                wm.Row(3).Height = 16;
+
+                int[] fyMonths = { 4,5,6,7,8,9,10,11,12,1,2,3 };
+                string[] mNames = { "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
+                bool chosenOldXl = annual.ChosenRegime == "Old";
+                double totG=0,totH=0,totS=0,totT=0,totD=0,totP=0,totPt2=0,totN=0;
+                for (int mi=0;mi<12;mi++)
+                {
+                    int row = 4+mi, m = fyMonths[mi];
+                    var bg2 = mi%2==0 ? XLColor.White : XLColor.FromHtml("#f8fafc");
+                    wm.Row(row).Style.Fill.BackgroundColor = bg2;
+                    wm.Cell(row,1).Value = mNames[mi];
+                    wm.Cell(row,1).Style.Font.Bold = true;
+                    if (runs.TryGetValue(m, out var pr))
+                    {
+                        double stdM = pr.StandardDeduction > 0 ? pr.StandardDeduction
+                            : (chosenOldXl ? o.StandardDeduction : n.StandardDeduction) / 12.0;
+                        double[] vals = { pr.GrossSalary, pr.HraExemption, stdM, pr.TaxableIncome, pr.TdsDeducted, pr.PfEmployee, pr.ProfessionalTax, pr.NetPay };
+                        totG+=pr.GrossSalary; totH+=pr.HraExemption; totS+=stdM;
+                        totT+=pr.TaxableIncome; totD+=pr.TdsDeducted;
+                        totP+=pr.PfEmployee; totPt2+=pr.ProfessionalTax; totN+=pr.NetPay;
+                        for (int ci=0;ci<8;ci++)
+                        {
+                            if (vals[ci] == 0) wm.Cell(row,ci+2).Value = "—";
+                            else wm.Cell(row,ci+2).Value = vals[ci];
+                            wm.Cell(row,ci+2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                            if (vals[ci]>0 && ci>=0)
+                                wm.Cell(row,ci+2).Style.NumberFormat.Format = "₹#,##0";
+                        }
+                    }
+                    else
+                    {
+                        wm.Range(row,2,row,9).Merge();
+                        wm.Cell(row,2).Value = "— not entered —";
+                        wm.Cell(row,2).Style.Font.Italic = true;
+                        wm.Cell(row,2).Style.Font.FontColor = XLColor.LightGray;
+                    }
+                }
+                // Total row
+                int tRow = 16;
+                wm.Row(tRow).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
+                wm.Row(tRow).Style.Font.FontColor = XLColor.White;
+                wm.Row(tRow).Style.Font.Bold = true;
+                wm.Cell(tRow,1).Value = "Total";
+                double[] tots = { totG,totH,totS,totT,totD,totP,totPt2,totN };
+                for (int ci=0;ci<8;ci++)
+                {
+                    wm.Cell(tRow,ci+2).Value = tots[ci];
+                    wm.Cell(tRow,ci+2).Style.NumberFormat.Format = "₹#,##0";
+                    wm.Cell(tRow,ci+2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                }
+                wm.Row(tRow).Height = 18;
+                for (int ci=1;ci<=9;ci++) wm.Column(ci).AdjustToContents();
+                wm.Column(1).Width = 10;
+            }
 
             Directory.CreateDirectory(outputFolder);
             string safeNameXl = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
