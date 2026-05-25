@@ -750,7 +750,7 @@ tr.tot td.num{{color:#fff}}
 tr.chosen td.num{{font-weight:700}}
 .badge{{display:inline-block;padding:2px 7px;border-radius:10px;font-size:8.5px;font-weight:600;margin-left:5px}}
 .old-badge{{background:#fef3c7;color:#92400e}}.new-badge{{background:#d1fae5;color:#065f46}}
-.tds-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #bfdbfe;border-radius:5px;overflow:hidden;margin-top:10px;font-size:10px}}
+.tds-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid #bfdbfe;border-radius:5px;overflow:hidden;margin-top:10px;font-size:10px}}
 .tc{{text-align:center;padding:7px 4px;background:#eff6ff}}
 .tc:nth-child(odd){{background:#dbeafe}}
 .tc .tl{{color:#1e40af;font-size:8px;margin-bottom:2px}}.tc .tv{{font-weight:700;color:#1e3a8a;font-variant-numeric:tabular-nums}}
@@ -955,7 +955,6 @@ tr.chosen td.num{{font-weight:700}}
   <div class='tc'><div class='tl'>Tax Payable (Chosen)</div><div class='tv'>₹{chosen.TotalTax:N0}</div></div>
   <div class='tc'><div class='tl'>TDS Paid (YTD)</div><div class='tv'>₹{totalTdsPaid:N0}</div></div>
   <div class='tc'><div class='tl'>Balance Tax</div><div class='tv' style='color:{(balance<0?"#166534":balance>0?"#dc2626":"#1e3a8a")}'>{Signed(balance)}</div></div>
-  <div class='tc'><div class='tl'>Monthly TDS (Remaining)</div><div class='tv'>₹{annual.ThisMonthTds:N0}</div></div>
 </div>
 
 <div class='footer'>Computer-generated &nbsp;|&nbsp; TDS Pro v3.0 &nbsp;|&nbsp; Not a legal document &nbsp;|&nbsp; {TDSPro.Common.TaxRules.ActName(fy)}</div>
@@ -1100,7 +1099,7 @@ tr.chosen td.num{{font-weight:700}}
             double xlTdsPaid = xlRuns.Count > 0 ? xlRuns.Values.Sum(r2 => r2.TdsDeducted) : annual.YtdTdsDeducted;
             double xlBalance = chosen.TotalTax - xlTdsPaid;
             ws.Range(r,1,r,3).Merge();
-            ws.Cell(r,1).Value = $"Annual Tax: ₹{chosen.TotalTax:N0}   |   TDS Paid: ₹{xlTdsPaid:N0}   |   Balance: ₹{xlBalance:N0}   |   Monthly TDS: ₹{annual.ThisMonthTds:N0}";
+            ws.Cell(r,1).Value = $"Annual Tax: ₹{chosen.TotalTax:N0}   |   TDS Paid: ₹{xlTdsPaid:N0}   |   Balance: ₹{xlBalance:N0}";
             ws.Cell(r,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#f0fdf4");
             ws.Cell(r,1).Style.Font.FontColor = XLColor.FromHtml("#14532d");
             ws.Cell(r,1).Style.Font.Bold = true;
