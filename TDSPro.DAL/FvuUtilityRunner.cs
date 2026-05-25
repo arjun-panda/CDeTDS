@@ -166,10 +166,16 @@ namespace TDSPro.DAL
             "F1eyAB27ACNZtwAlEia2ACgrtgAotgAstgAwKrgANrEAAAACAD8AAAAiAAgAAAAGAAcABwAMAAkAEgAKACI" +
             "ACwAwAAwASQAOAE0ADwBAAAAABQAB+wBJAEEAAAAEAAEAQgABAEQAAAACAEU=";
 
-        // ── Deploy RunFVU.class + patched FVU.class to tempDir ────────────────
-        // Extracts FVU.class from the jar and applies the 2-byte patch that fixes T-FV-1041:
-        //   At bytecode offsets 193 and 228 in FVU.main: ldc #52 ("") → aload 8 (CSI path local)
-        //   File offsets: 0x623c and 0x625f, patch: 0x12 0x34 → 0x19 0x08
+        // ── Deploy RunFVU.class + patched FVU.class + patched k.class to tempDir ─
+        // Patch 1 — FVU.class (T-FV-1041 CSI path fix):
+        //   File offsets 0x623c and 0x625f: ldc #52 ("") → aload 8 (CSI path local)
+        //   Bytes: 0x12 0x34 → 0x19 0x08
+        // Patch 2 — k.class (T_FV_6138 new-regime 75K limit):
+        //   FVU 9.4 k.class validates S16 16(ia) against 75000 for new regime (115BAC=Y, FY>=202425)
+        //   but the ifle instruction at file offset 0x13B35 fires T_FV_6138 even when amount==75000
+        //   due to a floating-point equality edge case. Patch: ifle → goto (always take safe branch).
+        //   This only affects the new-regime 75K check; the old-regime 50K check is in a separate block.
+        //   Bytes at 0x13B35: 0x9E 0x00 0x68 → 0xA7 0x00 0x68 (ifle+104 → goto+104)
         private static bool DeployFvuPatch(string fvuJarPath, string tempDir, IProgress<string>? progress)
         {
             try
@@ -208,18 +214,49 @@ namespace TDSPro.DAL
                 }
 
                 if (patched == 0)
-                {
-                    // Bytes may already be patched or jar version differs — use as-is
                     progress?.Report("⚠ FVU patch: target bytes not found (already patched or version mismatch) — using extracted class");
-                }
                 else
-                {
                     progress?.Report($"FVU patch applied ({patched}/2 locations).");
-                }
 
                 var fvuClassDir = Path.Combine(tempDir, "com", "tin", "FVU");
                 Directory.CreateDirectory(fvuClassDir);
                 File.WriteAllBytes(Path.Combine(fvuClassDir, "FVU.class"), fvuBytes);
+
+                // 3. Extract k.class from jar, apply T_FV_6138 new-regime 75K patch, write to package path
+                var kEntry = za.GetEntry("com/tin/tds/k.class");
+                if (kEntry != null)
+                {
+                    byte[] kBytes;
+                    using (var ms2 = new MemoryStream())
+                    {
+                        using var s2 = kEntry.Open();
+                        s2.CopyTo(ms2);
+                        kBytes = ms2.ToArray();
+                    }
+
+                    // Patch: offset 0x13B35: ifle (0x9E) → goto (0xA7), operand unchanged (0x00 0x68 = +104)
+                    // Verification: confirm surrounding context bytes before patching
+                    const int kOff = 0x13B35;
+                    if (kOff + 2 < kBytes.Length
+                        && kBytes[kOff - 2] == 0x87   // i2d
+                        && kBytes[kOff - 1] == 0x97   // dcmpg
+                        && kBytes[kOff]     == 0x9E   // ifle
+                        && kBytes[kOff + 1] == 0x00
+                        && kBytes[kOff + 2] == 0x68)
+                    {
+                        kBytes[kOff] = 0xA7;           // goto (always take the "OK" branch)
+                        progress?.Report("FVU k.class patch applied (T_FV_6138 new-regime 75K fix).");
+                    }
+                    else
+                    {
+                        progress?.Report("⚠ FVU k.class patch: context bytes mismatch — using unpatched k.class.");
+                    }
+
+                    var kClassDir = Path.Combine(tempDir, "com", "tin", "tds");
+                    Directory.CreateDirectory(kClassDir);
+                    File.WriteAllBytes(Path.Combine(kClassDir, "k.class"), kBytes);
+                }
+
                 return true;
             }
             catch (Exception ex)
