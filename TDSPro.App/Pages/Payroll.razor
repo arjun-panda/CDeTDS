@@ -1573,14 +1573,26 @@
                         }
                         <button class="sd-btn sd-btn-outlined" style="border-color:#dc2626;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure. Useful when an accidental save left the month blank.">♻ Reset from Structure</button>
                         <button class="sd-btn sd-btn-outlined" @onclick="SdCopyToAll" title="Copy current month's values to all subsequent months and save. Skips locked months.">📋 Copy Forward &amp; Save</button>
-                        <MudMenu Label="Computation ▾" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
-                            <MudMenuItem OnClick="() => SdDownloadAnnual(html: true)">📄 PDF</MudMenuItem>
-                            <MudMenuItem OnClick="() => SdDownloadAnnual(html: false)">📊 Excel</MudMenuItem>
-                        </MudMenu>
-                        <MudMenu Label="Monthly Statement ▾" Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
-                            <MudMenuItem OnClick="() => SdDownloadMonthly(html: true)">📄 PDF</MudMenuItem>
-                            <MudMenuItem OnClick="() => SdDownloadMonthly(html: false)">📊 Excel</MudMenuItem>
-                        </MudMenu>
+                        <div style="position:relative;display:inline-block">
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#1565c0;color:#1565c0" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
+                            @if (_sdDropComp)
+                            {
+                                <div style="position:absolute;top:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-top:2px" @onclick:stopPropagation>
+                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
+                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
+                                </div>
+                            }
+                        </div>
+                        <div style="position:relative;display:inline-block">
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#7c3aed;color:#7c3aed" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly Statement ▾</button>
+                            @if (_sdDropMonth)
+                            {
+                                <div style="position:absolute;top:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-top:2px" @onclick:stopPropagation>
+                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
+                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
+                                </div>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2382,14 +2394,10 @@
                                     @(s.TotalNet > 0 ? "₹" + s.TotalNet.ToString("N0") : "₹0")
                                 </td>
                                 <td style="padding:9px 12px;text-align:center">
-                                    <MudMenu Icon="@Icons.Material.Filled.Assessment" Size="Size.Small" Color="Color.Primary" title="Computation" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Dense="true">
-                                        <MudMenuItem OnClick="() => DownloadAnnual(s, html: true)">📄 PDF</MudMenuItem>
-                                        <MudMenuItem OnClick="() => DownloadAnnual(s, html: false)">📊 Excel</MudMenuItem>
-                                    </MudMenu>
-                                    <MudMenu Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Color="Color.Secondary" title="Monthly Statement" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Dense="true">
-                                        <MudMenuItem OnClick="() => DownloadMonthly(s, html: true)">📄 PDF</MudMenuItem>
-                                        <MudMenuItem OnClick="() => DownloadMonthly(s, html: false)">📊 Excel</MudMenuItem>
-                                    </MudMenu>
+                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Color="Color.Error" title="Computation PDF" OnClick="() => DownloadAnnual(s, html: true)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Color="Color.Success" title="Computation Excel" OnClick="() => DownloadAnnual(s, html: false)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Color="Color.Primary" title="Monthly Statement PDF" OnClick="() => DownloadMonthly(s, html: true)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.GridOn" Size="Size.Small" Color="Color.Secondary" title="Monthly Statement Excel" OnClick="() => DownloadMonthly(s, html: false)" />
                                 </td>
                             </tr>
                         }
@@ -2779,6 +2787,8 @@
     };
 
     // Salary data tab
+    private bool _sdDropComp;   // Computation dropdown open
+    private bool _sdDropMonth;  // Monthly Statement dropdown open
     private int    _sdEmpId;
     private int    _sdMonth;
     private bool[] _sdMonthHasData = new bool[12];
