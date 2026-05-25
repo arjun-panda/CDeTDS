@@ -664,12 +664,22 @@ namespace TDSPro.DAL
                 fh.ExecuteNonQuery();
             }
 
-            // Unique constraint on filing history — prevents duplicate rows per filing (added v15)
+            // Unique constraint on filing history — must deduplicate first or CREATE UNIQUE INDEX fails
             using (var uc = conn.CreateCommand()) {
+                // Remove duplicates keeping latest row per unique key
                 uc.CommandText = @"
+                    DELETE FROM tds_filing_history
+                    WHERE id NOT IN (
+                        SELECT MAX(id) FROM tds_filing_history
+                        GROUP BY deductor_id, form_type, financial_year, quarter, is_correction
+                    )";
+                uc.ExecuteNonQuery();
+            }
+            using (var uc2 = conn.CreateCommand()) {
+                uc2.CommandText = @"
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_filing_hist_unique
                     ON tds_filing_history(deductor_id, form_type, financial_year, quarter, is_correction)";
-                uc.ExecuteNonQuery();
+                uc2.ExecuteNonQuery();
             }
 
             // Reimbursement claims (bill tracking per month)
