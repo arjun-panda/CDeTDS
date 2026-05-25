@@ -578,10 +578,9 @@ namespace TDSPro.DAL
         }
 
         // ── SD — Salary Detail record (Annexure II, 24Q Q4 only) ────────────────
-        // 88 fields. Layout confirmed field-by-field from reference 4I03886B.txt (FVU-validated).
-        // Key fields (0-indexed in split array):
-        //  [27]=NetTaxPayable(tax+sur+cess-rebate)  [28]=TDSDeducted  [29]=Shortfall(field27-field28, can be negative)
-        //  [30]=0.00  [35]=TDSCurrentEmployer  [77]=0.00
+        // 78 content fields ([2]-[78]) + lineNo[1] + tag[2] = 80 total (79 values + trailing empty).
+        // Layout confirmed field-by-field from NSDL reference 24QRQ4.txt (FVU 9.4 validated).
+        // Key fields: [27]=NetTaxPayable  [28]=TDSDeducted  [29]=Shortfall  [78]=115BAC Y/N
         private static string BuildSD(ReturnSalaryDetail sd, int seq, string lineNo, string challanSlNo, string fy)
         {
             string F(double v) => v.ToString("F2");
@@ -609,11 +608,7 @@ namespace TDSPro.DAL
                 if (rules.Rebate87AThreshold > 0 && taxableBasis <= rules.Rebate87AThreshold)
                     rebate87A = Math.Min(tax, rules.Rebate87AMaxAmount);
             }
-            // Confirmed against FVU-validated 4I03886B.txt (24Q Q4, FVU 9.4):
-            //   [28] = Net Tax Payable = grossTax − rebate87A − relief89  (post-rebate)
-            //   [30] = Shortfall/Excess = [28] − tdsDeducted (negative = excess deducted)
-            //   [78] = Tax Before Rebate = grossTax (pre-rebate)
-            //   [77] = blank/zero (it is NOT the 87A rebate as our older comment claimed)
+            // [27] = NetTax = grossTax − rebate87A − relief89; [29] = netTax − tdsDeducted
             double netTax = grossTax - rebate87A - relief89;
             double tdsDeducted = sd.TdsDeducted + sd.PrevEmpTds;
             double shortfall = netTax - tdsDeducted;
@@ -662,26 +657,20 @@ namespace TDSPro.DAL
                 "0",                                        // [49]: integer
                 "", "", "", "", "", "", "", "",             // [50-57]: blank (8)
                 "N",                                        // [58]: Whether superannuation contributions (Y/N)
-                "", "", "", "", "", "", "",                 // [59-65]: blank (7)
-                F(totalSal),                                // [66]: Total salary
-                F(sd.PrevEmpSalary),                        // [67]: Previous employer salary (repeat)
-                "0.00",                                     // [68]: 0.00
-                "",                                         // [69]: blank
-                "0.00",                                     // [70]: 0.00
+                "", "", "", "", "", "", "", "",             // [59-66]: blank (8) — superannuation cert/fund slots (filled when [58]=Y)
+                F(totalSal),                                // [67]: Total salary
+                F(sd.PrevEmpSalary),                        // [68]: Previous employer salary (repeat)
+                "0.00",                                     // [69]: 0.00
+                "",                                         // [70]: blank
                 "0.00",                                     // [71]: 0.00
                 "0.00",                                     // [72]: 0.00
-                "",                                         // [73]: blank
-                "0.00",                                     // [74]: 0.00
+                "0.00",                                     // [73]: 0.00
+                "",                                         // [74]: blank
                 "0.00",                                     // [75]: 0.00
                 "0.00",                                     // [76]: 0.00
-                "0.00",                                     // [77]: filler (NSDL field 369 — not 87A rebate)
-                F(grossTax),                                // [78]: Tax before rebate (= tax + sur + cess)
-                // [79]: 115BAC opt-in flag (T_FV_6198 — Y if opted to new regime, else N)
-                // NSDL: TaxRegime "O" = opted u/s 115BAC, "N" = old regime
-                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N",
-                "0.00",                                     // [80]: 0.00
-                "0.00",                                     // [81]: 0.00
-                "", "", "", "", "", ""                      // [82-87]: filler blank
+                "0.00",                                     // [77]: 0.00
+                // [78]: 115BAC opt-in flag (T_FV_6198 — Y if opted to new regime, else N)
+                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N"
             );
         }
 
