@@ -590,30 +590,14 @@ namespace TDSPro.DAL
             double gti = sd.GrossTotalIncome > 0 ? sd.GrossTotalIncome : balanceAfter10;
             double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
             double grossTax = tax + sd.Surcharge + sd.Cess;
-            // FVU 9.4 formula: [27] NetTax = [23]ITax + [24]Sur + [25]Cess - [77]Rebate87A - [26]Relief89
-            // FVU reads [77] as Rebate u/s 87A (NSDL field 369), [26] as Relief89 (NSDL field 372)
+            // FVU 9.4 validates [27] = [23]+[24]+[25]-[26] AND [29] = [27]-[28].
+            // Rebate87A goes in a separate NSDL field outside this record; it does NOT affect [27] or [29].
             double relief89 = 0;  // not currently tracked in model; default 0
-            double rebate87A = sd.Rebate87A;
-            // Auto-compute 87A rebate when caller didn't supply one but tax exists.
-            // Required for FVU [27]: low-income employees get full rebate eating tax.
-            if (rebate87A == 0 && tax > 0)
-            {
-                // NSDL TaxRegime codes: N = old (Normal), O = new (Opted u/s 115BAC).
-                // Treat default FY 2025-26+ as new regime when blank (new is default after Budget 2024).
-                bool isNew = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true
-                          || sd.TaxRegime?.Equals("New", StringComparison.OrdinalIgnoreCase) == true;
-                var rules = TaxRules.GetRules(fy ?? "", isNew);
-                double taxableBasis = sd.TaxableIncome > 0 ? sd.TaxableIncome
-                                    : Math.Max(0, gti - sd.StandardDeduction - sd.Chapter6ATotal);
-                if (rules.Rebate87AThreshold > 0 && taxableBasis <= rules.Rebate87AThreshold)
-                    rebate87A = Math.Min(tax, rules.Rebate87AMaxAmount);
-            }
-            // FVU 9.4 validates [27] = [23]+[24]+[25]-[26] (relief89 only; rebate87A is NOT in this formula).
-            // rebate87A is tracked internally for shortfall calculation only.
-            double netTax = grossTax - relief89;            // [27]: FVU formula field
+            // FVU 9.4 validates [27] = [23]+[24]+[25]-[26] AND [29] = [27]-[28].
+            // rebate87A is NOT part of either FVU formula — it goes in a separate NSDL field not in this record.
+            double netTax = grossTax - relief89;            // [27]: FVU formula field (no rebate87A here)
             double tdsDeducted = sd.TdsDeducted + sd.PrevEmpTds;
-            double effectiveTax = netTax - rebate87A;       // actual tax after rebate, for shortfall
-            double shortfall = effectiveTax - tdsDeducted;
+            double shortfall = netTax - tdsDeducted;        // [29]: FVU formula field = [27]-[28]
 
             return PipeL(lineNo, "SD",
                 "1",                                        //  [2]: Batch Number (always 1)
@@ -663,11 +647,13 @@ namespace TDSPro.DAL
                 F(totalSal),                                // [66]: Total salary
                 F(sd.PrevEmpSalary),                        // [67]: Previous employer salary (repeat)
                 "0.00",                                     // [68]: 0.00
-                "0.00",                                     // [69]: Travel concession [section 10(5)] — FVU case 70 mandatory for 115BAC=Y employees
+                // [69] Travel concession [10(5)]: mandatory (non-blank) for 115BAC=Y; must be blank for N
+                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "0.00" : "",
                 "0.00",                                     // [70]: 0.00
                 "0.00",                                     // [71]: 0.00
                 "0.00",                                     // [72]: 0.00
-                "0.00",                                     // [73]: HRA [section 10(13A)] — FVU case 74 mandatory for 115BAC=Y employees
+                // [73] HRA [10(13A)]: mandatory (non-blank) for 115BAC=Y; must be blank for N
+                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "0.00" : "",
                 "0.00",                                     // [74]: 0.00
                 "0.00",                                     // [75]: 0.00
                 "0.00",                                     // [76]: 0.00
