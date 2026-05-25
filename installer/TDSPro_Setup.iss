@@ -1,9 +1,9 @@
 ; TDS Pro — Inno Setup 6 Installer Script
 ; Build: .\installer\build_installer.ps1
-; Output: installer\Output\TDSPro_Setup_v3.2.0.exe
+; Output: installer\Output\TDSPro_Setup_v1.0.0.exe
 
 #define AppName        "TDS Pro"
-#define AppVersion     "3.2.0"
+#define AppVersion     "1.0.0"
 #define AppPublisher   "CapitalDesk"
 #define AppURL         "https://capitaldesk.co.in"
 #define AppExeName     "TDSPro.exe"
