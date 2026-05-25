@@ -601,10 +601,9 @@ namespace TDSPro.DAL
             string F(double v) => v.ToString("F2");
             string FS(double v) => v.ToString("F2"); // signed, allows negative
             double totalSal = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3;
-            // New regime (115BAC=Y/"O"): std ded ₹75,000 (Budget 2024, FVU 9.4 accepts 75K).
-            // Old regime: std ded ₹50,000.
-            bool isOldRegime = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
-            double legalStdDed = isOldRegime ? 50000 : 75000;
+            // NSDL TaxRegime code: "O" = new regime (115BAC=Y, ₹75K stdDed); "N" = old regime (₹50K).
+            bool isNewRegime = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+            double legalStdDed = isNewRegime ? 75000 : 50000;
             double stdDed16 = Math.Min(
                 sd.StandardDeduction > 0 ? sd.StandardDeduction : legalStdDed,
                 legalStdDed);
@@ -693,9 +692,9 @@ namespace TDSPro.DAL
         private static string BuildS16(ReturnSalaryDetail sd, int seq, string lineNo)
         {
             string F(double v) => v.ToString("F2");
-            // New regime: ₹75,000 (Budget 2024); Old regime: ₹50,000
-            bool isOld = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
-            double fvuLimit = isOld ? 50000 : 75000;
+            // NSDL code "O" = new regime (₹75K); "N" = old regime (₹50K)
+            bool isNewReg = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+            double fvuLimit = isNewReg ? 75000 : 50000;
             double stdDed = Math.Min(sd.StandardDeduction > 0 ? sd.StandardDeduction : fvuLimit, fvuLimit);
             return PipeL(lineNo, "S16",
                 "1",                    // [2]: Batch Number (always 1)
