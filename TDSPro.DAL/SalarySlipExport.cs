@@ -349,11 +349,12 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
                         t.Cell().Element(PdfReports.LabelCell).Text("Bank A/c").FontColor(PdfReports.MutedColor).FontSize(9);
                         t.Cell().Element(PdfReports.LabelCell).Text(string.IsNullOrEmpty(emp.BankAccount) ? "—" : emp.BankAccount);
 
-                        // Days row
-                        t.Cell().Element(PdfReports.LabelCell).Text("Days in Month").FontColor(PdfReports.MutedColor).FontSize(9);
-                        t.Cell().Element(PdfReports.LabelCell).Text(dim.ToString());
-                        t.Cell().Element(PdfReports.LabelCell).Text("Paid Days").FontColor(PdfReports.MutedColor).FontSize(9);
-                        t.Cell().Element(PdfReports.LabelCell).Text(daysPaid.ToString() + (lopDays > 0 ? $"  |  LOP: {lopDays}" : ""));
+                        // LOP row — only when there is loss of pay
+                        if (lopDays > 0)
+                        {
+                            t.Cell().Element(PdfReports.LabelCell).Text("Loss of Pay Days").FontColor(PdfReports.MutedColor).FontSize(9);
+                            t.Cell().ColumnSpan(3).Element(PdfReports.LabelCell).Text(lopDays.ToString());
+                        }
                     });
 
                     // Earnings / Deductions side-by-side
