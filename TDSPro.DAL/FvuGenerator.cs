@@ -151,13 +151,16 @@ namespace TDSPro.DAL
             string prn     = h.IsCorrection ? (h.PreviousPrn ?? "").Trim() : "";
             string origPrn = h.IsCorrection ? (string.IsNullOrEmpty(h.OriginalPrn) ? prn : h.OriginalPrn.Trim()) : "";
             string corrType = h.IsCorrection ? (h.CorrectionType ?? "C1").Trim().ToUpper() : "";
-            // BH batch TDS: must equal sum of CD[26] (TotalDepositPerChallan) across all challans.
-            // CD[26] = Max(TdsDeposited, ddTds) + Surcharge + Cess + Interest + LateFee.
-            // Using only c.TdsDeposited misses Interest/LateFee components (T-FV-3070).
-            double totalDeducteeTds = data.Deductees.Sum(d => Math.Round(d.TdsDeducted, MidpointRounding.AwayFromZero));
-            double challanTotal = data.Challans.Sum(c =>
-                Math.Max(c.TdsDeposited, 0) + Math.Max(c.Surcharge, 0) + Math.Max(c.Cess, 0) + Math.Max(c.Interest, 0) + Math.Max(c.LateFee, 0));
-            double batchTds = Math.Max(challanTotal, totalDeducteeTds);
+            // BH batch TDS: must equal sum of CD[27] (TotalDepositPerChallan) across all challans.
+            // CD[27] uses Max(challan.TdsDeposited, sum-of-DD-TDS) so BH must do the same.
+            double challanTotal = data.Challans.Sum(c => {
+                double ddTdsForChallan = data.Deductees
+                    .Where(d => d.ChallanNo == c.ChallanNo && d.BsrCode == c.BsrCode)
+                    .Sum(d => Math.Round(d.TdsDeducted, MidpointRounding.AwayFromZero));
+                double oltasTds = Math.Max(c.TdsDeposited, ddTdsForChallan);
+                return oltasTds + Math.Max(c.Surcharge, 0) + Math.Max(c.Cess, 0) + Math.Max(c.Interest, 0) + Math.Max(c.LateFee, 0);
+            });
+            double batchTds = challanTotal;
             string batchTdsStr = batchTds.ToString("F2"); // rupees with .00, e.g. "500000.00"
             // Split deductor address into up to 4 lines, max 25 chars each (NSDL BH field limit)
             string addr = Safe(h.DeductorAddress, 100);
