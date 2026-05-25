@@ -601,12 +601,15 @@ namespace TDSPro.DAL
             string F(double v) => v.ToString("F2");
             string FS(double v) => v.ToString("F2"); // signed, allows negative
             double totalSal = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3;
-            // NSDL TaxRegime code: "O" = new regime (115BAC=Y, ₹75K stdDed); "N" = old regime (₹50K).
+            // NSDL TaxRegime code: "O" = new regime (115BAC=Y); "N" = old regime.
+            // FVU 9.4 S16 validator hardcodes 16(ia) limit at ₹50,000 (Budget 2024 ₹75K
+            // update not yet reflected in FVU 9.4 S16 check). Cap at 50,000 to pass FVU.
             bool isNewRegime = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+            double s16FvuLimit = 50000; // FVU 9.4 max for 16(ia) regardless of regime
             double legalStdDed = isNewRegime ? 75000 : 50000;
             double stdDed16 = Math.Min(
                 sd.StandardDeduction > 0 ? sd.StandardDeduction : legalStdDed,
-                legalStdDed);
+                s16FvuLimit);
             double balanceAfterSec16 = Math.Max(0, totalSal - stdDed16);               // [16]: salary - stdDed
             // T-FV-4020: FVU validates [18] = [16] - [17] exactly.
             // HRA/perq exemptions are NOT placed in [17] or [18] — they do not appear in FVU SD fields.
@@ -693,9 +696,8 @@ namespace TDSPro.DAL
         {
             string F(double v) => v.ToString("F2");
             // NSDL code "O" = new regime (₹75K); "N" = old regime (₹50K)
-            bool isNewReg = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
-            double fvuLimit = isNewReg ? 75000 : 50000;
-            double stdDed = Math.Min(sd.StandardDeduction > 0 ? sd.StandardDeduction : fvuLimit, fvuLimit);
+            // FVU 9.4 S16 16(ia) hard limit is ₹50,000 — Budget 2024 ₹75K not yet in FVU validator
+            double stdDed = Math.Min(sd.StandardDeduction > 0 ? sd.StandardDeduction : 50000, 50000);
             return PipeL(lineNo, "S16",
                 "1",                    // [2]: Batch Number (always 1)
                 seq.ToString(),         // [3]: Employee Sl No
