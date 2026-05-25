@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
@@ -789,7 +791,25 @@ tr.chosen td.num{{font-weight:700}}
   <tbody>");
 
             bool chosenOldBool = annual.ChosenRegime == "Old";
-            foreach (var row in rows)
+            var alwaysShow = new HashSet<string> {
+                "Gross Salary (incl Perqs)", "Standard Deduction",
+                "Taxable Income", "Tax on Income", "Tax After Rebate", "TOTAL TAX"
+            };
+            // Strip trailing separator rows before any always-show rows to avoid orphan dividers
+            var filteredRows = rows
+                .Where((r, i) => r.IsSep || r.IsTot || alwaysShow.Contains(r.Label) || r.OldVal != 0 || r.NewVal != 0)
+                .ToArray();
+            // Remove consecutive/leading/trailing separators
+            var cleanRows = new List<(string Label, double OldVal, double NewVal, bool IsSep, bool IsTot)>();
+            bool lastWasSep = true;
+            foreach (var row in filteredRows)
+            {
+                if (row.IsSep) { if (!lastWasSep) cleanRows.Add(row); lastWasSep = true; }
+                else { cleanRows.Add(row); lastWasSep = false; }
+            }
+            while (cleanRows.Count > 0 && cleanRows[^1].IsSep) cleanRows.RemoveAt(cleanRows.Count - 1);
+
+            foreach (var row in cleanRows)
             {
                 if (row.IsSep)
                 {
