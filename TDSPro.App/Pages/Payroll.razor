@@ -1340,10 +1340,13 @@
 
                     <!-- Tax Summary panel -->
                     <div class="sd-tax-panel">
-                        <div style="font-size:11px;font-weight:700;color:#1565C0;margin-bottom:8px">📊 Tax Computation (after Compute)</div>
+                        <div style="font-size:11px;font-weight:700;color:#1565C0;margin-bottom:8px">📊 Tax Computation</div>
                         @if (_sdAnnual == null)
                         {
-                            <div style="color:#94a3b8;font-size:12px;padding:12px 0">Click <strong>Compute TDS</strong> to see full breakdown.</div>
+                            <div style="display:flex;align-items:center;gap:8px;padding:16px 0;color:#94a3b8;font-size:12px">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                Computing…
+                            </div>
                         }
                         else
                         {
@@ -1557,41 +1560,43 @@
                         </div>
                     }
                     <!-- Action buttons -->
-                    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                        <button class="sd-btn sd-btn-primary" @onclick="SdCompute" disabled="@(_sdComputing || _sdCurEntry?.IsLocked == true)">
-                            @if (_sdComputing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
-                            🧮 Compute TDS
-                        </button>
-                        <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)">💾 Save Month</button>
-                        @if (_sdCurEntry?.IsLocked == true)
-                        {
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#92400e;color:#92400e" @onclick="SdUnlockMonth">🔓 Unlock</button>
-                        }
-                        else
-                        {
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#15803d;color:#15803d" @onclick="SdApproveLock">🔒 Approve &amp; Lock</button>
-                        }
-                        <button class="sd-btn sd-btn-outlined" style="border-color:#dc2626;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure. Useful when an accidental save left the month blank.">♻ Reset from Structure</button>
-                        <button class="sd-btn sd-btn-outlined" @onclick="SdCopyToAll" title="Copy current month's values to all subsequent months and save. Skips locked months.">📋 Copy Forward &amp; Save</button>
-                        <div style="position:relative;display:inline-block">
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#1565c0;color:#1565c0" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
-                            @if (_sdDropComp)
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;border-top:1px solid #e2e8f0;padding-top:12px">
+                        <!-- Left: save/lock actions -->
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                            <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)">💾 Save</button>
+                            @if (_sdCurEntry?.IsLocked == true)
                             {
-                                <div style="position:absolute;top:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-top:2px" @onclick:stopPropagation>
-                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
-                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
-                                </div>
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#92400e;color:#92400e" @onclick="SdUnlockMonth">🔓 Unlock</button>
                             }
+                            else
+                            {
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#15803d;color:#15803d" @onclick="SdApproveLock">🔒 Lock</button>
+                            }
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#dc2626;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
+                            <button class="sd-btn sd-btn-outlined" @onclick="SdCopyToAll" title="Copy current month to all remaining months">📋 Copy Forward</button>
                         </div>
-                        <div style="position:relative;display:inline-block">
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#7c3aed;color:#7c3aed" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly Statement ▾</button>
-                            @if (_sdDropMonth)
-                            {
-                                <div style="position:absolute;top:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-top:2px" @onclick:stopPropagation>
-                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
-                                    <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
-                                </div>
-                            }
+                        <!-- Right: report downloads -->
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                            <div style="position:relative;display:inline-block">
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#1565c0;color:#1565c0" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
+                                @if (_sdDropComp)
+                                {
+                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-bottom:2px" @onclick:stopPropagation>
+                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
+                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
+                                    </div>
+                                }
+                            </div>
+                            <div style="position:relative;display:inline-block">
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#7c3aed;color:#7c3aed" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly ▾</button>
+                                @if (_sdDropMonth)
+                                {
+                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-bottom:2px" @onclick:stopPropagation>
+                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
+                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
+                                    </div>
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3658,6 +3663,7 @@
         _sdLopDays = e.LopDays;
         _sdVarEarnRows = new();
         _sdVarDedRows  = new();
+        _ = SdCompute();
     }
 
     MonthlySalaryEntry BuildSdEntry()
@@ -3708,8 +3714,8 @@
 
     async Task SdCompute()
     {
-        if (_sdEmpId == 0) { Snackbar.Add("Select an employee first.", Severity.Warning); return; }
-        if (_sdMonth == 0) { Snackbar.Add("Select a month first.", Severity.Warning); return; }
+        if (_sdEmpId == 0 || _sdMonth == 0) return;
+        if (_sdComputing) return;
         _sdComputing = true;
         StateHasChanged();
         try
