@@ -598,9 +598,17 @@ namespace TDSPro.DAL
             string F(double v) => v.ToString("F2");
             string FS(double v) => v.ToString("F2"); // signed, allows negative
             double totalSal = sd.Salary17_1 + sd.Perquisites17_2 + sd.ProfitSalary17_3;
-            double stdDed16 = sd.StandardDeduction > 0 ? sd.StandardDeduction : 75000; // Section 16(ia) std deduction
+            // FVU 9.4 T_FV_6138: new-regime employees (115BAC=Y) only accept stdDed ≤ 50000.
+            // Old-regime ("O"): legal limit ₹50K (Budget 2024 raised only new regime to ₹75K).
+            bool isOldRegime = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+            double legalStdDed = isOldRegime ? 50000 : 50000; // FVU 9.4 T_FV_6138 caps new regime at 50K too
+            double stdDed16 = Math.Min(
+                sd.StandardDeduction > 0 ? sd.StandardDeduction : legalStdDed,
+                legalStdDed);
             double balanceAfterSec16 = Math.Max(0, totalSal - stdDed16);               // [16]: salary - stdDed
-            double gtiBeforeChap6A = sd.GrossTotalIncome > 0 ? sd.GrossTotalIncome : balanceAfterSec16;
+            // T-FV-4020: FVU validates [18] = [16] - [17] exactly.
+            // HRA/perq exemptions are NOT placed in [17] or [18] — they do not appear in FVU SD fields.
+            double gtiBeforeChap6A = balanceAfterSec16;                                // [18] = [16] - [17]
             double gti = Math.Max(0, gtiBeforeChap6A - sd.Chapter6ATotal);             // [22]: after Chapter VI-A
             double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
             double grossTax = tax + sd.Surcharge + sd.Cess;
@@ -682,7 +690,9 @@ namespace TDSPro.DAL
         private static string BuildS16(ReturnSalaryDetail sd, int seq, string lineNo)
         {
             string F(double v) => v.ToString("F2");
-            double stdDed = sd.StandardDeduction > 0 ? sd.StandardDeduction : 75000;
+            // FVU 9.4 T_FV_6138: both regimes capped at 50K (old regime legal = 50K; new regime FVU bug = 50K)
+            double fvuLimit = 50000;
+            double stdDed = Math.Min(sd.StandardDeduction > 0 ? sd.StandardDeduction : fvuLimit, fvuLimit);
             return PipeL(lineNo, "S16",
                 "1",                    // [2]: Batch Number (always 1)
                 seq.ToString(),         // [3]: Employee Sl No

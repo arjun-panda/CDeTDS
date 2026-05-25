@@ -171,8 +171,11 @@ namespace TDSPro.DAL.Models
         public double TotalAmountPaid   => Deductees.Sum(d => d.AmountPaid);
         public double TotalGrossSalary  => SalaryDetails.Any()
             ? SalaryDetails.Sum(s => {
-                double total = s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3;
-                return s.GrossTotalIncome > 0 ? s.GrossTotalIncome : Math.Max(0, total - s.ExemptU10);
+                // Must match BuildSD [22]: GTI = Max(0, (salary-stdDed) - Chapter6ATotal)
+                double totalSal = s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3;
+                double stdDed   = s.StandardDeduction > 0 ? s.StandardDeduction : 50000; // FVU cap = 50K for both regimes
+                double bal      = Math.Max(0, totalSal - stdDed);
+                return Math.Max(0, bal - s.Chapter6ATotal);
             })
             : TotalAmountPaid;
         public int    TotalDeductees    => Deductees.Count;

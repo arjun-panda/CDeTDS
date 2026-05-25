@@ -163,7 +163,7 @@ namespace TDSPro.Common
             AddOld("2022-23", 50000, 500000, 12500);
             AddOld("2023-24", 50000, 500000, 12500);
             AddOld("2024-25", 50000, 500000, 12500);  // ← ₹50K, NOT ₹75K
-            AddOld("2025-26", 50000, 500000, 12500);  // ← ₹50K, NOT ₹75K
+            AddOld("2025-26", 50000, 500000, 12500);  // old regime stays ₹50K; Budget 2024 raised to ₹75K for NEW regime only
             AddOld("2026-27", 50000, 500000, 12500);
             AddOld("2027-28", 50000, 500000, 12500);
 
