@@ -578,7 +578,7 @@ namespace TDSPro.DAL
         }
 
         // ── SD — Salary Detail record (Annexure II, 24Q Q4 only) ────────────────
-        // 78 content fields ([2]-[78]) + lineNo[1] + tag[2] = 80 total (79 values + trailing empty).
+        // 88 fields total (FVU 9.4 tableswitch 1-88). 87 carets required (var119==87 check).
         // Layout confirmed field-by-field from NSDL reference 24QRQ4.txt (FVU 9.4 validated).
         // Key fields: [27]=NetTaxPayable  [28]=TDSDeducted  [29]=Shortfall  [78]=115BAC Y/N
         private static string BuildSD(ReturnSalaryDetail sd, int seq, string lineNo, string challanSlNo, string fy)
@@ -670,7 +670,9 @@ namespace TDSPro.DAL
                 "0.00",                                     // [76]: 0.00
                 "0.00",                                     // [77]: 0.00
                 // [78]: 115BAC opt-in flag (T_FV_6198 — Y if opted to new regime, else N)
-                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N"
+                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N",
+                // [79-86]: FVU 9.4 new fields (FY 2024-25+); field [79] forced blank for FY>=202425 by FVU
+                "", "", "", "", "", "", "", ""               // [79-86]: blank (8)
             );
         }
 
