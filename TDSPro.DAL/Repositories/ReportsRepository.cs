@@ -459,9 +459,10 @@ namespace TDSPro.DAL.Repositories
                 agg.Parameters.AddWithValue("@did", deductorId);
                 agg.Parameters.AddWithValue("@fy",  fy);
 
-                // Derive correct std deduction for this employee's regime+FY (never hardcode 75000)
+                // Derive correct std deduction for this employee's regime+FY
+                // FVU 9.4 T_FV_6138 caps new-regime at 50K; old-regime legal = 50K
                 bool _isNew = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
-                double _fallbackStdDed = TDSPro.Common.TaxRules.GetRules(fy, _isNew).StandardDeduction;
+                double _fallbackStdDed = Math.Min(TDSPro.Common.TaxRules.GetRules(fy, _isNew).StandardDeduction, 50000);
                 double gross=0, hra=0, ch6a=0, taxable=0, tax=0, sur=0, cess=0, stdDed=_fallbackStdDed, rebate87A=0;
                 using (var r = agg.ExecuteReader())
                 {
@@ -477,6 +478,7 @@ namespace TDSPro.DAL.Repositories
                         var sd   = r["std_ded"];
                         stdDed   = (sd == DBNull.Value || sd == null) ? _fallbackStdDed : Convert.ToDouble(sd);
                         if (stdDed <= 0) stdDed = _fallbackStdDed;
+                        stdDed = Math.Min(stdDed, 50000); // FVU 9.4 T_FV_6138 cap
                         var rb   = r["rebate"];
                         rebate87A = (rb == DBNull.Value || rb == null) ? 0 : Convert.ToDouble(rb);
                     }
@@ -527,7 +529,8 @@ namespace TDSPro.DAL.Repositories
                     hra   = mseExempted; // perq_exempted = all Sec 10 exemptions (HRA + LTA + bills)
                     bool isNewRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
                     var rules = TDSPro.Common.TaxRules.GetRules(fy, isNewRegime);
-                    stdDed = rules.StandardDeduction;
+                    // FVU 9.4 T_FV_6138: new-regime stdDed capped at 50K; old regime legal = 50K
+                    stdDed = Math.Min(rules.StandardDeduction, 50000);
                     // gross_taxable already has perq exemptions removed; subtract PT and Ch6A for old regime
                     taxable = isNewRegime
                         ? Math.Max(0, mseTaxable - stdDed)
