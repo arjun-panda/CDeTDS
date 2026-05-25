@@ -104,12 +104,12 @@ namespace TDSPro.DAL
             //   Q1 → p.y(): needs p.q(FH[12]) non-empty, p.nb(FH[13]) non-zero,
             //               p.k(FH[14]) MUST BE EMPTY, p.sb(FH[15]) MUST BE ZERO
             //   Q2 → p.e(): needs p.q + p.nb + p.k(FH[14]) non-empty + p.sb(FH[15]) non-zero
-            //   Q3 → p.i(): similar to Q2 pattern
+            //   Q3 → p.i(): needs p.k(FH[14]) EMPTY, p.sb(FH[15]) ZERO (same as Q1)
             //   Q0 → p.x(): needs p.q + p.nb non-null but p.k + p.sb empty
             // All paths then call p.u() → checks b.u (IgnoreHashing=true from TDSHashing.properties).
             // FH[16](p.w) and FH[17](p.h) MUST always be empty/zero.
             // PRN for correction returns goes in BH field 13, not in FH.
-            var isQ2orQ3 = h.Quarter == "Q2" || h.Quarter == "Q3";
+            var isQ2 = h.Quarter == "Q2";
             lines.Add(string.Join("^", new[]
             {
                 L(),          // field 1: line number
@@ -125,8 +125,8 @@ namespace TDSPro.DAL
                 "",           // field 11: reserved
                 "RPUHASH01",  // field 12: p.q — non-empty for all quarters
                 "10000001",   // field 13: p.nb — non-zero for all quarters
-                isQ2orQ3 ? "RPUHASH02" : "",  // field 14: p.k — non-empty only for Q2/Q3; MUST be empty for Q1
-                isQ2orQ3 ? "20000002" : "",   // field 15: p.sb — non-zero only for Q2/Q3; MUST be zero for Q1
+                isQ2 ? "RPUHASH02" : "",  // field 14: p.k — non-empty only for Q2; MUST be empty for Q1/Q3/Q4
+                isQ2 ? "20000002" : "",   // field 15: p.sb — non-zero only for Q2; MUST be zero for Q1/Q3/Q4
                 "",           // field 16: p.w — MUST be empty (null) for all quarters
                 "",           // field 17: p.h — MUST be 0/empty for all quarters
             }) + "^");
