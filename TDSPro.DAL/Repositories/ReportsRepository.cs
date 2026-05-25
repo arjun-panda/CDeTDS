@@ -276,16 +276,16 @@ namespace TDSPro.DAL.Repositories
                     challans.Add(new ReturnChallanDetail
                     {
                         SlNo          = slNo++,
-                        BsrCode       = r.GetString(r.GetOrdinal("bsr_code")),
-                        ChallanDate   = DateTime.Parse(r.GetString(r.GetOrdinal("challan_date"))),
-                        ChallanNo     = r.GetString(r.GetOrdinal("challan_no")),
-                        TdsDeposited  = Convert.ToDouble(r["tds_amount"]),
-                        Surcharge     = Convert.ToDouble(r["surcharge"]),
-                        Cess          = Convert.ToDouble(r["cess"]),
-                        Interest      = Convert.ToDouble(r["interest"]),
-                        LateFee       = Convert.ToDouble(r["late_fee"]),
-                        TotalDeposited= Convert.ToDouble(r["total_amount"]),
-                        Section       = r.IsDBNull(r.GetOrdinal("section")) ? "" : r.GetString(r.GetOrdinal("section")),
+                        BsrCode       = r.IsDBNull(r.GetOrdinal("bsr_code"))     ? "" : r.GetString(r.GetOrdinal("bsr_code")),
+                        ChallanDate   = r.IsDBNull(r.GetOrdinal("challan_date"))  ? DateTime.Today : DateTime.Parse(r.GetString(r.GetOrdinal("challan_date"))),
+                        ChallanNo     = r.IsDBNull(r.GetOrdinal("challan_no"))    ? "" : r.GetString(r.GetOrdinal("challan_no")),
+                        TdsDeposited  = r.IsDBNull(r.GetOrdinal("tds_amount"))   ? 0.0 : Convert.ToDouble(r["tds_amount"]),
+                        Surcharge     = r.IsDBNull(r.GetOrdinal("surcharge"))    ? 0.0 : Convert.ToDouble(r["surcharge"]),
+                        Cess          = r.IsDBNull(r.GetOrdinal("cess"))         ? 0.0 : Convert.ToDouble(r["cess"]),
+                        Interest      = r.IsDBNull(r.GetOrdinal("interest"))     ? 0.0 : Convert.ToDouble(r["interest"]),
+                        LateFee       = r.IsDBNull(r.GetOrdinal("late_fee"))     ? 0.0 : Convert.ToDouble(r["late_fee"]),
+                        TotalDeposited= r.IsDBNull(r.GetOrdinal("total_amount")) ? 0.0 : Convert.ToDouble(r["total_amount"]),
+                        Section       = r.IsDBNull(r.GetOrdinal("section"))      ? ""  : r.GetString(r.GetOrdinal("section")),
                         Quarter       = quarter,
                     });
                 }
@@ -336,15 +336,15 @@ namespace TDSPro.DAL.Repositories
                         PaymentDate     = r.IsDBNull(r.GetOrdinal("payment_date")) || r.GetString(r.GetOrdinal("payment_date")) == ""
                                           ? DateTime.Parse(r.GetString(r.GetOrdinal("entry_date")))
                                           : DateTime.Parse(r.GetString(r.GetOrdinal("payment_date"))),
-                        AmountPaid      = Convert.ToDouble(r["amount"]),
-                        TdsDeducted     = Convert.ToDouble(r["tds_amount"]),
+                        AmountPaid      = r.IsDBNull(r.GetOrdinal("amount"))    ? 0.0 : Convert.ToDouble(r["amount"]),
+                        TdsDeducted     = r.IsDBNull(r.GetOrdinal("tds_amount")) ? 0.0 : Convert.ToDouble(r["tds_amount"]),
                         TdsDeposited    = isSalarySection
-                                          ? Convert.ToDouble(r["tds_amount"])   // salary: tds_amount is the correct total (cess already inside)
-                                          : Convert.ToDouble(r["total_tds"]),
-                        Surcharge       = isSalarySection ? 0 : Convert.ToDouble(r["surcharge"]),
-                        Cess            = isSalarySection ? 0 : Convert.ToDouble(r["cess"]),
+                                          ? (r.IsDBNull(r.GetOrdinal("tds_amount")) ? 0.0 : Convert.ToDouble(r["tds_amount"]))
+                                          : (r.IsDBNull(r.GetOrdinal("total_tds"))  ? 0.0 : Convert.ToDouble(r["total_tds"])),
+                        Surcharge       = isSalarySection ? 0 : (r.IsDBNull(r.GetOrdinal("surcharge")) ? 0.0 : Convert.ToDouble(r["surcharge"])),
+                        Cess            = isSalarySection ? 0 : (r.IsDBNull(r.GetOrdinal("cess"))      ? 0.0 : Convert.ToDouble(r["cess"])),
                         ChallanNo       = r.IsDBNull(r.GetOrdinal("challan_no")) ? "" : r.GetString(r.GetOrdinal("challan_no")),
-                        Rate            = Convert.ToDouble(r["rate"]),
+                        Rate            = r.IsDBNull(r.GetOrdinal("rate"))       ? 0.0 : Convert.ToDouble(r["rate"]),
                         DeducteeType    = dtype.Equals("Company", StringComparison.OrdinalIgnoreCase) ? "01" : "02",
                         IsResidentIndian= !r.IsDBNull(r.GetOrdinal("dis_resident")) && r.GetInt32(r.GetOrdinal("dis_resident")) == 1,
                         Remarks         = r.IsDBNull(r.GetOrdinal("remarks")) ? "" : r.GetString(r.GetOrdinal("remarks")),
@@ -467,13 +467,13 @@ namespace TDSPro.DAL.Repositories
                 {
                     if (r.Read())
                     {
-                        gross    = Convert.ToDouble(r["gross"]);
-                        hra      = Convert.ToDouble(r["hra"]);
-                        ch6a     = Convert.ToDouble(r["ch6a"]);
-                        taxable  = Convert.ToDouble(r["taxable"]);
-                        tax      = Convert.ToDouble(r["tax"]);
-                        sur      = Convert.ToDouble(r["sur"]);
-                        cess     = Convert.ToDouble(r["cess"]);
+                        gross    = r.IsDBNull(r.GetOrdinal("gross"))   ? 0.0 : Convert.ToDouble(r["gross"]);
+                        hra      = r.IsDBNull(r.GetOrdinal("hra"))     ? 0.0 : Convert.ToDouble(r["hra"]);
+                        ch6a     = r.IsDBNull(r.GetOrdinal("ch6a"))    ? 0.0 : Convert.ToDouble(r["ch6a"]);
+                        taxable  = r.IsDBNull(r.GetOrdinal("taxable")) ? 0.0 : Convert.ToDouble(r["taxable"]);
+                        tax      = r.IsDBNull(r.GetOrdinal("tax"))     ? 0.0 : Convert.ToDouble(r["tax"]);
+                        sur      = r.IsDBNull(r.GetOrdinal("sur"))     ? 0.0 : Convert.ToDouble(r["sur"]);
+                        cess     = r.IsDBNull(r.GetOrdinal("cess"))    ? 0.0 : Convert.ToDouble(r["cess"]);
                         var sd   = r["std_ded"];
                         stdDed   = (sd == DBNull.Value || sd == null) ? _fallbackStdDed : Convert.ToDouble(sd);
                         if (stdDed <= 0) stdDed = _fallbackStdDed;
