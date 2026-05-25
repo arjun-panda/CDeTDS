@@ -891,7 +891,7 @@ tr.chosen td.num{{font-weight:700}}
 
             Directory.CreateDirectory(outputFolder);
             string safeName = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
-            string fileName = $"AnnualTax_{emp.EmployeeCode}_{safeName}_{fy.Replace("/","-")}.html";
+            string fileName = $"Computation_{safeName}({emp.Pan})_{fy.Replace("/","-")}.html";
             string path = Path.Combine(outputFolder, fileName);
             File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
             return path;
@@ -1039,7 +1039,7 @@ tr.chosen td.num{{font-weight:700}}
 
             Directory.CreateDirectory(outputFolder);
             string safeNameXl = string.Concat(emp.Name.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
-            string fileName = $"AnnualTax_{emp.EmployeeCode}_{safeNameXl}_{fy.Replace("/","-")}.xlsx";
+            string fileName = $"Computation_{safeNameXl}({emp.Pan})_{fy.Replace("/","-")}.xlsx";
             string path = Path.Combine(outputFolder, fileName);
             wb.SaveAs(path);
             return path;
