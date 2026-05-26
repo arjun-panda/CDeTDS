@@ -387,15 +387,15 @@
             <div style="border:1px solid #e0e0e0;border-left:4px solid #555;border-radius:8px;padding:12px 16px 20px;background:#fafafa">
                 <div style="font-weight:600;font-size:14px;margin-bottom:8px">Import Rules</div>
                 <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#555">
-                    <div>▸ Dates must be <b>dd-MM-yyyy</b> (e.g. 31-03-2026).</div>
+                    <div>▸ Dates: <b>dd-MM-yyyy</b> preferred (e.g. 31-03-2026). Also accepts dd/MM/yyyy and d-M-yyyy.</div>
                     <div>▸ PAN: exactly 10 chars, format ABCDE1234F.</div>
                     <div>▸ Deductee type and TDS rate are <b>auto-detected from PAN</b> if left blank.</div>
                     <div>▸ Deductees missing from master are <b>auto-created</b> during TDS Entries import.</div>
                     <div>▸ Challan upsert key: BSR Code + Challan No + Date.</div>
                     <div>▸ Employee upsert key: PAN (per deductor).</div>
-                    <div>▸ Amount columns: numeric only, no ₹ or commas.</div>
-                    <div>▸ Delete the yellow sample row before importing.</div>
-                    <div>▸ Max 5,000 rows per file.</div>
+                    <div>▸ Amount columns: numeric values. ₹ symbol and commas are stripped automatically.</div>
+                    <div>▸ Yellow sample row is <b>auto-skipped</b> — no need to delete it manually.</div>
+                    <div>▸ No row limit — import as many rows as needed.</div>
                 </div>
             </div>
 
