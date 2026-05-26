@@ -843,7 +843,7 @@
                                 }
                                 @if (_ctcEmpPf > 0)
                                 {
-                                    <tr><td style="color:#64748b">Employer PF</td><td style="text-align:right;font-weight:600;color:#64748b">₹@_ctcEmpPf.ToString("N0")</td><td style="color:#64748b;padding-left:8px">@(_ctcPfMode == "Capped" ? "capped ₹1,800" : "12% Basic")</td></tr>
+                                    <tr><td style="color:#64748b">Employer PF</td><td style="text-align:right;font-weight:600;color:#64748b">₹@_ctcEmpPf.ToString("N0")</td><td style="color:#64748b;padding-left:8px">@(_ctcPfMode == "Full" ? "12% Basic" : _ctcEmpPf >= 1800 ? "capped ₹1,800" : "12% of Basic")</td></tr>
                                 }
                                 @if (_ctcGrat > 0)
                                 {

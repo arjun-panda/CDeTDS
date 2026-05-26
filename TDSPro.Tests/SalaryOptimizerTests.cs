@@ -27,7 +27,7 @@ public class SalaryOptimizerTests
         {
             "None"   => 0,
             "Full"   => Math.Round(basic * 0.12),
-            _        => basic > 15000 ? 1800 : Math.Round(basic * 0.12)
+            _        => basic >= 15000 ? 1800 : Math.Round(basic * 0.12)
         };
         double grat  = input.IncludeGratuity ? Math.Round(basic * 0.0481) : 0;
         return r.MonthlyBasic + r.MonthlyHra + r.MonthlySpecial + r.MonthlyLta

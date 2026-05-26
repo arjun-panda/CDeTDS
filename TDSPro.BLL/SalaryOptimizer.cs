@@ -93,6 +93,9 @@ namespace TDSPro.BLL
         {
             double ctc       = input.MonthlyCtc;
             double basic     = Math.Round(ctc * basicPct);
+            // Capped PF requires Basic ≥ ₹15,000 to actually hit the ₹1,800 cap
+            if (input.PfMode == "Capped" && basic < 15000)
+                basic = Math.Min(15000, ctc);
             double hraPct    = input.HraCityType == "Metro" ? 0.50 : 0.40;
             double hra       = Math.Round(basic * hraPct);
             // LTA → up to ₹2,500/mo or 5% of Basic (Old regime only — Sec 10(5) exemption)
