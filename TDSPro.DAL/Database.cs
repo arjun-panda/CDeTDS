@@ -559,16 +559,17 @@ namespace TDSPro.DAL
                 cmdSsIdx.ExecuteNonQuery();
             }
 
-            // One-time cleanup: strip time portion from join_date and date_of_birth
-            // stored as "dd-MM-yyyy 12:00:00 AM" or similar full datetime strings.
+            // One-time cleanup: strip time portion from join_date and date_of_birth.
+            // Handles all formats: "dd-MM-yyyy HH:mm:ss", "dd-Mon-yyyy HH:mm:ss AM/PM", etc.
+            // INSTR finds the first space; SUBSTR takes everything before it.
             using (var cmdDateFix = conn.CreateCommand()) {
                 cmdDateFix.CommandText = @"
                     UPDATE employees
-                    SET join_date = SUBSTR(join_date, 1, 10)
-                    WHERE join_date LIKE '__-__-____ %';
+                    SET join_date = TRIM(SUBSTR(join_date, 1, INSTR(join_date, ' ') - 1))
+                    WHERE INSTR(join_date, ' ') > 0;
                     UPDATE employees
-                    SET date_of_birth = SUBSTR(date_of_birth, 1, 10)
-                    WHERE date_of_birth LIKE '__-__-____ %'";
+                    SET date_of_birth = TRIM(SUBSTR(date_of_birth, 1, INSTR(date_of_birth, ' ') - 1))
+                    WHERE INSTR(date_of_birth, ' ') > 0";
                 cmdDateFix.ExecuteNonQuery();
             }
 
