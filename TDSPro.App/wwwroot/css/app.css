@@ -138,38 +138,9 @@ body.dashboard-active .mud-main-content {
 .dashboard-middle > * { flex: 1 1 0; min-height: 0; overflow: hidden; }
 .dashboard-alerts   { flex: 0 0 auto; padding: 0 24px 8px; max-height: 120px; overflow-y: auto; }
 
-/* Payroll page: lock outer scroll so inner table can scroll */
-body.payroll-active .mud-main-content,
-.mud-main-content.no-outer-scroll {
-    overflow-y: hidden !important;
-}
-.payroll-page {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 64px);
-    overflow: hidden;
-}
 .payroll-page-header {
     padding-bottom: 12px;
     flex-shrink: 0;
-}
-.payroll-tabs {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-}
-.payroll-tabs > .mud-tabs-panels {
-    flex: 1;
-    overflow: hidden;
-    min-height: 0;
-}
-.payroll-tabs .mud-tab-panel {
-    overflow: hidden;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
 }
 
 /* Dashboard KPI card */
