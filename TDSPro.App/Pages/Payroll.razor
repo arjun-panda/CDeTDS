@@ -46,13 +46,13 @@
         }
         else
         {
-        <div style="max-height:calc(100vh - 260px);overflow-y:auto;overflow-x:hidden;border:1px solid #e0e0e0;border-radius:8px;font-size:12px">
-            <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+        <div style="max-height:calc(100vh - 260px);overflow-y:auto;overflow-x:auto;border:1px solid #e0e0e0;border-radius:8px;font-size:12px">
+            <table style="width:100%;border-collapse:collapse;table-layout:fixed;min-width:1100px">
                 <colgroup>
-                    <col style="width:80px" />
+                    <col style="width:160px" />
                     <col />
-                    <col style="width:110px" />
-                    <col style="width:110px" />
+                    <col style="width:220px" />
+                    <col style="width:220px" />
                     <col style="width:110px" />
                     <col style="width:90px" />
                     <col style="width:70px" />
@@ -75,9 +75,9 @@
                     {
                         <tr style="background:@(i%2==0?"#fff":"#fafafa");border-bottom:1px solid #f0f0f0">
                             <td style="padding:6px 10px;font-family:monospace;color:#555">@emp.EmployeeCode</td>
-                            <td style="padding:6px 10px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@emp.Name</td>
-                            <td style="padding:6px 10px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@emp.Designation</td>
-                            <td style="padding:6px 10px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@emp.Department</td>
+                            <td style="padding:6px 10px;font-weight:500">@emp.Name</td>
+                            <td style="padding:6px 10px;color:#555">@emp.Designation</td>
+                            <td style="padding:6px 10px;color:#555">@emp.Department</td>
                             <td style="padding:6px 10px;font-family:monospace;color:#1565C0">@emp.Pan</td>
                             <td style="padding:6px 10px;color:#555;font-family:monospace">@emp.JoinDate</td>
                             <td style="padding:6px 10px;text-align:center">
