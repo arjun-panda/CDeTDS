@@ -65,15 +65,19 @@
                     <col style="width:90px" />
                 </colgroup>
                 <thead>
-                    <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:1">
-                        <th style="padding:8px 10px;text-align:left;font-weight:600">Code</th>
-                        <th style="padding:8px 10px;text-align:left;font-weight:600">Name</th>
-                        <th style="padding:8px 10px;text-align:left;font-weight:600">Designation</th>
-                        <th style="padding:8px 10px;text-align:left;font-weight:600">Department</th>
-                        <th style="padding:8px 10px;text-align:left;font-weight:600">PAN</th>
-                        <th style="padding:8px 10px;text-align:left;font-weight:600">DOJ</th>
-                        <th style="padding:8px 10px;text-align:center;font-weight:600">Status</th>
-                        <th style="padding:8px 6px;text-align:center;font-weight:600">Actions</th>
+                    <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:1;user-select:none">
+                        @{
+                            string SI(string col) => _empSortCol == col ? (_empSortAsc ? " ▲" : " ▼") : "";
+                            string TH = "padding:8px 10px;text-align:left;font-weight:600;cursor:pointer;white-space:nowrap";
+                        }
+                        <th style="@TH" @onclick='() => SortEmployees("Code")'>Code@(SI("Code"))</th>
+                        <th style="@TH" @onclick='() => SortEmployees("Name")'>Name@(SI("Name"))</th>
+                        <th style="@TH" @onclick='() => SortEmployees("Designation")'>Designation@(SI("Designation"))</th>
+                        <th style="@TH" @onclick='() => SortEmployees("Department")'>Department@(SI("Department"))</th>
+                        <th style="@TH" @onclick='() => SortEmployees("PAN")'>PAN@(SI("PAN"))</th>
+                        <th style="@TH" @onclick='() => SortEmployees("DOJ")'>DOJ@(SI("DOJ"))</th>
+                        <th style="@TH;text-align:center" @onclick='() => SortEmployees("Status")'>Status@(SI("Status"))</th>
+                        <th style="padding:8px 6px;text-align:center;font-weight:600;white-space:nowrap">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2544,6 +2548,8 @@
 
 @code {
     private List<Employee> _employees = new();
+    private string _empSortCol = "Code";
+    private bool   _empSortAsc = true;
     private static readonly int[]    _fyMonths   = { 4,5,6,7,8,9,10,11,12,1,2,3 };
     private static readonly string[] _monthNames = { "April","May","June","July","August","September","October","November","December","January","February","March" };
     private int[] _runYears = Array.Empty<int>();
@@ -2982,9 +2988,26 @@
             _runYears = new[] { now.Year };
     }
 
-    void LoadEmployees()
+    void LoadEmployees() => ApplyEmpSort(PayrollSvc.GetEmployees(AppState.CurrentDeductorId));
+
+    void SortEmployees(string col)
     {
-        _employees = PayrollSvc.GetEmployees(AppState.CurrentDeductorId);
+        if (_empSortCol == col) _empSortAsc = !_empSortAsc;
+        else { _empSortCol = col; _empSortAsc = true; }
+        ApplyEmpSort(_employees);
+    }
+
+    void ApplyEmpSort(List<Employee> list)
+    {
+        _employees = (_empSortCol switch {
+            "Name"        => _empSortAsc ? list.OrderBy(e => e.Name)        : list.OrderByDescending(e => e.Name),
+            "Designation" => _empSortAsc ? list.OrderBy(e => e.Designation) : list.OrderByDescending(e => e.Designation),
+            "Department"  => _empSortAsc ? list.OrderBy(e => e.Department)  : list.OrderByDescending(e => e.Department),
+            "PAN"         => _empSortAsc ? list.OrderBy(e => e.Pan)         : list.OrderByDescending(e => e.Pan),
+            "DOJ"         => _empSortAsc ? list.OrderBy(e => e.JoinDate)    : list.OrderByDescending(e => e.JoinDate),
+            "Status"      => _empSortAsc ? list.OrderBy(e => e.IsActive)    : list.OrderByDescending(e => e.IsActive),
+            _             => _empSortAsc ? list.OrderBy(e => e.EmployeeCode): list.OrderByDescending(e => e.EmployeeCode),
+        }).ToList();
     }
 
     void OpenAddEmployee()
