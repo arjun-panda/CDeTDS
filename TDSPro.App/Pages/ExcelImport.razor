@@ -193,78 +193,92 @@
 
     @* ── EXPORT ── *@
     <MudTabPanel Text="Export Data" Icon="@Icons.Material.Filled.Download">
-        <MudGrid Spacing="3">
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #1565C0">
-                    <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">TDS Entries</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">All entries · FY @AppState.CurrentFY</MudText>
+        <div style="display:flex;flex-direction:column;gap:10px">
+
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #1565C0;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">TDS Entries</span>
+                    </div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">All entries · FY @AppState.CurrentFY</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportEntries" Disabled="_exporting">Export Excel</MudButton>
-                </MudPaper>
-            </MudItem>
+                </div>
+            </div>
 
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #7b1fa2">
-                    <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Deductees</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Full deductee master</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #7b1fa2;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Deductees</span>
+                    </div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">Full deductee master</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportDeductees" Disabled="_exporting">Export Excel</MudButton>
-                </MudPaper>
-            </MudItem>
+                </div>
+            </div>
 
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #2e7d32">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Challans</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">All challans · FY @AppState.CurrentFY</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #2e7d32;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Challans</span>
+                    </div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">All challans · FY @AppState.CurrentFY</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportChallans" Disabled="_exporting">Export Excel</MudButton>
-                </MudPaper>
-            </MudItem>
+                </div>
+            </div>
 
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #e65100">
-                    <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Warning" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Employees</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Employee master with salary structure</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #e65100;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Warning" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Employees</span>
+                    </div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">Employee master with salary structure</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportEmployees" Disabled="_exporting">Export Excel</MudButton>
-                </MudPaper>
-            </MudItem>
+                </div>
+            </div>
 
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #00467F">
-                    <MudIcon Icon="@Icons.Material.Filled.CompareArrows" Color="Color.Info" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Tally Format</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Journal entries for Tally import</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #00467F;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.CompareArrows" Color="Color.Info" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Tally Format</span>
+                    </div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">Journal entries for Tally import</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportTally" Disabled="_exporting">Export Tally</MudButton>
-                </MudPaper>
-            </MudItem>
+                </div>
+            </div>
 
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #555">
-                    <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Export Folder</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">Open folder where exports are saved</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #555;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Export Folder</span>
+                    </div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">Open folder where all exported files are saved</div>
                     <MudButton Variant="Variant.Outlined" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.FolderOpen"
                                OnClick="OpenExportFolder">Open Folder</MudButton>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+                </div>
+            </div>
 
-        @if (!string.IsNullOrEmpty(_exportMsg))
-        {
-            <MudAlert Severity="@_exportSeverity" Class="mt-3">@_exportMsg</MudAlert>
-        }
+            @if (!string.IsNullOrEmpty(_exportMsg))
+            {
+                <MudAlert Severity="@_exportSeverity" Dense="true">@_exportMsg</MudAlert>
+            }
+
+        </div>
     </MudTabPanel>
 
     @* ── YEAR-END TRANSFER ── *@
