@@ -362,41 +362,44 @@
 
     @* ── TEMPLATES ── *@
     <MudTabPanel Text="Templates" Icon="@Icons.Material.Filled.Help">
-        <MudGrid Spacing="3">
-            <MudItem xs="12">
-                <MudAlert Severity="Severity.Info">
-                    Download blank Excel templates with sample rows and instructions. Delete the sample row (row 2) before importing.
-                </MudAlert>
-            </MudItem>
+        <div style="display:flex;flex-direction:column;gap:10px">
+
+            <div style="border:1px solid #1565C0;border-radius:8px;padding:10px 16px;background:#e3f2fd;font-size:13px;color:#1565C0">
+                Download blank Excel templates with sample rows and instructions. Delete the sample row (row 2) before importing.
+            </div>
+
             @foreach (var t in _templates)
             {
-                <MudItem xs="12" md="4">
-                    <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px">
-                        <MudText Typo="Typo.subtitle2" Class="mb-1">@t.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">@t.Desc</MudText>
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                <div style="border:1px solid #e0e0e0;border-left:4px solid #1565C0;border-radius:8px;padding:12px 16px">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                            <MudIcon Icon="@Icons.Material.Filled.TableChart" Color="Color.Primary" Size="Size.Small" />
+                            <span style="font-weight:600;font-size:14px">@t.Name</span>
+                        </div>
+                        <div style="flex:1;min-width:260px;font-size:12px;color:#666">@t.Desc</div>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Download"
                                    OnClick="() => DownloadTemplate(t.Key)">Download</MudButton>
-                    </MudPaper>
-                </MudItem>
+                    </div>
+                </div>
             }
-            <MudItem xs="12">
-                <MudPaper Class="pa-4" Elevation="0" Style="background:#f5f5f5;border-radius:10px">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Import Rules</MudText>
-                    <ul style="font-size:13px;color:#555;line-height:2.2">
-                        <li>Dates must be <b>dd-MM-yyyy</b> (e.g. 31-03-2026).</li>
-                        <li>PAN: exactly 10 chars, format ABCDE1234F.</li>
-                        <li>Deductee type and TDS rate are <b>auto-detected from PAN</b> if left blank.</li>
-                        <li>Deductees missing from master are <b>auto-created</b> during TDS Entries import.</li>
-                        <li>Challan upsert key: BSR Code + Challan No + Date.</li>
-                        <li>Employee upsert key: PAN (per deductor).</li>
-                        <li>Amount columns: numeric only, no ₹ or commas.</li>
-                        <li>Delete the yellow sample row before importing.</li>
-                        <li>Max 5,000 rows per file.</li>
-                    </ul>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #555;border-radius:8px;padding:12px 16px;background:#fafafa">
+                <div style="font-weight:600;font-size:14px;margin-bottom:8px">Import Rules</div>
+                <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#555">
+                    <div>▸ Dates must be <b>dd-MM-yyyy</b> (e.g. 31-03-2026).</div>
+                    <div>▸ PAN: exactly 10 chars, format ABCDE1234F.</div>
+                    <div>▸ Deductee type and TDS rate are <b>auto-detected from PAN</b> if left blank.</div>
+                    <div>▸ Deductees missing from master are <b>auto-created</b> during TDS Entries import.</div>
+                    <div>▸ Challan upsert key: BSR Code + Challan No + Date.</div>
+                    <div>▸ Employee upsert key: PAN (per deductor).</div>
+                    <div>▸ Amount columns: numeric only, no ₹ or commas.</div>
+                    <div>▸ Delete the yellow sample row before importing.</div>
+                    <div>▸ Max 5,000 rows per file.</div>
+                </div>
+            </div>
+
+        </div>
     </MudTabPanel>
 
 </MudTabs>
