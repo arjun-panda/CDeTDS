@@ -271,6 +271,19 @@ namespace TDSPro.DAL.Repositories
             try
             {
                 using var conn = Database.GetConnection();
+
+                // Validate challan_no exists for this deductor (skip if blank or Adjusted)
+                if (!string.IsNullOrEmpty(e.ChallanNo) && e.Status != "Adjusted")
+                {
+                    using var chkCmd = conn.CreateCommand();
+                    chkCmd.CommandText = "SELECT COUNT(1) FROM challans WHERE challan_no=@cn AND deductor_id=@did";
+                    chkCmd.Parameters.AddWithValue("@cn",  e.ChallanNo);
+                    chkCmd.Parameters.AddWithValue("@did", e.DeductorId);
+                    var exists = (long)(chkCmd.ExecuteScalar() ?? 0L);
+                    if (exists == 0)
+                        return (false, $"Challan '{e.ChallanNo}' not found. Add it in Challans first.");
+                }
+
                 using var cmd = conn.CreateCommand();
                 if (e.Id == 0)
                 {

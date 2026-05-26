@@ -771,6 +771,8 @@ namespace TDSPro.DAL
 
                     if (string.IsNullOrEmpty(section))
                         rowErrs.Add($"Row {row}: Section is required");
+                    else if (!AppConstants.KnownSections.Contains(section))
+                        rowErrs.Add($"Row {row}: Unknown section code '{section}' — valid codes are 192–206AB");
 
                     if (!double.TryParse(amtText, System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture, out var amount) || amount <= 0)
