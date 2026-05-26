@@ -559,6 +559,19 @@ namespace TDSPro.DAL
                 cmdSsIdx.ExecuteNonQuery();
             }
 
+            // One-time cleanup: strip time portion from join_date and date_of_birth
+            // stored as "dd-MM-yyyy 12:00:00 AM" or similar full datetime strings.
+            using (var cmdDateFix = conn.CreateCommand()) {
+                cmdDateFix.CommandText = @"
+                    UPDATE employees
+                    SET join_date = SUBSTR(join_date, 1, 10)
+                    WHERE join_date LIKE '__-__-____ %';
+                    UPDATE employees
+                    SET date_of_birth = SUBSTR(date_of_birth, 1, 10)
+                    WHERE date_of_birth LIKE '__-__-____ %'";
+                cmdDateFix.ExecuteNonQuery();
+            }
+
             // Landlord records table
             using (var cmdLl = conn.CreateCommand()) {
                 cmdLl.CommandText = @"
