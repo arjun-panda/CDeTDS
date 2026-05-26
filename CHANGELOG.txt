@@ -1,137 +1,74 @@
 TDS Pro — Changelog
 ===================
 
-v1.0.0 (May 2026) — Initial Release
-────────────────────────────────────
-ACCURACY FIXES
-  + HRA rent unit bug fixed — annual rent correctly divided by 12 for monthly exemption
-  + Standard deduction now derived from TaxRules dynamically (regime + FY aware)
-  + Form 16 now reads monthly_salary_entries (correct gross for all employees)
-  + Restore safety: WAL checkpoint before DB copy, stale WAL/SHM files removed
+v1.0.0 (May 2026) — Initial Release (Blazor Edition)
+─────────────────────────────────────────────────────
+CORE TDS WORKFLOW
+  + 26Q non-salary TDS return — entries, challans, deductees, FVU 9.4
+  + 24Q salary TDS return — payroll, monthly close, Form 16
+  + NIL return filing (CBDT mandatory quarterly filing)
+  + Correction returns C1 / C2 / C3 with PRN chain
+  + NSDL FVU 9.4 integration with bundled JRE (no Java setup required)
+  + FVU T_FV_6138 fix — new-regime 115BAC employees (₹75,000 standard deduction)
+  + TRACES Conso file import (.tds / .txt) — auto-creates deductor, challans, entries
+  + CSI file integration for challan status verification
 
-NEW FEATURES
-  + FY Rollover — seeds April salary and copies HRA declarations to new FY
-  + Auto-updater — silent background updates via GitHub Releases (Velopack)
-  + Backup/Restore — WAL-safe restore with pre-restore safeguard copy
-  + Financial year dropdown shows all FYs from 2025-26 to current
+PAYROLL (24Q)
+  + Employee master with salary structure, designation, department, PAN
+  + Monthly salary entry — earnings, deductions, reimbursements, perquisites
+  + TDS computation — old regime vs new regime (115BAC) with optimiser
+  + Form 16 HTML + PDF generator (Sec 203 compliant)
+  + Annual computation of income PDF (CA-style)
+  + Salary slip HTML + PDF + Excel export
+  + FY rollover — carries forward employees, salary structures, HRA declarations
+  + Excel bulk import for employee master with auto-code generation
 
-────────────────────────────────────────────────────────
-27EQ / TCS
-  + Form 27D (TCS Certificate) generator — mirrors Form 16A for 206C sections
-  + Form 27D tab in Form 16/27D page with Preview / Print / Save HTML
-  + 27EQ FVU generation already supported (Build27EQ via standard FVU pipeline)
-  + FVU validates 27EQ entries must use 206C-family sections (W026 error)
+MULTI-COMPANY
+  + Unlimited deductors (companies/branches)
+  + Multi-user login with role-based access (Admin / Operator / Viewer)
+  + Per-company FY and deductee isolation
+  + AES-256 encrypted credential storage (machine-specific key)
 
-SETTINGS / ABOUT
-  + What's New panel in Settings → About (reads latest block from CHANGELOG.txt)
-  + CHANGELOG.txt copied to output directory at build
+COMPLIANCE
+  + Dynamic TDS Rules Engine — all sections 192 to 206AB (FY 2025-26 rates)
+  + Section 206AA (no PAN → 20%) and 206AB (no ITR → higher rate)
+  + Section 197 lower-deduction certificate support
+  + Cess: auto-zeroed for non-salary resident sections (Finance Act + CBDT Cir 3/2025)
+  + TDS rounding: whole rupees per Section 288B
+  + HRA exemption (Sec 10(13A) min-of-three) auto-calculation
+  + Standard deduction: FY-aware, regime-aware from rules engine
 
-BUG FIXES
-  + Returns: CheckFvuVersionAsync uses forceCheck:true — FVU banner no longer
-    suppressed by daily rate-limit when MainLayout already checked today
-  + Returns: Version.TryParse guards on remote FVU version string
-  + ExcelEngine: FindHeaderRow now recognises BSR/challan keywords —
-    challan import no longer fails header detection
-  + Settings: _localFvuVersion loaded in OnInitialized, not at field init time
-  + Settings: About "else" branch shows FVU update message when FVU outdated
-    but app itself is current (was always showing "up to date" incorrectly)
-
-v3.1.0 (May 2026) — Product Hardening Release
-─────────────────────────────────────────────
-TEST INFRASTRUCTURE
-  + xUnit test project (TDSPro.Tests) — 184 tests, ~30s suite
-  + Tax math tests: slabs, 87A rebate, surcharge, age categories across all FYs
-  + HRA exemption tests (Sec 10(13A) min-of-three)
-  + SalaryOptimizer reconciliation invariants
-  + GitHub Actions CI (.github/workflows/ci.yml)
+REPORTS & EXPORTS
+  + Form 16 / 16A HTML + PDF + bulk generation
+  + Salary slip HTML + PDF + Excel
+  + Challan reconciliation report
+  + Section-wise and deductee-wise TDS summary
+  + Tally Prime journal format export
+  + Excel import/export for all masters (entries, challans, deductees, employees)
 
 DATA SAFETY
-  + Auto daily SQLite backup on app start (30-day retention)
-  + Manual "Backup Now" + restore UI on Settings page
-  + Backup type chips (auto vs manual), age, size columns
-  + Delete-backup with confirmation dialog
-  + Pre-restore safeguard: current DB copied to .bak before overwrite
-  + Transactional save for monthly_salary_entries + line_items
-  + Transactional save for salary_structures + components
-  + Bulk operations: per-row try/catch, partial success reporting
-  + ValidationResult + PayrollValidators (Employee/Structure/MonthlyEntry rules)
-  + Unlock now removes auto-created Sec 192 TDS entry
-  + Unlock refused if Sec 192 entry already linked to a paid challan
+  + Auto daily SQLite backup on app exit (30-day retention)
+  + Manual backup + restore with pre-restore safeguard copy
+  + WAL-safe backup (checkpoint before copy)
+  + Auto-backup before every Excel import
 
-PRO UX
-  + First-run wizard on Dashboard (Company → Employee → Done)
-  + Error translator: SQLite/IO/Network/Format exceptions → friendly messages
-  + Empty-state CTAs on 7 surfaces (Employees, Slips, Year Summary,
-    24Q Filing, Deductees, TDS Entries, Challans)
+INSTALLER & UPDATES
+  + Windows installer (.exe) with bundled JRE and WebView2 bootstrapper
+  + Desktop shortcut, Start Menu entry, uninstaller
+  + Silent auto-update via GitHub Releases (Velopack)
+  + EULA screen on first launch with acceptance recording
 
-PROPER PDF REPORTS (QuestPDF)
-  + Salary Slip PDF — A4 with Earnings/Deductions split, working days,
-    amount-in-words for Net Pay, DRAFT watermark if not approved
-  + Computation of Income PDF — CA-style section bands, identity header,
-    "COMPUTED · NOT AUDITED" disclaimer
-  + Form 16 PDF — paginated, deductor/employee blocks, quarterly TDS breakup,
-    signature block, page numbers in footer
-  + AmountInWords helper (Indian Lakh/Crore grouping, paise, negative)
-  + UI: "Save PDF" buttons alongside existing HTML/Excel exports
+UX
+  + Blazor/MudBlazor UI — sidebar navigation, dark header, responsive layout
+  + Dashboard — KPI cards, filing status, due-date alerts
+  + First-run wizard — company setup to first FVU in 5 steps
+  + PAN autocomplete with entity-type detection
+  + FVU error display with error code and description
+  + Empty-state pages with contextual CTAs
+  + Audit log — all user actions recorded with timestamp
+  + Global crash handler — crash log saved to %AppData%\TDSPro\Logs\
 
-REMOVED CRUFT
-  + Monthly Run tab merged into Salary Data (split-pane: list + detail)
-  + Bulk Actions modal replaces full Monthly Close tab
-  + payroll_runs reads now sourced from monthly_salary_entries
-    (legacy table preserved for back-compat but not written to)
-
-v3.0.0 (April 2026) — Major Release
-─────────────────────────────────────
-NEW FEATURES
-  + Complete UI redesign — Tally Prime / Zoho Books style
-  + Dark sidebar with collapsible mode (56px icon-only)
-  + Professional dashboard — 6 KPI cards, bar chart, donut chart
-  + Alert banners — overdue, challan pending, certificate expiry
-  + PAN autocomplete engine with entity-type detection
-  + Dynamic TDS Rules Engine — 38 rules, zero hardcoded rates
-  + Section 206AA (no PAN → 20%) and 206AB (no ITR → higher rate)
-  + Form 16A HTML certificate generator (Rule 31(1)(b)) + bulk
-  + FY 2025-26 surcharge slabs + marginal relief (Section 192)
-  + NIL return FVU generator (CBDT mandatory filing)
-  + 27Q for NRI payments (Sections 195, 196A-D)
-  + Interest Calculator — Section 234A (1.5%/month) + 234E (₹200/day)
-  + Excel import with rules-engine rate validation
-  + Tally Prime journal format export
-  + HMAC-SHA256 license key system — 4 tiers (Trial/Basic/Pro/Ultimate)
-  + AES-256 encrypted TRACES credentials (machine-specific key)
-  + Daily auto-backup (30-day retention)
-  + Toast notifications + loading overlay
-  + Global crash handler → crash.log
-
-FIXES
-  + Solution Release config entries for all 4 projects
-  + AppData-based data path (no write to Program Files)
-  + Enter key → Tab navigation on all form fields
-
-v2.0.0 (January 2026)
-──────────────────────
-  + Multi-deductor support
-  + NSDL FVU v9.0 integration (24Q, 26Q)
-  + Challan reconciliation report
-  + Section-wise and deductee-wise reports
-
-v1.0.0 (October 2025)
-──────────────────────
-  + Initial release
-  + Basic TDS entry, challan, 26Q return
-
-v3.0.1 (April 2026) — Hotfix Build
-─────────────────────────────────────
-FIXES
-  + Dashboard completely rewritten using TableLayoutPanel — all 6 KPI cards,
-    bar chart, donut chart, alerts, and quick actions now display correctly
-  + Sidebar always starts expanded on launch
-  + Window starts Maximized on all screen sizes
-  + Nav scroll position reset to top — Dashboard always first visible item
-  + Left list panels (Challan, TDS Entry, Deductee, Deductor) now visible —
-    fixed Controls.Add order (Left before Fill)
-  + Deductee crash on load fixed — BeginInvoke now guarded by HandleCreated
-  + TDS Rules / UserManagement crash fixed — SplitterDistance set dynamically
-  + Duplicate due-date alerts fixed — max 1 overdue + 1 due-soon shown
-  + All MessageBox.Show calls now pass owner form — no orphaned dialogs
-  + All (int)(long) casts replaced with Convert.ToInt32 — no NULL cast crashes
+LICENSING
+  + ECDSA P-256 signed license keys — Trial (30 days) and Pro
+  + Machine-locked and floating license support
+  + Trial limits: 1 deductor, 100 entries, 1 user
