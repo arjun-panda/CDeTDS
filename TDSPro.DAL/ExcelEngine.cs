@@ -1246,12 +1246,10 @@ namespace TDSPro.DAL
                         if (basic > 0)
                         {
                             using var su = conn.CreateCommand();
-                            su.CommandText = @"INSERT INTO salary_structures (employee_id,basic,hra,da,special_allowance,other_allowance,pf_applicable,esi_applicable,effective_from)
-                                VALUES (@ei,@b,@h,@d,@sp,@oa,@pf,@es,@ef)
-                                ON CONFLICT(employee_id) DO UPDATE SET basic=excluded.basic,hra=excluded.hra,
-                                da=excluded.da,special_allowance=excluded.special_allowance,
-                                other_allowance=excluded.other_allowance,pf_applicable=excluded.pf_applicable,
-                                esi_applicable=excluded.esi_applicable";
+                            su.CommandText = @"
+                                DELETE FROM salary_structures WHERE employee_id=@ei;
+                                INSERT INTO salary_structures (employee_id,basic,hra,da,special_allowance,other_allowance,pf_applicable,esi_applicable,effective_from)
+                                VALUES (@ei,@b,@h,@d,@sp,@oa,@pf,@es,@ef)";
                             su.Parameters.AddWithValue("@ei", existingId); su.Parameters.AddWithValue("@b",  basic);
                             su.Parameters.AddWithValue("@h",  hra);        su.Parameters.AddWithValue("@d",  da);
                             su.Parameters.AddWithValue("@sp", special);    su.Parameters.AddWithValue("@oa", other);
@@ -1298,15 +1296,10 @@ namespace TDSPro.DAL
                             if (empId != null)
                             {
                                 using var su = conn.CreateCommand();
-                                su.CommandText = @"INSERT INTO salary_structures
-                                    (employee_id,basic,hra,da,special_allowance,other_allowance,pf_applicable,esi_applicable,effective_from)
-                                    VALUES (@ei,@b,@h,@d,@sp,@oa,@pf,@es,@ef)
-                                    ON CONFLICT(employee_id) DO UPDATE SET
-                                        basic=excluded.basic,hra=excluded.hra,da=excluded.da,
-                                        special_allowance=excluded.special_allowance,
-                                        other_allowance=excluded.other_allowance,
-                                        pf_applicable=excluded.pf_applicable,
-                                        esi_applicable=excluded.esi_applicable";
+                                su.CommandText = @"
+                                    DELETE FROM salary_structures WHERE employee_id=@ei;
+                                    INSERT INTO salary_structures (employee_id,basic,hra,da,special_allowance,other_allowance,pf_applicable,esi_applicable,effective_from)
+                                    VALUES (@ei,@b,@h,@d,@sp,@oa,@pf,@es,@ef)";
                                 su.Parameters.AddWithValue("@ei", empId); su.Parameters.AddWithValue("@b",  basic);
                                 su.Parameters.AddWithValue("@h",  hra);   su.Parameters.AddWithValue("@d",  da);
                                 su.Parameters.AddWithValue("@sp", special);su.Parameters.AddWithValue("@oa", other);
