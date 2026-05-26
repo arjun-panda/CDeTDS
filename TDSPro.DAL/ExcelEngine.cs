@@ -1075,6 +1075,8 @@ namespace TDSPro.DAL
                     var challanNo= ws.Cell(row, 3).GetString().Trim();
 
                     if (string.IsNullOrEmpty(bsr)) { result.Errors.Add($"Row {row}: BSR code required"); result.FailCount++; continue; }
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(bsr, @"^\d{7}$"))
+                    { result.Errors.Add($"Row {row}: BSR code '{bsr}' must be exactly 7 digits"); result.FailCount++; continue; }
                     if (!DateTime.TryParseExact(dateStr, new[] { "dd-MM-yyyy","dd/MM/yyyy","yyyy-MM-dd" },
                         null, System.Globalization.DateTimeStyles.None, out var challanDate))
                     { result.Errors.Add($"Row {row}: Invalid date '{dateStr}'"); result.FailCount++; continue; }

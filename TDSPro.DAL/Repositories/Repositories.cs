@@ -272,6 +272,19 @@ namespace TDSPro.DAL.Repositories
             {
                 using var conn = Database.GetConnection();
 
+                // Validate Sec 197 LDC expiry — entry date must not exceed cert_till
+                if (e.Remarks?.Trim().Equals("A", StringComparison.OrdinalIgnoreCase) == true && e.DeducteeId > 0)
+                {
+                    using var ldcCmd = conn.CreateCommand();
+                    ldcCmd.CommandText = "SELECT lower_cert_till FROM deductees WHERE id=@id";
+                    ldcCmd.Parameters.AddWithValue("@id", e.DeducteeId);
+                    var tillRaw = ldcCmd.ExecuteScalar() as string;
+                    if (!string.IsNullOrEmpty(tillRaw) &&
+                        DateTime.TryParse(tillRaw, out var certTill) &&
+                        e.EntryDate.Date > certTill.Date)
+                        return (false, $"Sec 197 certificate expired on {certTill:dd-MMM-yyyy}. Entry date {e.EntryDate:dd-MMM-yyyy} is after the validity period.");
+                }
+
                 // Validate challan_no exists for this deductor (skip if blank or Adjusted)
                 if (!string.IsNullOrEmpty(e.ChallanNo) && e.Status != "Adjusted")
                 {
