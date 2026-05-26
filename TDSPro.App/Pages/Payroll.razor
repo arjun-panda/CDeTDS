@@ -2949,14 +2949,12 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
-            await JS.InvokeVoidAsync("eval",
-                "document.querySelector('.mud-main-content')?.classList.add('no-outer-scroll')");
+            await JS.InvokeVoidAsync("document.body.classList.add", "payroll-active");
     }
 
     public async void Dispose()
     {
-        try { await JS.InvokeVoidAsync("eval",
-            "document.querySelector('.mud-main-content')?.classList.remove('no-outer-scroll')"); }
+        try { await JS.InvokeVoidAsync("document.body.classList.remove", "payroll-active"); }
         catch { }
     }
 
