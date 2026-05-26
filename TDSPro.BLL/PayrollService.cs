@@ -399,6 +399,9 @@ namespace TDSPro.BLL
         public List<Employee> GetEmployees(int? deductorId = null)
             => _repo.GetAllEmployees(deductorId);
 
+        public (bool ok, string msg) ClearAllEmployees(int deductorId)
+            => _repo.ClearAllEmployees(deductorId);
+
         public (bool ok, string msg) SaveEmployee(Employee e)
         {
             // Validate first; refuse to persist invalid data.

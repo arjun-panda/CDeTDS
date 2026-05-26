@@ -29,10 +29,16 @@
     <MudTabPanel Text="Employees" Icon="@Icons.Material.Filled.People">
         <div class="d-flex justify-space-between align-center mb-3">
             <MudText Typo="Typo.subtitle1">Employee Master</MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenAddEmployee">
-                Add Employee
-            </MudButton>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.DeleteSweep" OnClick="ConfirmClearAllEmployees">
+                    Clear All
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenAddEmployee">
+                    Add Employee
+                </MudButton>
+            </div>
         </div>
 
         @if (!_employees.Any())
@@ -3117,6 +3123,23 @@
     {
         _showEmployeeForm = false;
         _editingEmployee  = null;
+    }
+
+    async Task ConfirmClearAllEmployees()
+    {
+        bool? result = await DialogSvc.ShowMessageBox(
+            "Clear All Employees",
+            "This will permanently delete ALL employees, salary structures, payroll entries and declarations for this company. This cannot be undone. Continue?",
+            yesText: "Delete Everything", cancelText: "Cancel");
+        if (result != true) return;
+        var (ok, msg) = PayrollSvc.ClearAllEmployees(AppState.CurrentDeductorId);
+        if (ok)
+        {
+            LoadEmployees();
+            Snackbar.Add("All employee data cleared.", Severity.Success);
+        }
+        else
+            Snackbar.Add($"Error: {msg}", Severity.Error);
     }
 
     void SaveEmployee()

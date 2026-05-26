@@ -501,6 +501,26 @@ namespace TDSPro.DAL
             catch (Exception ex) { return (false, ex.Message); }
         }
 
+        public (bool ok, string msg) ClearAllEmployees(int deductorId)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd  = conn.CreateCommand();
+                // Delete all related data for this deductor's employees
+                cmd.CommandText = @"
+                    DELETE FROM payroll_entries       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM salary_structures     WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM tax_declarations      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM landlord_records      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM employees             WHERE deductor_id=@did;";
+                cmd.Parameters.AddWithValue("@did", deductorId);
+                cmd.ExecuteNonQuery();
+                return (true, "All employee data cleared.");
+            }
+            catch (Exception ex) { return (false, ex.Message); }
+        }
+
         // ══════════════════════════════════════════════════════════════════════
         // DECLARATIONS
         // ══════════════════════════════════════════════════════════════════════
