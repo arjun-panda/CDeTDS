@@ -143,6 +143,14 @@ body.dashboard-active .mud-main-content {
     flex-shrink: 0;
 }
 
+/* Import/Export/Templates tab panel — allow natural scroll, no clipping */
+.import-tab-panel {
+    padding: 16px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: calc(100vh - 180px);
+}
+
 /* Dashboard KPI card */
 .kpi-card {
     border-left: 4px solid var(--mud-palette-primary);
