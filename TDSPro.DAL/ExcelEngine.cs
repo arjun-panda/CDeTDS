@@ -1163,6 +1163,9 @@ namespace TDSPro.DAL
 
             using var conn = Database.GetConnection();
 
+            // Track codes assigned during this import to prevent intra-file duplicates
+            var usedCodesThisImport = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+
             int skippedEmpty = 0;
             for (int row = startRow; row <= lastRow; row++)
             {
@@ -1213,6 +1216,20 @@ namespace TDSPro.DAL
                             getCode.Parameters.AddWithValue("@id", existingId);
                             code = getCode.ExecuteScalar()?.ToString() ?? "";
                         }
+                        // If code conflicts with a DIFFERENT employee, clear it so auto-gen kicks in
+                        if (!string.IsNullOrEmpty(code))
+                        {
+                            using var codeChk = conn.CreateCommand();
+                            codeChk.CommandText = "SELECT id FROM employees WHERE employee_code=@c AND deductor_id=@di AND id<>@id";
+                            codeChk.Parameters.AddWithValue("@c",  code);
+                            codeChk.Parameters.AddWithValue("@di", deductorId);
+                            codeChk.Parameters.AddWithValue("@id", existingId);
+                            if (codeChk.ExecuteScalar() != null || usedCodesThisImport.Contains(code))
+                                code = "";
+                        }
+                        if (string.IsNullOrEmpty(code))
+                            code = NextEmpCode(conn, deductorId);
+                        usedCodesThisImport.Add(code);
                         using var upd = conn.CreateCommand();
                         upd.CommandText = @"UPDATE employees SET name=@n,employee_code=@ec,designation=@dg,
                             department=@dp,join_date=@jd,date_of_birth=@dob,sex=@sx,
@@ -1246,12 +1263,19 @@ namespace TDSPro.DAL
                     }
                     else
                     {
-                        if (string.IsNullOrEmpty(code))
+                        // Auto-gen or fix duplicate code for new employee
+                        if (string.IsNullOrEmpty(code) || usedCodesThisImport.Contains(code))
+                            code = NextEmpCode(conn, deductorId);
+                        else
                         {
-                            using var cntCmd = conn.CreateCommand();
-                            cntCmd.CommandText = "SELECT COALESCE(MAX(id),0)+1 FROM employees";
-                            code = $"EMP{(long)(cntCmd.ExecuteScalar()??1L):D5}";
+                            using var codeChk2 = conn.CreateCommand();
+                            codeChk2.CommandText = "SELECT id FROM employees WHERE employee_code=@c AND deductor_id=@di";
+                            codeChk2.Parameters.AddWithValue("@c",  code);
+                            codeChk2.Parameters.AddWithValue("@di", deductorId);
+                            if (codeChk2.ExecuteScalar() != null)
+                                code = NextEmpCode(conn, deductorId);
                         }
+                        usedCodesThisImport.Add(code);
                         using var ins = conn.CreateCommand();
                         ins.CommandText = @"INSERT INTO employees
                             (deductor_id,name,pan,employee_code,designation,department,
@@ -1441,6 +1465,20 @@ namespace TDSPro.DAL
         }
 
         // Excel date cells return full datetime strings via GetString() — strip the time part.
+        private static string NextEmpCode(Microsoft.Data.Sqlite.SqliteConnection conn, int deductorId)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT COALESCE(MAX(CAST(REPLACE(employee_code,'EMP','') AS INTEGER)),0)
+                FROM employees
+                WHERE deductor_id=@di
+                  AND employee_code LIKE 'EMP%'
+                  AND REPLACE(employee_code,'EMP','') GLOB '[0-9]*'";
+            cmd.Parameters.AddWithValue("@di", deductorId);
+            int next = Convert.ToInt32(cmd.ExecuteScalar() ?? 0) + 1;
+            return $"EMP{next:D5}";
+        }
+
         private static string ParseExcelDate(IXLCell cell)
         {
             if (cell.DataType == XLDataType.DateTime)
