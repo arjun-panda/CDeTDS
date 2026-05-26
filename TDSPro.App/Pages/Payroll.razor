@@ -3122,7 +3122,6 @@
     void SaveEmployee()
     {
         if (_editingEmployee == null) return;
-        if (string.IsNullOrWhiteSpace(_editingEmployee.EmployeeCode)) { _empError = "Employee Code is required."; return; }
         if (string.IsNullOrWhiteSpace(_editingEmployee.Name))         { _empError = "Name is required."; return; }
         if (string.IsNullOrWhiteSpace(_editingEmployee.Pan))          { _empError = "PAN is required."; return; }
         if (_empJoin == null)                                          { _empError = "Date of Joining is required."; return; }

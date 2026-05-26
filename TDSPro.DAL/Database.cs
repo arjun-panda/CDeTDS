@@ -573,6 +573,8 @@ namespace TDSPro.DAL
             }
             // Pass 2 (C#): normalize "dd-Mon-yyyy" → "dd-MM-yyyy" (SQLite can't do month-name maps).
             NormalizeDateFields(conn);
+            // Pass 3: auto-assign employee codes for any rows that are blank.
+            BackfillEmployeeCodes(conn);
 
             // Landlord records table
             using (var cmdLl = conn.CreateCommand()) {
@@ -1440,6 +1442,35 @@ namespace TDSPro.DAL
                 cmd.ExecuteNonQuery();
             }
             catch { }
+        }
+
+        private static void BackfillEmployeeCodes(Microsoft.Data.Sqlite.SqliteConnection conn)
+        {
+            // Find highest existing EMP#####
+            using var maxCmd = conn.CreateCommand();
+            maxCmd.CommandText = @"
+                SELECT COALESCE(MAX(CAST(REPLACE(employee_code,'EMP','') AS INTEGER)),0)
+                FROM employees
+                WHERE employee_code LIKE 'EMP%'
+                  AND REPLACE(employee_code,'EMP','') GLOB '[0-9]*'";
+            int next = Convert.ToInt32(maxCmd.ExecuteScalar() ?? 0) + 1;
+
+            // Fetch all employees with blank code
+            using var sel = conn.CreateCommand();
+            sel.CommandText = "SELECT id FROM employees WHERE TRIM(COALESCE(employee_code,''))='' ORDER BY id";
+            var ids = new System.Collections.Generic.List<long>();
+            using (var rdr = sel.ExecuteReader())
+                while (rdr.Read()) ids.Add(rdr.GetInt64(0));
+
+            foreach (var id in ids)
+            {
+                using var upd = conn.CreateCommand();
+                upd.CommandText = "UPDATE employees SET employee_code=@c WHERE id=@id";
+                upd.Parameters.AddWithValue("@c", $"EMP{next:D5}");
+                upd.Parameters.AddWithValue("@id", id);
+                upd.ExecuteNonQuery();
+                next++;
+            }
         }
 
         // Normalize "dd-Mon-yyyy" dates in employees table → "dd-MM-yyyy"

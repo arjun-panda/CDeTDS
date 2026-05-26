@@ -137,10 +137,26 @@ namespace TDSPro.DAL
             return list;
         }
 
+        public string GetNextEmployeeCode()
+        {
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT COALESCE(MAX(CAST(REPLACE(REPLACE(employee_code,'EMP',''),'0','') AS INTEGER)),0)
+                FROM employees
+                WHERE employee_code LIKE 'EMP%'
+                  AND REPLACE(employee_code,'EMP','') GLOB '[0-9]*'";
+            var max = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+            return $"EMP{(max + 1):D5}";
+        }
+
         public (bool ok, string msg) SaveEmployee(Employee e)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(e.EmployeeCode))
+                    e.EmployeeCode = GetNextEmployeeCode();
+
                 using var conn = Database.GetConnection();
                 using var cmd  = conn.CreateCommand();
                 if (e.Id == 0)
