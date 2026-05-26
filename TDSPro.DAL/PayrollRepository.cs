@@ -509,11 +509,13 @@ namespace TDSPro.DAL
                 using var cmd  = conn.CreateCommand();
                 // Delete all related data for this deductor's employees
                 cmd.CommandText = @"
-                    DELETE FROM payroll_entries       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM salary_structures     WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM tax_declarations      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM landlord_records      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM employees             WHERE deductor_id=@did;";
+                    DELETE FROM monthly_salary_entries WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM salary_structures      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM tax_declarations       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM landlord_records       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM reimbursement_claims   WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
+                    DELETE FROM payroll_runs           WHERE deductor_id=@did;
+                    DELETE FROM employees              WHERE deductor_id=@did;";
                 cmd.Parameters.AddWithValue("@did", deductorId);
                 cmd.ExecuteNonQuery();
                 return (true, "All employee data cleared.");
