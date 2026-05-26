@@ -18,179 +18,177 @@
 
     @* ── IMPORT ── *@
     <MudTabPanel Text="Import Data" Icon="@Icons.Material.Filled.Upload">
-        <MudGrid Spacing="3">
+        <div style="display:flex;flex-direction:column;gap:10px">
 
             @* TDS Entries *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #1565C0">
-                    <div class="d-flex align-center gap-2 mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" />
-                        <MudText Typo="Typo.subtitle1">TDS Entries</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #1565C0;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">TDS Entries</span>
                     </div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Date · TAN · PAN · Section · Amount · Rate · FY · Quarter.
-                        Unknown deductees are auto-created from PAN.
-                    </MudText>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
-                               OnClick='() => DownloadTemplate("entries")'>Template</MudButton>
-                    <FilePicker @bind-Value="_entriesFilePath" Title="Select TDS Entries Excel" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportEntries" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_entriesFilePath))">
-                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import
-                    </MudButton>
-                    @ResultAlert(_entryResult, "entries")
-                </MudPaper>
-            </MudItem>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666;line-height:1.6">
+                        Date · TAN · PAN · Section · Amount · Rate · FY · Quarter. Unknown deductees are auto-created from PAN.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick='() => DownloadTemplate("entries")'>Template</MudButton>
+                        <FilePicker @bind-Value="_entriesFilePath" Title="Select TDS Entries Excel" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ImportEntries" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_entriesFilePath))">
+                            @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                            Import
+                        </MudButton>
+                    </div>
+                </div>
+                @ResultAlert(_entryResult, "entries")
+            </div>
 
             @* Deductees *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #7b1fa2">
-                    <div class="d-flex align-center gap-2 mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" />
-                        <MudText Typo="Typo.subtitle1">Deductee Master</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #7b1fa2;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Deductee Master</span>
                     </div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Name · PAN · Section · Rate · Type · Resident.
-                        Type and rate auto-detected from PAN if blank.
-                    </MudText>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
-                               OnClick='() => DownloadTemplate("deductees")'>Template</MudButton>
-                    <FilePicker @bind-Value="_deducteesFilePath" Title="Select Deductee Master Excel" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportDeductees" Disabled="@(_importing || string.IsNullOrEmpty(_deducteesFilePath))">
-                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import
-                    </MudButton>
-                    @ResultAlert(_deducteeResult, "deductees")
-                </MudPaper>
-            </MudItem>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666;line-height:1.6">
+                        Name · PAN · Section · Rate · Type · Resident. Type and rate auto-detected from PAN if blank.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick='() => DownloadTemplate("deductees")'>Template</MudButton>
+                        <FilePicker @bind-Value="_deducteesFilePath" Title="Select Deductee Master Excel" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ImportDeductees" Disabled="@(_importing || string.IsNullOrEmpty(_deducteesFilePath))">
+                            @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                            Import
+                        </MudButton>
+                    </div>
+                </div>
+                @ResultAlert(_deducteeResult, "deductees")
+            </div>
 
             @* Challans *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #2e7d32">
-                    <div class="d-flex align-center gap-2 mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" />
-                        <MudText Typo="Typo.subtitle1">Challans (ITNS 281)</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #2e7d32;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Challans (ITNS 281)</span>
                     </div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        BSR Code · Date · Challan No · Section · Quarter · TDS Amount.
-                        Upsert by BSR + Challan No + Date.
-                    </MudText>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
-                               OnClick='() => DownloadTemplate("challans")'>Template</MudButton>
-                    <FilePicker @bind-Value="_challansFilePath" Title="Select Challans Excel" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportChallans" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_challansFilePath))">
-                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import
-                    </MudButton>
-                    @ResultAlert(_challanResult, "challans")
-                </MudPaper>
-            </MudItem>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666;line-height:1.6">
+                        BSR Code · Date · Challan No · Section · Quarter · TDS Amount. Upsert by BSR + Challan No + Date.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick='() => DownloadTemplate("challans")'>Template</MudButton>
+                        <FilePicker @bind-Value="_challansFilePath" Title="Select Challans Excel" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ImportChallans" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_challansFilePath))">
+                            @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                            Import
+                        </MudButton>
+                    </div>
+                </div>
+                @ResultAlert(_challanResult, "challans")
+            </div>
 
             @* Employees *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #e65100">
-                    <div class="d-flex align-center gap-2 mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Warning" />
-                        <MudText Typo="Typo.subtitle1">Employee Master (24Q)</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #e65100;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Warning" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">Employee Master (24Q)</span>
                     </div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Name · PAN · Code · Designation · Salary structure.
-                        Upsert by PAN. Salary structure auto-created if Basic provided.
-                    </MudText>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Download" Class="mb-3"
-                               OnClick='() => DownloadTemplate("employees")'>Template</MudButton>
-                    <FilePicker @bind-Value="_employeesFilePath" Title="Select Employee Master Excel" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportEmployees" Disabled="@(_importing || string.IsNullOrEmpty(_employeesFilePath))">
-                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import
-                    </MudButton>
-                    @ResultAlert(_employeeResult, "employees")
-                </MudPaper>
-            </MudItem>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666;line-height:1.6">
+                        Name · PAN · Code · Designation · Salary structure. Upsert by PAN. Salary structure auto-created if Basic provided.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick='() => DownloadTemplate("employees")'>Template</MudButton>
+                        <FilePicker @bind-Value="_employeesFilePath" Title="Select Employee Master Excel" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ImportEmployees" Disabled="@(_importing || string.IsNullOrEmpty(_employeesFilePath))">
+                            @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                            Import
+                        </MudButton>
+                    </div>
+                </div>
+                @ResultAlert(_employeeResult, "employees")
+            </div>
 
             @* TRACES Conso File *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:10px;border-top:4px solid #37474f">
-                    <div class="d-flex align-center gap-2 mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.CloudDownload" />
-                        <MudText Typo="Typo.subtitle1">TRACES Conso File</MudText>
+            <div style="border:1px solid #e0e0e0;border-left:4px solid #37474f;border-radius:8px;padding:12px 16px">
+                <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:200px">
+                        <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Size="Size.Small" />
+                        <span style="font-weight:600;font-size:14px">TRACES Conso File</span>
                     </div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Import consolidated .tds/.txt file downloaded from TRACES portal.
-                        Auto-creates deductor, challans, deductees and TDS entries.
-                    </MudText>
-                    <FilePicker @bind-Value="_consoFilePath"
-                                Title="Select TRACES Conso File"
-                                Filter="TRACES Files|*.tds;*.txt|All Files|*.*" />
-
-                    @* Password field — only shown for .tds (ZIP) files *@
-                    @if (_consoFilePath.EndsWith(".tds", StringComparison.OrdinalIgnoreCase))
-                    {
-                        <MudTextField @bind-Value="_consoPassword"
-                                      Label="ZIP Password"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      Class="mt-2 upper-field"
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666;line-height:1.6">
+                        Import consolidated .tds/.txt file from TRACES portal. Auto-creates deductor, challans, deductees and TDS entries.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <FilePicker @bind-Value="_consoFilePath" Title="Select TRACES Conso File"
+                                    Filter="TRACES Files|*.tds;*.txt|All Files|*.*" />
+                        <MudButton Variant="Variant.Filled" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ImportConso" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_consoFilePath))">
+                            @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                            Import
+                        </MudButton>
+                    </div>
+                </div>
+                @if (_consoFilePath.EndsWith(".tds", StringComparison.OrdinalIgnoreCase))
+                {
+                    <div style="margin-top:8px">
+                        <MudTextField @bind-Value="_consoPassword" Label="ZIP Password" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Class="upper-field" Style="max-width:400px"
                                       InputType="@(_showConsoPass ? InputType.Text : InputType.Password)"
                                       Adornment="Adornment.End"
                                       AdornmentIcon="@(_showConsoPass ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
                                       OnAdornmentClick="() => _showConsoPass = !_showConsoPass"
-                                      HelperText="Format: TAN_RequestNumber  e.g. DELI03886B_86528  (from TRACES → Requested Downloads)" />
-                    }
-
-                    <MudButton Variant="Variant.Filled" Size="Size.Small" Class="mt-3"
-                               StartIcon="@Icons.Material.Filled.Upload"
-                               OnClick="ImportConso" Disabled="@(AppState.IsReadOnlyFY || _importing || string.IsNullOrEmpty(_consoFilePath))">
-                        @if (_importing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                        Import TRACES File
-                    </MudButton>
-
-                    @if (_consoResult != null)
+                                      HelperText="Format: TAN_RequestNumber  e.g. DELI03886B_86528" />
+                    </div>
+                }
+                @if (_consoResult != null)
+                {
+                    <MudAlert Severity="@(_consoResult.Success ? Severity.Success : Severity.Error)" Class="mt-2" Dense="true">
+                        @_consoResult.Message
+                    </MudAlert>
+                    @if (_consoResult.Success)
                     {
-                        <MudAlert Severity="@(_consoResult.Success ? Severity.Success : Severity.Error)" Class="mt-2" Dense="true">
-                            @_consoResult.Message
-                        </MudAlert>
-                        @if (_consoResult.Success)
-                        {
-                            <div style="font-size:12px;margin-top:4px;color:#1e6b3c">
-                                Form: @_consoResult.FormType &nbsp;|&nbsp; @_consoResult.Quarter &nbsp;|&nbsp; FY @_consoResult.FY<br/>
-                                Challans: @_consoResult.ChallansImported &nbsp;|&nbsp;
-                                Deductees: @_consoResult.DeducteesImported &nbsp;|&nbsp;
-                                Entries: @_consoResult.EntriesImported
-                                @if (_consoResult.DeducteesSkipped > 0)
-                                { <span style="color:#7f4f00"> &nbsp;| @_consoResult.DeducteesSkipped skipped (invalid PAN)</span> }
-                            </div>
-                        }
-                        @if (_consoResult.Warnings.Any())
-                        {
-                            <div style="max-height:100px;overflow-y:auto;font-size:11px;margin-top:4px">
-                                @foreach (var w in _consoResult.Warnings)
-                                { <div style="color:#7f4f00">⚠ @w</div> }
-                            </div>
-                        }
-                        @if (_consoResult.Errors.Any())
-                        {
-                            <div style="max-height:80px;overflow-y:auto;font-size:11px;margin-top:4px">
-                                @foreach (var e in _consoResult.Errors)
-                                { <div style="color:#990000">✕ @e</div> }
-                            </div>
-                        }
+                        <div style="font-size:12px;margin-top:4px;color:#1e6b3c">
+                            Form: @_consoResult.FormType | @_consoResult.Quarter | FY @_consoResult.FY &nbsp;·&nbsp;
+                            Challans: @_consoResult.ChallansImported &nbsp;·&nbsp;
+                            Deductees: @_consoResult.DeducteesImported &nbsp;·&nbsp;
+                            Entries: @_consoResult.EntriesImported
+                            @if (_consoResult.DeducteesSkipped > 0)
+                            { <span style="color:#7f4f00"> · @_consoResult.DeducteesSkipped skipped</span> }
+                        </div>
                     }
-                </MudPaper>
-            </MudItem>
+                    @if (_consoResult.Warnings.Any())
+                    {
+                        <div style="max-height:80px;overflow-y:auto;font-size:11px;margin-top:4px">
+                            @foreach (var w in _consoResult.Warnings) { <div style="color:#7f4f00">⚠ @w</div> }
+                        </div>
+                    }
+                    @if (_consoResult.Errors.Any())
+                    {
+                        <div style="max-height:80px;overflow-y:auto;font-size:11px;margin-top:4px">
+                            @foreach (var e in _consoResult.Errors) { <div style="color:#990000">✕ @e</div> }
+                        </div>
+                    }
+                }
+            </div>
 
-        </MudGrid>
+        </div>
     </MudTabPanel>
 
     @* ── EXPORT ── *@
