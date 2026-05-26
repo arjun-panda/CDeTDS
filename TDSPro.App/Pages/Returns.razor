@@ -716,6 +716,7 @@
     async Task GenerateTxtOnly()
     {
         if (!ValidateInputs()) return;
+        WarnIfUnlinkedEntries();
         _generating = true; _step = Step.GeneratingTxt;
         _result = ""; _logLines.Clear(); _fvuErrors.Clear();
         _lastTxtPath = ""; _lastFvuPath = "";
@@ -755,6 +756,7 @@
     async Task GenerateAndValidate()
     {
         if (!ValidateInputs()) return;
+        WarnIfUnlinkedEntries();
         _generating = true; _step = Step.GeneratingTxt;
         _result = ""; _logLines.Clear(); _fvuErrors.Clear();
         _lastTxtPath = ""; _lastFvuPath = "";
@@ -984,6 +986,26 @@
         if (_isCorrection && string.IsNullOrWhiteSpace(_prevPrn))
             { Snackbar.Add("Previous PRN is required for a correction return.", Severity.Warning); return false; }
         return true;
+    }
+
+    void WarnIfUnlinkedEntries()
+    {
+        try
+        {
+            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"SELECT COUNT(1) FROM tds_entries
+                WHERE deductor_id=@did AND financial_year=@fy AND quarter=@q
+                  AND (challan_no IS NULL OR challan_no='') AND status NOT IN ('Adjusted','Paid')";
+            cmd.Parameters.AddWithValue("@did", AppState.CurrentDeductorId);
+            cmd.Parameters.AddWithValue("@fy",  AppState.CurrentFY);
+            cmd.Parameters.AddWithValue("@q",   _quarter);
+            var count = (long)(cmd.ExecuteScalar() ?? 0L);
+            if (count > 0)
+                Snackbar.Add($"{count} entr{(count == 1 ? "y is" : "ies are")} not linked to any challan — they will be auto-assigned to the first challan in the return. Link them in the Challans page to avoid FVU reconciliation errors.",
+                             Severity.Warning);
+        }
+        catch { }
     }
 
     TDSPro.DAL.Models.ReturnData BuildReturnData()

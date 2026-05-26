@@ -127,6 +127,11 @@ else
                         <MudItem xs="3" Class="d-flex align-center">
                             <MudCheckBox @bind-Value="_editing.IsResident" Label="Resident Indian" />
                         </MudItem>
+                        <MudItem xs="3" Class="d-flex align-center">
+                            <MudTooltip Text="Uncheck if deductee has not filed ITR for 2 preceding years and total TDS > ₹50,000 (Sec 206AB higher rate applies)">
+                                <MudCheckBox @bind-Value="_editing.ItrFiled" Label="ITR Filed (206AB)" />
+                            </MudTooltip>
+                        </MudItem>
                         <MudItem xs="12">
                             <MudTextField @bind-Value="_editing.Remarks" Label="Remarks" Variant="Variant.Outlined" />
                         </MudItem>
@@ -238,7 +243,7 @@ else
         {
             Id = d.Id, DeducteeCode = d.DeducteeCode, Name = d.Name, Pan = d.Pan,
             Section = d.Section, DeducteeType = d.DeducteeType, Rate = d.Rate,
-            IsResident = d.IsResident, Remarks = d.Remarks,
+            IsResident = d.IsResident, ItrFiled = d.ItrFiled, Remarks = d.Remarks,
             LowerCertNo = d.LowerCertNo, LowerCertRate = d.LowerCertRate, LowerCertTill = d.LowerCertTill,
             PanVerified = d.PanVerified, PanVerificationStatus = d.PanVerificationStatus,
             PanVerifiedName = d.PanVerifiedName, PanVerifiedAt = d.PanVerifiedAt

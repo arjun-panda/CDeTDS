@@ -164,9 +164,9 @@ namespace TDSPro.DAL.Repositories
                     d.DeducteeCode = $"DED{nextId:D5}";
                     cmd.CommandText = @"INSERT INTO deductees
                         (deductee_code,name,pan,section,rate,deductee_type,
-                         is_resident,lower_cert_no,lower_cert_rate,lower_cert_till,remarks,
+                         is_resident,itr_filed,lower_cert_no,lower_cert_rate,lower_cert_till,remarks,
                          pan_verified,pan_verification_status,pan_verified_name,pan_verified_at)
-                        VALUES(@dc,@n,@p,@s,@r,@dt,@ir,@lc,@lr,@lt,@rm,
+                        VALUES(@dc,@n,@p,@s,@r,@dt,@ir,@itrf,@lc,@lr,@lt,@rm,
                                @pv,@pvs,@pvn,@pvt)";
                     cmd.Parameters.AddWithValue("@dc", d.DeducteeCode);
                 }
@@ -174,7 +174,7 @@ namespace TDSPro.DAL.Repositories
                 {
                     cmd.CommandText = @"UPDATE deductees SET
                         name=@n,pan=@p,section=@s,rate=@r,deductee_type=@dt,
-                        is_resident=@ir,lower_cert_no=@lc,lower_cert_rate=@lr,
+                        is_resident=@ir,itr_filed=@itrf,lower_cert_no=@lc,lower_cert_rate=@lr,
                         lower_cert_till=@lt,remarks=@rm,
                         pan_verified=@pv,pan_verification_status=@pvs,
                         pan_verified_name=@pvn,pan_verified_at=@pvt
@@ -186,7 +186,8 @@ namespace TDSPro.DAL.Repositories
                 cmd.Parameters.AddWithValue("@s",  d.Section);
                 cmd.Parameters.AddWithValue("@r",  d.Rate);
                 cmd.Parameters.AddWithValue("@dt", d.DeducteeType);
-                cmd.Parameters.AddWithValue("@ir", d.IsResident ? 1 : 0);
+                cmd.Parameters.AddWithValue("@ir",   d.IsResident ? 1 : 0);
+                cmd.Parameters.AddWithValue("@itrf", d.ItrFiled   ? 1 : 0);
                 cmd.Parameters.AddWithValue("@lc", d.LowerCertNo);
                 cmd.Parameters.AddWithValue("@lr", d.LowerCertRate);
                 cmd.Parameters.AddWithValue("@lt", d.LowerCertTill);
@@ -232,6 +233,7 @@ namespace TDSPro.DAL.Repositories
             Rate          = r.GetDouble(r.GetOrdinal("rate")),
             DeducteeType  = r.IsDBNull(r.GetOrdinal("deductee_type")) ? "Individual" : r.GetString(r.GetOrdinal("deductee_type")),
             IsResident    = r.GetInt32(r.GetOrdinal("is_resident")) == 1,
+            ItrFiled      = (r.GetOrdinal("itr_filed") is var ifo && !r.IsDBNull(ifo) ? r.GetInt32(ifo) : 1) == 1,
             LowerCertNo   = r.IsDBNull(r.GetOrdinal("lower_cert_no"))   ? "" : r.GetString(r.GetOrdinal("lower_cert_no")),
             LowerCertRate = r.IsDBNull(r.GetOrdinal("lower_cert_rate")) ? 0  : r.GetDouble(r.GetOrdinal("lower_cert_rate")),
             LowerCertTill = r.IsDBNull(r.GetOrdinal("lower_cert_till")) ? "" : r.GetString(r.GetOrdinal("lower_cert_till")),

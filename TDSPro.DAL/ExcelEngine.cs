@@ -840,6 +840,9 @@ namespace TDSPro.DAL
                     var cess   = Math.Round(tdsAmt * cessRate / 100, 2);
                     var total  = tdsAmt + cess;
 
+                    if (tdsAmt == 0)
+                        result.Errors.Add($"Row {row}: TDS amount is ₹0 for section {section} rate {rate}% — entry imported but will be excluded from FVU output. Verify the rate or delete if no TDS applies.");
+
                     // Quarter from date
                     var quarter = entryDate.Month switch
                     {

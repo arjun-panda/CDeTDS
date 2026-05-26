@@ -39,6 +39,7 @@ namespace TDSPro.DAL.Models
         public double Rate { get; set; }
         public string DeducteeType { get; set; } = "Individual";
         public bool IsResident { get; set; } = true;
+        public bool ItrFiled { get; set; } = true;
         public string LowerCertNo { get; set; } = "";
         public double LowerCertRate { get; set; }
         public string LowerCertTill { get; set; } = "";
