@@ -1180,8 +1180,8 @@ namespace TDSPro.DAL
                     var code        = ws.Cell(row, 3).GetString().Trim();
                     var designation = ws.Cell(row, 4).GetString().Trim();
                     var department  = ws.Cell(row, 5).GetString().Trim();
-                    var joinDate    = ws.Cell(row, 6).GetString().Trim();
-                    var dob         = ws.Cell(row, 7).GetString().Trim();
+                    var joinDate    = ParseExcelDate(ws.Cell(row, 6));
+                    var dob         = ParseExcelDate(ws.Cell(row, 7));
                     var sex         = ws.Cell(row, 8).GetString().Trim();
                     if (sex != "Male" && sex != "Female" && sex != "Other") sex = "Male";
                     var email       = ws.Cell(row, 9).GetString().Trim();
@@ -1274,9 +1274,15 @@ namespace TDSPro.DAL
                             if (empId != null)
                             {
                                 using var su = conn.CreateCommand();
-                                su.CommandText = @"INSERT OR IGNORE INTO salary_structures
+                                su.CommandText = @"INSERT INTO salary_structures
                                     (employee_id,basic,hra,da,special_allowance,other_allowance,pf_applicable,esi_applicable,effective_from)
-                                    VALUES (@ei,@b,@h,@d,@sp,@oa,@pf,@es,@ef)";
+                                    VALUES (@ei,@b,@h,@d,@sp,@oa,@pf,@es,@ef)
+                                    ON CONFLICT(employee_id) DO UPDATE SET
+                                        basic=excluded.basic,hra=excluded.hra,da=excluded.da,
+                                        special_allowance=excluded.special_allowance,
+                                        other_allowance=excluded.other_allowance,
+                                        pf_applicable=excluded.pf_applicable,
+                                        esi_applicable=excluded.esi_applicable";
                                 su.Parameters.AddWithValue("@ei", empId); su.Parameters.AddWithValue("@b",  basic);
                                 su.Parameters.AddWithValue("@h",  hra);   su.Parameters.AddWithValue("@d",  da);
                                 su.Parameters.AddWithValue("@sp", special);su.Parameters.AddWithValue("@oa", other);
@@ -1432,6 +1438,17 @@ namespace TDSPro.DAL
             range.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             range.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             range.Style.Border.OutsideBorderColor = XLColor.White;
+        }
+
+        // Excel date cells return full datetime strings via GetString() — strip the time part.
+        private static string ParseExcelDate(IXLCell cell)
+        {
+            if (cell.DataType == XLDataType.DateTime)
+                return cell.GetDateTime().ToString("dd-MM-yyyy");
+            var s = cell.GetString().Trim();
+            if (DateTime.TryParse(s, out var dt))
+                return dt.ToString("dd-MM-yyyy");
+            return s;
         }
 
         private static int FindHeaderRow(IXLWorksheet ws)

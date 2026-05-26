@@ -550,6 +550,15 @@ namespace TDSPro.DAL
             AddColumnIfMissing("tax_declarations", "landlord_pan",         "TEXT DEFAULT ''");
             AddColumnIfMissing("tax_declarations", "is_parent_senior",     "INTEGER DEFAULT 0");
 
+            // Unique index on salary_structures(employee_id) — one row per employee.
+            // ON CONFLICT(employee_id) in imports requires this index to work.
+            using (var cmdSsIdx = conn.CreateCommand()) {
+                cmdSsIdx.CommandText = @"
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_structures_employee
+                    ON salary_structures(employee_id)";
+                cmdSsIdx.ExecuteNonQuery();
+            }
+
             // Landlord records table
             using (var cmdLl = conn.CreateCommand()) {
                 cmdLl.CommandText = @"
