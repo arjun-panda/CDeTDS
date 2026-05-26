@@ -1205,6 +1205,14 @@ namespace TDSPro.DAL
 
                     if (existingId != null)
                     {
+                        // If Excel has blank code, keep whatever is already stored
+                        if (string.IsNullOrEmpty(code))
+                        {
+                            using var getCode = conn.CreateCommand();
+                            getCode.CommandText = "SELECT COALESCE(employee_code,'') FROM employees WHERE id=@id";
+                            getCode.Parameters.AddWithValue("@id", existingId);
+                            code = getCode.ExecuteScalar()?.ToString() ?? "";
+                        }
                         using var upd = conn.CreateCommand();
                         upd.CommandText = @"UPDATE employees SET name=@n,employee_code=@ec,designation=@dg,
                             department=@dp,join_date=@jd,date_of_birth=@dob,sex=@sx,
