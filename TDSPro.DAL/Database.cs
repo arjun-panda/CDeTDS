@@ -559,9 +559,8 @@ namespace TDSPro.DAL
                 cmdSsIdx.ExecuteNonQuery();
             }
 
-            // One-time cleanup: strip time portion from join_date and date_of_birth.
-            // Handles all formats: "dd-MM-yyyy HH:mm:ss", "dd-Mon-yyyy HH:mm:ss AM/PM", etc.
-            // INSTR finds the first space; SUBSTR takes everything before it.
+            // One-time cleanup: strip time portion and normalize month-name dates.
+            // Pass 1 (SQL): strip " HH:mm:ss" suffix from any date containing a space.
             using (var cmdDateFix = conn.CreateCommand()) {
                 cmdDateFix.CommandText = @"
                     UPDATE employees
@@ -572,6 +571,8 @@ namespace TDSPro.DAL
                     WHERE INSTR(date_of_birth, ' ') > 0";
                 cmdDateFix.ExecuteNonQuery();
             }
+            // Pass 2 (C#): normalize "dd-Mon-yyyy" → "dd-MM-yyyy" (SQLite can't do month-name maps).
+            NormalizeDateFields(conn);
 
             // Landlord records table
             using (var cmdLl = conn.CreateCommand()) {
@@ -1439,6 +1440,52 @@ namespace TDSPro.DAL
                 cmd.ExecuteNonQuery();
             }
             catch { }
+        }
+
+        // Normalize "dd-Mon-yyyy" dates in employees table → "dd-MM-yyyy"
+        private static void NormalizeDateFields(Microsoft.Data.Sqlite.SqliteConnection conn)
+        {
+            var monthMap = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                ["Jan"]="01",["Feb"]="02",["Mar"]="03",["Apr"]="04",["May"]="05",["Jun"]="06",
+                ["Jul"]="07",["Aug"]="08",["Sep"]="09",["Sept"]="09",["Oct"]="10",["Nov"]="11",["Dec"]="12"
+            };
+
+            static string? FixDate(string? val, System.Collections.Generic.Dictionary<string,string> map)
+            {
+                if (string.IsNullOrEmpty(val)) return val;
+                var m = System.Text.RegularExpressions.Regex.Match(val, @"^(\d{2})-([A-Za-z]+)-(\d{4})$");
+                if (!m.Success) return null; // not this format, no change
+                return map.TryGetValue(m.Groups[2].Value, out var mm)
+                    ? $"{m.Groups[1].Value}-{mm}-{m.Groups[3].Value}"
+                    : null;
+            }
+
+            using var sel = conn.CreateCommand();
+            sel.CommandText = "SELECT id, join_date, date_of_birth FROM employees";
+            var toUpdate = new System.Collections.Generic.List<(long id, string jd, string dob)>();
+            using (var r = sel.ExecuteReader())
+            {
+                while (r.Read())
+                {
+                    long id  = r.GetInt64(0);
+                    var  jd  = r.IsDBNull(1) ? "" : r.GetString(1);
+                    var  dob = r.IsDBNull(2) ? "" : r.GetString(2);
+                    var  jd2 = FixDate(jd,  monthMap) ?? jd;
+                    var  dob2= FixDate(dob, monthMap) ?? dob;
+                    if (jd2 != jd || dob2 != dob)
+                        toUpdate.Add((id, jd2, dob2));
+                }
+            }
+            foreach (var (id, jd, dob) in toUpdate)
+            {
+                using var upd = conn.CreateCommand();
+                upd.CommandText = "UPDATE employees SET join_date=@j, date_of_birth=@d WHERE id=@id";
+                upd.Parameters.AddWithValue("@j",  jd);
+                upd.Parameters.AddWithValue("@d",  dob);
+                upd.Parameters.AddWithValue("@id", id);
+                upd.ExecuteNonQuery();
+            }
         }
 
         // ── Filing History ────────────────────────────────────────────────────
