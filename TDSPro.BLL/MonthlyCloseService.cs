@@ -303,6 +303,7 @@ namespace TDSPro.BLL
         public string ApprovedAt    { get; set; } = "";
 
         public string FlagReason    { get; set; } = "";       // e.g. "TDS jumped 5x"
+        public bool   TdsManualOverride { get; set; }       // true = user typed TDS manually, skip Compute
 
         public static MonthlyCloseRow FromEntry(MonthlySalaryEntry e, Employee emp) => new MonthlyCloseRow
         {

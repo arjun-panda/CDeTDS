@@ -1786,8 +1786,16 @@
                                     <td style="text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums">
                                         @if (row.Esi > 0) { <span style="color:#6b7280">@row.Esi.ToString("N0")</span> } else { <span style="color:#d1d5db">—</span> }
                                     </td>
-                                    <td style="text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums;border-right:2px solid #f1f5f9">
-                                        @if (row.Tds > 0) { <span style="color:#0369a1">@row.Tds.ToString("N0")</span> } else { <span style="color:#d1d5db">—</span> }
+                                    @* TDS — editable for unlocked rows *@
+                                    <td style="text-align:right;padding:6px 4px;border-right:2px solid #f1f5f9">
+                                        @if (editable)
+                                        {
+                                            <input type="number" min="0" value="@((int)row.Tds)"
+                                                   style="width:70px;text-align:right;border:1px solid #93c5fd;border-radius:4px;padding:3px 4px;font-size:12px;background:#eff6ff"
+                                                   @oninput="@((e) => BulkTdsChanged(row, e.Value?.ToString()))" />
+                                        }
+                                        else if (row.Tds > 0) { <span style="color:#0369a1">@row.Tds.ToString("N0")</span> }
+                                        else { <span style="color:#d1d5db">—</span> }
                                     </td>
                                     @* Net Pay *@
                                     <td style="text-align:right;padding:6px 8px">
@@ -3542,7 +3550,19 @@
         row.LopDays    = d;
         row.DaysWorked = 30 - d;
         row.Status     = row.DaysWorked == 0 ? "Skip" : "Draft";
+        var savedTds   = row.TdsManualOverride ? row.Tds : -1;
         try { McSvc.Compute(row, AppState.CurrentDeductorId); } catch { }
+        if (savedTds >= 0) { row.Tds = savedTds; row.NetPay = row.Gross - row.Pf - row.Esi - row.Tds; }
+        StateHasChanged();
+    }
+
+    void BulkTdsChanged(MonthlyCloseRow row, string? val)
+    {
+        if (!double.TryParse(val, out var t)) return;
+        t = Math.Max(0, t);
+        row.Tds              = t;
+        row.TdsManualOverride = true;
+        row.NetPay           = row.Gross - row.Pf - row.Esi - row.Tds;
         StateHasChanged();
     }
 
@@ -3560,8 +3580,8 @@
             {
                 try
                 {
-                    // Recompute TDS unless user manually set it
-                    if (r.Status != "Skip") McSvc.Compute(r, AppState.CurrentDeductorId);
+                    // Recompute only if TDS was not manually overridden by user
+                    if (r.Status != "Skip" && !r.TdsManualOverride) McSvc.Compute(r, AppState.CurrentDeductorId);
                     McSvc.Approve(r, AppState.CurrentDeductorId);
                     ok++;
                 }
