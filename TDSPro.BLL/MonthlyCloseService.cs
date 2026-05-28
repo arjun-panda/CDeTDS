@@ -187,10 +187,11 @@ namespace TDSPro.BLL
             entry.TaxComputed = ann.ThisMonthTds;
             entry.RecalcGross();
 
-            row.Pf      = entry.PfEmployee;
-            row.Esi     = entry.EsiEmployee;
-            row.Tds     = entry.TdsDeducted;
-            row.NetPay  = entry.NetSalary;
+            row.Pf       = entry.PfEmployee;
+            row.Esi      = entry.EsiEmployee;
+            row.Recovery = entry.VarDedTotal;
+            row.Tds      = entry.TdsDeducted;
+            row.NetPay   = entry.NetSalary;
             row.Gross   = entry.GrossPayment;
             row.Taxable = entry.GrossTaxableSalary;
             return row;
@@ -318,6 +319,7 @@ namespace TDSPro.BLL
 
         public double Pf            { get; set; }
         public double Esi           { get; set; }
+        public double Recovery      { get; set; }   // variable deductions (loan/advance recovery)
         public double Tds           { get; set; }
         public double Gross         { get; set; }
         public double Taxable       { get; set; }
@@ -342,6 +344,7 @@ namespace TDSPro.BLL
             Special     = e.SpecialAllowance, Lta = e.Lta, Other = e.OtherAllowances,
             Bonus       = e.Bonus, Arrears = e.Arrears,
             Pf          = e.PfEmployee, Esi = e.EsiEmployee,
+            Recovery    = e.VarDedTotal,
             Tds         = e.TdsDeducted,
             Gross       = e.GrossPayment, Taxable = e.GrossTaxableSalary, NetPay = e.NetSalary,
             Status      = string.IsNullOrEmpty(e.Status) ? "Draft" : e.Status,

@@ -1751,7 +1751,7 @@
                                 <th colspan="3" style="padding:6px 10px;text-align:left;font-size:11px;letter-spacing:.5px;border-right:2px solid #1976d2">EMPLOYEE</th>
                                 <th colspan="4" style="padding:6px 10px;text-align:center;font-size:11px;letter-spacing:.5px;border-right:2px solid #1976d2;background:#1976d2">EARNINGS</th>
                                 <th colspan="1" style="padding:6px 10px;text-align:center;font-size:11px;letter-spacing:.5px;border-right:2px solid #1976d2;background:#0d47a1">GROSS</th>
-                                <th colspan="3" style="padding:6px 10px;text-align:center;font-size:11px;letter-spacing:.5px;border-right:2px solid #b71c1c;background:#c62828">DEDUCTIONS</th>
+                                <th colspan="4" style="padding:6px 10px;text-align:center;font-size:11px;letter-spacing:.5px;border-right:2px solid #b71c1c;background:#c62828">DEDUCTIONS</th>
                                 <th colspan="1" style="padding:6px 10px;text-align:center;font-size:11px;letter-spacing:.5px;background:#1b5e20">NET PAY</th>
                             </tr>
                             @* Column header *@
@@ -1766,6 +1766,7 @@
                                 <th style="width:100px;text-align:right;padding:8px 8px;color:#0d47a1;border-right:2px solid #e2e8f0">Gross (₹)</th>
                                 <th style="width:78px;text-align:right;padding:8px 8px;color:#c62828">PF</th>
                                 <th style="width:78px;text-align:right;padding:8px 8px;color:#c62828">ESI</th>
+                                <th style="width:78px;text-align:right;padding:8px 8px;color:#7c3aed" title="Loan / advance recovery deductions">Recovery</th>
                                 <th style="width:100px;text-align:right;padding:8px 8px;color:#c62828;border-right:2px solid #e2e8f0">TDS</th>
                                 <th style="width:100px;text-align:right;padding:8px 8px;color:#2e7d32">Net Pay (₹)</th>
                             </tr>
@@ -1837,6 +1838,9 @@
                                     </td>
                                     <td style="text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums">
                                         @if (row.Esi > 0) { <span style="color:#6b7280">@row.Esi.ToString("N0")</span> } else { <span style="color:#d1d5db">—</span> }
+                                    </td>
+                                    <td style="text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums">
+                                        @if (row.Recovery > 0) { <span style="color:#7c3aed;font-weight:600">@row.Recovery.ToString("N0")</span> } else { <span style="color:#d1d5db">—</span> }
                                     </td>
                                     @* TDS — editable for unlocked rows *@
                                     <td style="text-align:right;padding:6px 4px;border-right:2px solid #f1f5f9">
@@ -3767,7 +3771,7 @@
         row.Status     = row.DaysWorked == 0 ? "Skip" : "Draft";
         var savedTds   = row.TdsManualOverride ? row.Tds : -1;
         try { McSvc.Compute(row, AppState.CurrentDeductorId); } catch { }
-        if (savedTds >= 0) { row.Tds = savedTds; row.NetPay = row.Gross - row.Pf - row.Esi - row.Tds; }
+        if (savedTds >= 0) { row.Tds = savedTds; row.NetPay = row.Gross - row.Pf - row.Esi - row.Recovery - row.Tds; }
         StateHasChanged();
     }
 
@@ -3777,7 +3781,7 @@
         t = Math.Max(0, t);
         row.Tds              = t;
         row.TdsManualOverride = true;
-        row.NetPay           = row.Gross - row.Pf - row.Esi - row.Tds;
+        row.NetPay           = row.Gross - row.Pf - row.Esi - row.Recovery - row.Tds;
         StateHasChanged();
     }
 
