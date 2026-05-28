@@ -1868,8 +1868,9 @@
                                 <td style="text-align:right;padding:9px 8px;background:#0d47a1">₹@_ftSelRows.Sum(r=>r.Gross).ToString("N0")</td>
                                 <td style="text-align:right;padding:9px 8px;background:#b71c1c">@(_ftSelRows.Sum(r=>r.Pf) > 0 ? _ftSelRows.Sum(r=>r.Pf).ToString("N0") : "—")</td>
                                 <td style="text-align:right;padding:9px 8px;background:#b71c1c">@(_ftSelRows.Sum(r=>r.Esi) > 0 ? _ftSelRows.Sum(r=>r.Esi).ToString("N0") : "—")</td>
+                                <td style="text-align:right;padding:9px 8px;background:#6d28d9;color:#fff">@(_ftSelRows.Sum(r=>r.Recovery) > 0 ? _ftSelRows.Sum(r=>r.Recovery).ToString("N0") : "—")</td>
                                 <td style="text-align:right;padding:9px 8px;background:#b71c1c">@(_ftSelRows.Sum(r=>r.Tds) > 0 ? _ftSelRows.Sum(r=>r.Tds).ToString("N0") : "—")</td>
-                                <td style="text-align:right;padding:9px 8px;background:#1b5e20">₹@_ftSelRows.Sum(r=>r.NetPay).ToString("N0")</td>
+                                <td style="text-align:right;padding:9px 8px;background:#1b5e20;color:#fff">₹@_ftSelRows.Sum(r=>r.NetPay).ToString("N0")</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -3730,7 +3731,7 @@
             try { McSvc.Compute(r, AppState.CurrentDeductorId); } catch { }
         _sdBulkSel.Clear();
         foreach (var r in _bulkRows)
-            _sdBulkSel[r.EmployeeId] = !r.IsLocked;
+            _sdBulkSel[r.EmployeeId] = true;
     }
 
     void SetAllBulkSel(bool v)
