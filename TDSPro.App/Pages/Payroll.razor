@@ -4087,6 +4087,8 @@
                 var r = SalarySvc.UpsertSec192Entry(entry, emp, AppState.CurrentDeductorId);
                 if (!r.ok) Snackbar.Add($"Locked. Sec 192 warning: {r.msg}", Severity.Warning);
             }
+            DedSvc.PostInstallments(_sdEmpId, AppState.CurrentDeductorId, AppState.CurrentFY, _sdMonth);
+            LoadSchedules();
             _sdCurEntry = entry;
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();

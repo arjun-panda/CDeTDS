@@ -90,9 +90,10 @@ namespace TDSPro.DAL
         {
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
+            // Use a subquery so is_active sees the already-updated recovered_amt value
             cmd.CommandText = @"UPDATE deduction_schedules
                 SET recovered_amt = MIN(total_amount, recovered_amt + @amt),
-                    is_active = CASE WHEN (recovered_amt + @amt) >= total_amount THEN 0 ELSE is_active END
+                    is_active = CASE WHEN MIN(total_amount, recovered_amt + @amt) >= total_amount THEN 0 ELSE is_active END
                 WHERE id=@id";
             cmd.Parameters.AddWithValue("@amt", amount);
             cmd.Parameters.AddWithValue("@id",  id);

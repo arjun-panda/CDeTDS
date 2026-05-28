@@ -48,9 +48,11 @@ namespace TDSPro.DAL.Models
         {
             if (!IsActive || Balance <= 0) return false;
             int cmp = string.Compare(StartFy, fy, StringComparison.Ordinal);
-            if (cmp < 0) return true;          // started in an earlier FY
-            if (cmp > 0) return false;         // starts in a future FY
-            return StartMonth <= month;        // same FY: month must have reached start
+            if (cmp < 0) return true;          // started in an earlier FY — always due
+            if (cmp > 0) return false;         // starts in a future FY — not yet due
+            // Same FY: compare FY-relative position (Apr=1 .. Mar=12)
+            int FyPos(int m) => m >= 4 ? m - 3 : m + 9;  // Apr→1, May→2, ... Mar→12
+            return FyPos(StartMonth) <= FyPos(month);
         }
     }
 }
