@@ -803,14 +803,16 @@ namespace TDSPro.DAL
                         double autoRate = 0;
                         try { autoRate = engine.GetApplicableRule(section, deducteeType, true, entryDate)?.TdsRate ?? 0; } catch { }
 
+                        // Generate deductee_code from max numeric suffix to avoid UNIQUE collision mid-loop
                         using var cntD = conn.CreateCommand();
-                        cntD.CommandText = "SELECT COALESCE(MAX(id),0)+1 FROM deductees";
+                        cntD.CommandText = "SELECT COALESCE(MAX(CAST(SUBSTR(deductee_code,4) AS INTEGER)),0)+1 FROM deductees WHERE deductee_code LIKE 'DED%'";
                         var nextDId = (long)(cntD.ExecuteScalar() ?? 1L);
 
                         using var insD = conn.CreateCommand();
                         insD.CommandText = @"INSERT INTO deductees
                             (deductee_code,name,pan,section,rate,deductee_type,is_resident)
-                            VALUES (@dc,@n,@p,@s,@r,@dt,1)";
+                            VALUES (@dc,@n,@p,@s,@r,@dt,1)
+                            ON CONFLICT(pan) DO NOTHING";
                         insD.Parameters.AddWithValue("@dc", $"DED{nextDId:D5}");
                         insD.Parameters.AddWithValue("@n",  pan);
                         insD.Parameters.AddWithValue("@p",  pan);
