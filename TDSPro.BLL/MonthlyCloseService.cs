@@ -244,8 +244,9 @@ namespace TDSPro.BLL
             _salRepo.Save(entry);
             row.EntryId = entry.Id;
 
-            // Auto-create Sec 192 TDS entry — if this fails, roll back the lock so the DB stays consistent.
-            if (entry.TdsDeducted > 0)
+            // Auto-create Sec 192 TDS entry — always, even for nil-TDS employees.
+            // 24Q returns require every salary payment to appear as a deductee row
+            // regardless of whether TDS was deducted.
             {
                 var emp = _empRepo.GetAllEmployees(deductorId).FirstOrDefault(e => e.Id == row.EmployeeId);
                 if (emp != null)
