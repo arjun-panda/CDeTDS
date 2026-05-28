@@ -754,7 +754,7 @@ namespace TDSPro.DAL
                 try
                 {
                     // ── 4 required columns only ──────────────────────────────
-                    var dateStr = ws.Cell(row, 1).GetString().Trim();
+                    var dateStr = ParseExcelDate(ws.Cell(row, 1));
                     var pan     = ws.Cell(row, 2).GetString().Trim().ToUpper();
                     var section = ws.Cell(row, 3).GetString().Trim().ToUpper();
                     var amtText = ws.Cell(row, 4).GetString().Trim().Replace(",", "").Replace("₹", "");
@@ -1076,7 +1076,7 @@ namespace TDSPro.DAL
                 {
                     // Required columns: BSR=1, Date=2, ChallanNo=3, TDS=4
                     var bsr      = ws.Cell(row, 1).GetString().Trim();
-                    var dateStr  = ws.Cell(row, 2).GetString().Trim();
+                    var dateStr  = ParseExcelDate(ws.Cell(row, 2));
                     var challanNo= ws.Cell(row, 3).GetString().Trim();
 
                     if (string.IsNullOrEmpty(bsr)) { result.Errors.Add($"Row {row}: BSR code required"); result.FailCount++; continue; }
