@@ -1198,6 +1198,55 @@
                             </tfoot>
                         </table>
                     </div>
+
+                    <!-- Recovery Schedules (below Fixed Total) -->
+                    <div class="sd-paper sd-accent-purple">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <div class="sd-sec-head sd-sec-head-purple" style="margin-bottom:0">🗓 Recovery Schedules</div>
+                            <button class="sd-btn-add" style="border-color:#c4b5fd;color:#7c3aed" @onclick="OpenNewScheduleDialog">+ New</button>
+                        </div>
+                        @if (_schedules.Count == 0)
+                        {
+                            <div style="color:#c4b5fd;font-size:11px;padding:4px 0;font-style:italic">No active schedules — loan/advance recovery auto-posts each month.</div>
+                        }
+                        else
+                        {
+                            @foreach (var sch in _schedules)
+                            {
+                                var _pct = sch.TotalAmount > 0 ? (int)Math.Round(sch.RecoveredAmt / sch.TotalAmount * 100) : 0;
+                                <div style="border:1px solid #ede9fe;border-radius:7px;padding:9px 11px;margin-bottom:7px;background:#faf5ff">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                                        <div style="display:flex;align-items:center;gap:6px">
+                                            <span class="sd-chip sd-chip-purple">@sch.Type</span>
+                                            <span style="font-size:12px;font-weight:600;color:#374151">@(string.IsNullOrWhiteSpace(sch.Description) ? sch.Type : sch.Description)</span>
+                                        </div>
+                                        <div style="display:flex;gap:2px">
+                                            <button class="sd-btn-icon" style="color:#7c3aed" title="Edit" @onclick="@(() => OpenEditScheduleDialog(sch))">✏</button>
+                                            <button class="sd-btn-icon" title="Close" @onclick="@(() => CloseSchedule(sch.Id))">✕</button>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;gap:0;font-size:11px;margin-bottom:6px;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #ede9fe">
+                                        <div style="flex:1;text-align:center;padding:5px 8px;border-right:1px solid #ede9fe">
+                                            <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Total</div>
+                                            <div style="font-weight:700;color:#374151">₹@sch.TotalAmount.ToString("N0")</div>
+                                        </div>
+                                        <div style="flex:1;text-align:center;padding:5px 8px;border-right:1px solid #ede9fe">
+                                            <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Balance</div>
+                                            <div style="font-weight:700;color:@(sch.Balance > 0 ? "#dc2626" : "#15803d")">₹@sch.Balance.ToString("N0")</div>
+                                        </div>
+                                        <div style="flex:1;text-align:center;padding:5px 8px;background:#f5f3ff">
+                                            <div style="color:#7c3aed;font-size:9px;text-transform:uppercase;letter-spacing:.3px">This Month</div>
+                                            <div style="font-weight:700;color:#7c3aed">₹@sch.ThisInstallment.ToString("N0")</div>
+                                        </div>
+                                    </div>
+                                    <div style="background:#e5e7eb;border-radius:20px;height:4px;overflow:hidden">
+                                        <div style="background:#7c3aed;width:@_pct%;height:100%;border-radius:20px;transition:width .3s"></div>
+                                    </div>
+                                    <div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right">@_pct% recovered · @(sch.MonthsRemaining > 0 ? $"{sch.MonthsRemaining} month(s) left" : "closing this month")</div>
+                                </div>
+                            }
+                        }
+                    </div>
                 </div>
 
                 <!-- COL 2: Variable / Additional Earnings -->
@@ -1317,55 +1366,6 @@
                     </div>
 
 
-
-                    <!-- Deduction Schedules -->
-                    <div class="sd-paper sd-accent-purple">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                            <div class="sd-sec-head sd-sec-head-purple" style="margin-bottom:0">🗓 Recovery Schedules</div>
-                            <button class="sd-btn-add" style="border-color:#c4b5fd;color:#7c3aed" @onclick="OpenNewScheduleDialog">+ New</button>
-                        </div>
-                        @if (_schedules.Count == 0)
-                        {
-                            <div style="color:#c4b5fd;font-size:11px;padding:4px 0;font-style:italic">No active schedules — loan/advance recovery auto-posts each month.</div>
-                        }
-                        else
-                        {
-                            @foreach (var sch in _schedules)
-                            {
-                                var _pct = sch.TotalAmount > 0 ? (int)Math.Round(sch.RecoveredAmt / sch.TotalAmount * 100) : 0;
-                                <div style="border:1px solid #ede9fe;border-radius:7px;padding:9px 11px;margin-bottom:7px;background:#faf5ff">
-                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-                                        <div style="display:flex;align-items:center;gap:6px">
-                                            <span class="sd-chip sd-chip-purple">@sch.Type</span>
-                                            <span style="font-size:12px;font-weight:600;color:#374151">@(string.IsNullOrWhiteSpace(sch.Description) ? sch.Type : sch.Description)</span>
-                                        </div>
-                                        <div style="display:flex;gap:2px">
-                                            <button class="sd-btn-icon" style="color:#7c3aed" title="Edit" @onclick="@(() => OpenEditScheduleDialog(sch))">✏</button>
-                                            <button class="sd-btn-icon" title="Close" @onclick="@(() => CloseSchedule(sch.Id))">✕</button>
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;gap:0;font-size:11px;margin-bottom:6px;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #ede9fe">
-                                        <div style="flex:1;text-align:center;padding:5px 8px;border-right:1px solid #ede9fe">
-                                            <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Total</div>
-                                            <div style="font-weight:700;color:#374151">₹@sch.TotalAmount.ToString("N0")</div>
-                                        </div>
-                                        <div style="flex:1;text-align:center;padding:5px 8px;border-right:1px solid #ede9fe">
-                                            <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Balance</div>
-                                            <div style="font-weight:700;color:@(sch.Balance > 0 ? "#dc2626" : "#15803d")">₹@sch.Balance.ToString("N0")</div>
-                                        </div>
-                                        <div style="flex:1;text-align:center;padding:5px 8px;background:#f5f3ff">
-                                            <div style="color:#7c3aed;font-size:9px;text-transform:uppercase;letter-spacing:.3px">This Month</div>
-                                            <div style="font-weight:700;color:#7c3aed">₹@sch.ThisInstallment.ToString("N0")</div>
-                                        </div>
-                                    </div>
-                                    <div style="background:#e5e7eb;border-radius:20px;height:4px;overflow:hidden">
-                                        <div style="background:#7c3aed;width:@_pct%;height:100%;border-radius:20px;transition:width .3s"></div>
-                                    </div>
-                                    <div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right">@_pct% recovered · @(sch.MonthsRemaining > 0 ? $"{sch.MonthsRemaining} month(s) left" : "closing this month")</div>
-                                </div>
-                            }
-                        }
-                    </div>
 
                     <!-- Variable Deductions -->
                     <div class="sd-paper sd-accent-red">
