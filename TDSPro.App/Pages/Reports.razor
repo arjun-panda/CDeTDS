@@ -588,15 +588,15 @@
                 @* fixed height forces scroll inside this div so position:sticky works.   *@
                 <div id="payroll-tbl-wrap" style="position:relative;margin:8px -24px -44px -24px;overflow:auto;height:calc(100vh - 64px - 193px);">
 
-                    <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:fixed;width:max-content">
+                    <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:auto;width:max-content;min-width:100%">
                         <colgroup>
-                            <col style="width:80px">   @* Code *@
-                            <col style="width:170px">  @* Employee *@
-                            <col style="width:112px">  @* PAN *@
-                            @foreach (var _ in _fyMonthLabels) { <col style="width:85px"> }
-                            <col style="width:105px">  @* Total Gross *@
-                            <col style="width:95px">   @* Total TDS *@
-                            <col style="width:95px">   @* Total Net *@
+                            <col style="min-width:80px">   @* Code *@
+                            <col style="min-width:160px">  @* Employee *@
+                            <col style="min-width:108px">  @* PAN *@
+                            @foreach (var _ in _fyMonthLabels) { <col style="min-width:80px"> }
+                            <col style="min-width:100px">  @* Total Gross *@
+                            <col style="min-width:90px">   @* Total TDS *@
+                            <col style="min-width:90px">   @* Total Net *@
                         </colgroup>
 
                         <thead>
