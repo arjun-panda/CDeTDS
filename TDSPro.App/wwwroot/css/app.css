@@ -40,6 +40,20 @@ body.reports-payroll-active .mud-main-content {
     overflow-x: hidden !important;
 }
 
+/* Payroll Summary — row hover highlight */
+#payroll-tbl-wrap .prl-row:hover td {
+    background: #dbeafe !important;
+}
+/* Payroll Summary — thin custom scrollbar */
+#payroll-tbl-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+#payroll-tbl-wrap::-webkit-scrollbar { width: 7px; height: 7px; }
+#payroll-tbl-wrap::-webkit-scrollbar-track { background: #f1f5f9; }
+#payroll-tbl-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+#payroll-tbl-wrap::-webkit-scrollbar-corner { background: #f1f5f9; }
+
 /* Sidebar — its own thin scrollbar is fine */
 .mud-drawer {
     height: calc(100vh - 64px) !important;

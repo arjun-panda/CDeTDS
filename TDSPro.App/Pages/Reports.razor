@@ -583,58 +583,97 @@
             }
             else
             {
-                @* Employee × Month table — full-bleed with horizontal scroll *@
-                <div style="margin:0 -24px -44px -24px;overflow:auto;height:calc(100vh - 64px - 185px);border-top:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-                    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+                @* ── Payroll Year Summary — full-bleed sticky table ── *@
+                @* Outer wrapper: negative margins to bleed past MudMainContent padding;  *@
+                @* fixed height forces scroll inside this div so position:sticky works.   *@
+                <div id="payroll-tbl-wrap" style="position:relative;margin:8px -24px -44px -24px;overflow:auto;height:calc(100vh - 64px - 193px);">
+
+                    @* Right-edge fade hint so users know more columns exist *@
+                    <div style="pointer-events:none;position:sticky;left:0;width:100%;height:0;z-index:20">
+                        <div style="position:absolute;right:0;top:0;width:48px;height:calc(100vh - 64px - 193px);
+                                    background:linear-gradient(to left,rgba(0,0,0,.13),transparent)"></div>
+                    </div>
+
+                    <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;min-width:100%">
+                        <colgroup>
+                            <col style="min-width:80px;width:80px">   @* Code *@
+                            <col style="min-width:165px;width:165px"> @* Employee *@
+                            <col style="min-width:110px;width:110px"> @* PAN *@
+                            @foreach (var _ in _fyMonthLabels) { <col style="min-width:82px"> }
+                            <col style="min-width:100px"> @* Total Gross *@
+                            <col style="min-width:88px">  @* Total TDS *@
+                            <col style="min-width:92px">  @* Total Net *@
+                        </colgroup>
+
                         <thead>
-                            <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
-                                <th style="padding:8px 10px;text-align:left;min-width:85px;position:sticky;left:0;background:#1565C0;z-index:6">Code</th>
-                                <th style="padding:8px 10px;text-align:left;min-width:160px;position:sticky;left:85px;background:#1565C0;z-index:6">Employee</th>
-                                <th style="padding:8px 10px;text-align:left;min-width:115px;font-family:monospace;font-size:11px">PAN</th>
+                            <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:10">
+                                @* Frozen col 1: Code *@
+                                <th style="padding:9px 10px;text-align:left;position:sticky;left:0;background:#1565C0;z-index:12;
+                                           box-shadow:inset -1px 0 0 rgba(255,255,255,.15);letter-spacing:.3px;font-size:11px;text-transform:uppercase">Code</th>
+                                @* Frozen col 2: Employee — right-shadow marks freeze boundary *@
+                                <th style="padding:9px 10px;text-align:left;position:sticky;left:80px;background:#1565C0;z-index:12;
+                                           box-shadow:2px 0 6px -1px rgba(0,0,0,.35);letter-spacing:.3px;font-size:11px;text-transform:uppercase">Employee</th>
+                                <th style="padding:9px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:rgba(255,255,255,.8)">PAN</th>
                                 @foreach (var m in _fyMonthLabels)
-                                { <th style="padding:8px 8px;text-align:right;min-width:78px;font-size:11px">@m</th> }
-                                <th style="padding:8px 10px;text-align:right;min-width:95px;background:#0d47a1">Total Gross</th>
-                                <th style="padding:8px 10px;text-align:right;min-width:85px;background:#b71c1c">Total TDS</th>
-                                <th style="padding:8px 10px;text-align:right;min-width:85px;background:#1b5e20">Total Net</th>
+                                { <th style="padding:9px 8px;text-align:right;font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:rgba(255,255,255,.85)">@m</th> }
+                                @* Summary cols — darker band *@
+                                <th style="padding:9px 10px;text-align:right;background:#0d47a1;font-size:11px;letter-spacing:.3px;text-transform:uppercase">Gross ₹</th>
+                                <th style="padding:9px 10px;text-align:right;background:#7f1d1d;font-size:11px;letter-spacing:.3px;text-transform:uppercase">TDS ₹</th>
+                                <th style="padding:9px 10px;text-align:right;background:#14532d;font-size:11px;letter-spacing:.3px;text-transform:uppercase">Net ₹</th>
                             </tr>
                         </thead>
+
                         <tbody>
+                            @{ int _ri = 0; }
                             @foreach (var emp in _yearSummary)
                             {
-                                var _rBg = _yearSummary.IndexOf(emp) % 2 == 0 ? "#fff" : "#f8fafc";
-                                <tr style="border-bottom:1px solid #f1f5f9;background:@_rBg">
-                                    <td style="padding:7px 10px;font-size:11px;color:#6b7280;position:sticky;left:0;background:@_rBg;z-index:1">@emp.EmployeeCode</td>
-                                    <td style="padding:7px 10px;font-weight:600;color:#111827;position:sticky;left:85px;background:@_rBg;z-index:1">@emp.EmployeeName</td>
-                                    <td style="padding:7px 10px;font-family:monospace;font-size:11px;color:#64748b">@emp.Pan</td>
+                                var _even = _ri % 2 == 0;
+                                var _rBg  = _even ? "#ffffff" : "#f4f7fb";
+                                _ri++;
+                                <tr class="prl-row" style="border-bottom:1px solid #eaeff5;background:@_rBg;transition:background .1s">
+                                    @* Frozen: Code *@
+                                    <td style="padding:6px 10px;font-size:11px;color:#6b7280;font-family:monospace;
+                                               position:sticky;left:0;background:@_rBg;z-index:2;
+                                               box-shadow:inset -1px 0 0 #e5eaf1">@emp.EmployeeCode</td>
+                                    @* Frozen: Employee — freeze shadow *@
+                                    <td style="padding:6px 10px;font-weight:600;color:#0f172a;
+                                               position:sticky;left:80px;background:@_rBg;z-index:2;
+                                               box-shadow:2px 0 6px -1px rgba(0,0,0,.12)">@emp.EmployeeName</td>
+                                    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#64748b;letter-spacing:.4px">@emp.Pan</td>
                                     @foreach (var mn in _fyMonthNumbers)
                                     {
                                         @if (emp.MonthlyRuns.TryGetValue(mn, out var run))
                                         {
-                                            <td style="padding:7px 8px;text-align:right;font-size:11px;color:#1565C0;font-variant-numeric:tabular-nums">@run.GrossSalary.ToString("N0")</td>
+                                            <td style="padding:6px 8px;text-align:right;font-size:11.5px;color:#1e40af;font-variant-numeric:tabular-nums">@run.GrossSalary.ToString("N0")</td>
                                         }
                                         else
                                         {
-                                            <td style="padding:7px 8px;text-align:right;font-size:11px;color:#d1d5db">—</td>
+                                            <td style="padding:6px 8px;text-align:right;font-size:12px;color:#cbd5e1">—</td>
                                         }
                                     }
-                                    <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">₹@emp.TotalGross.ToString("N0")</td>
-                                    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#e65100;font-variant-numeric:tabular-nums">₹@emp.TotalTds.ToString("N0")</td>
-                                    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#2e7d32;font-variant-numeric:tabular-nums">₹@emp.TotalNet.ToString("N0")</td>
+                                    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:12px;color:#1e3a8a;font-variant-numeric:tabular-nums;background:@(_even?"#eff6ff":"#e8f0fe")">@emp.TotalGross.ToString("N0")</td>
+                                    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:12px;color:#991b1b;font-variant-numeric:tabular-nums;background:@(_even?"#fff5f5":"#fee2e2")">@emp.TotalTds.ToString("N0")</td>
+                                    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:12px;color:#166534;font-variant-numeric:tabular-nums;background:@(_even?"#f0fdf4":"#dcfce7")">@emp.TotalNet.ToString("N0")</td>
                                 </tr>
                             }
                         </tbody>
-                        <tfoot style="position:sticky;bottom:0;z-index:4">
-                            <tr style="background:#1565C0;color:#fff;font-weight:700;font-size:12px">
-                                <td colspan="2" style="padding:8px 10px;position:sticky;left:0;background:#1565C0;z-index:5">TOTAL</td>
-                                <td style="padding:8px 10px"></td>
+
+                        <tfoot style="position:sticky;bottom:0;z-index:10">
+                            <tr style="background:#1a237e;color:#fff;font-weight:700;font-size:12px;letter-spacing:.2px">
+                                @* Frozen total label *@
+                                <td style="padding:9px 10px;position:sticky;left:0;background:#1a237e;z-index:12;
+                                           box-shadow:inset -1px 0 0 rgba(255,255,255,.15);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.75)">TOTAL</td>
+                                <td style="padding:9px 10px;position:sticky;left:80px;background:#1a237e;z-index:12;
+                                           box-shadow:2px 0 6px -1px rgba(0,0,0,.4);font-size:11px;color:rgba(255,255,255,.55)">@_yearSummary.Count employees</td>
+                                <td style="padding:9px 10px"></td>
                                 @foreach (var mn in _fyMonthNumbers)
                                 {
                                     double mTotal = _yearSummary.Sum(e => e.MonthlyRuns.TryGetValue(mn, out var r) ? r.GrossSalary : 0);
-                                    <td style="padding:8px 8px;text-align:right;font-size:11px;font-variant-numeric:tabular-nums">@(mTotal > 0 ? mTotal.ToString("N0") : "—")</td>
+                                    <td style="padding:9px 8px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">@(mTotal > 0 ? mTotal.ToString("N0") : "")</td>
                                 }
-                                <td style="padding:8px 10px;text-align:right;background:#0d47a1;font-variant-numeric:tabular-nums">₹@_yearSummary.Sum(e=>e.TotalGross).ToString("N0")</td>
-                                <td style="padding:8px 10px;text-align:right;background:#b71c1c;font-variant-numeric:tabular-nums">₹@_yearSummary.Sum(e=>e.TotalTds).ToString("N0")</td>
-                                <td style="padding:8px 10px;text-align:right;background:#1b5e20;font-variant-numeric:tabular-nums">₹@_yearSummary.Sum(e=>e.TotalNet).ToString("N0")</td>
+                                <td style="padding:9px 10px;text-align:right;background:#1565C0;font-variant-numeric:tabular-nums;font-size:13px">₹@_yearSummary.Sum(e=>e.TotalGross).ToString("N0")</td>
+                                <td style="padding:9px 10px;text-align:right;background:#b91c1c;font-variant-numeric:tabular-nums;font-size:13px">₹@_yearSummary.Sum(e=>e.TotalTds).ToString("N0")</td>
+                                <td style="padding:9px 10px;text-align:right;background:#15803d;font-variant-numeric:tabular-nums;font-size:13px">₹@_yearSummary.Sum(e=>e.TotalNet).ToString("N0")</td>
                             </tr>
                         </tfoot>
                     </table>
