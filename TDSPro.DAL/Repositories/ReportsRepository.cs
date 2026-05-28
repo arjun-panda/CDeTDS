@@ -353,8 +353,9 @@ namespace TDSPro.DAL.Repositories
                 }
             }
 
-            // Drop zero-TDS entries — FVU rejects DD records with no tax deducted/deposited
-            deductees = deductees.Where(d => d.TdsDeducted > 0 || d.TdsDeposited > 0).ToList();
+            // Keep nil-TDS entries that have a payment amount — 24Q requires all salary payments.
+            // Only drop entries that are truly empty (no payment and no TDS).
+            deductees = deductees.Where(d => d.AmountPaid > 0 || d.TdsDeducted > 0 || d.TdsDeposited > 0).ToList();
             for (int i = 0; i < deductees.Count; i++) deductees[i].SlNo = i + 1;
 
             // Link challan BSR to deductee entries
