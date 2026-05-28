@@ -1402,265 +1402,249 @@
                         </table>
                     </div>
 
-                    <!-- Tax Summary panel -->
-                    <div class="sd-tax-panel">
-                        <div style="font-size:11px;font-weight:700;color:#1565C0;margin-bottom:8px">📊 Tax Computation</div>
-                        @if (_sdAnnual == null)
+                </div>
+            </div>
+
+            <!-- Full-width: Tax Computation + Action Bar -->
+            <div class="sd-paper" style="border-top:3px solid #1565C0;margin-top:0">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div class="sd-sec-head" style="margin-bottom:0">📊 Tax Computation</div>
+                    @if (_sdAnnual != null)
+                    {
+                        var _nr2 = _sdAnnual.NewRegime; var _or2 = _sdAnnual.OldRegime;
+                        bool _nc2 = _sdAnnual.ChosenRegime == "New";
+                        double _sav2 = (_nc2 ? _nr2.TotalTax : _or2.TotalTax) - (_nc2 ? _or2.TotalTax : _nr2.TotalTax);
+                        @if (_sav2 > 500)
                         {
-                            <div style="display:flex;align-items:center;gap:8px;padding:16px 0;color:#94a3b8;font-size:12px">
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                                Computing…
+                            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 11px;font-size:11px;color:#b45309">
+                                💡 Switch to <strong>@(_nc2 ? "Old" : "New") Regime</strong> → save <strong>₹@_sav2.ToString("N0")/year</strong>
                             </div>
+                        }
+                    }
+                </div>
+
+                @if (_sdAnnual == null)
+                {
+                    <div style="display:flex;align-items:center;gap:8px;padding:20px 0;color:#94a3b8;font-size:12px">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        Computing…
+                    </div>
+                }
+                else
+                {
+                    var _nr      = _sdAnnual.NewRegime;
+                    var _or      = _sdAnnual.OldRegime;
+                    bool _newChosen = _sdAnnual.ChosenRegime == "New";
+                    Func<double,string> F  = v => v == 0 ? "—" : "₹" + v.ToString("N0");
+                    double _ytdTotal    = _sdAnnual.YtdTdsDeducted + _sdTds;
+                    double _trueBalance = _sdAnnual.ChosenTax - _ytdTotal;
+                    bool   _tdsEntered  = _sdTds > 0;
+                    string _balColor    = _trueBalance < 0 ? "#15803d" : _trueBalance > 0 ? "#dc2626" : "#374151";
+                    string _balLabel    = _trueBalance < 0 ? "Excess" : _trueBalance > 0 ? "Due" : "Nil";
+                    Func<double,string> Fm = v => v == 0 ? "—" : "(₹" + v.ToString("N0") + ")";
+
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
+                        <!-- Tax table -->
+                        <div style="overflow-x:auto">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px">
+                            <colgroup><col style="width:44%"/><col style="width:28%"/><col style="width:28%"/></colgroup>
+                            <thead>
+                                <tr style="background:#f8fafc">
+                                    <th style="text-align:left;padding:6px 10px;color:#64748b;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.4px;border-bottom:2px solid #e2e8f0">Particulars</th>
+                                    <th style="text-align:right;padding:6px 10px;font-size:10px;letter-spacing:.4px;text-transform:uppercase;border-bottom:2px solid @(_newChosen?"#e2e8f0":"#1565C0");color:@(_newChosen?"#64748b":"#1565C0");font-weight:700">
+                                        Old Regime @if (!_newChosen) { <span style="background:#1565C0;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:3px;text-transform:none">✓ Chosen</span> }
+                                    </th>
+                                    <th style="text-align:right;padding:6px 10px;font-size:10px;letter-spacing:.4px;text-transform:uppercase;border-bottom:2px solid @(_newChosen?"#15803d":"#e2e8f0");color:@(_newChosen?"#15803d":"#64748b");font-weight:700">
+                                        New Regime @if (_newChosen) { <span style="background:#15803d;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:3px;text-transform:none">✓ Chosen</span> }
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ string rOdd = "background:#fafafa"; string rEven = "background:#fff"; int _ri = 0; }
+                                <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                    <td style="padding:5px 10px;color:#374151">Gross Salary (annual)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@F(_or.GrossSalary)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@F(_nr.GrossSalary)</td>
+                                </tr>
+                                @if (_or.Sec10Items.Any())
+                                {
+                                    double _s10TotalOld = _or.Sec10Items.Sum(x => x.OldRegime);
+                                    double _s10TotalNew = _nr.Sec10Items.Sum(x => x.NewRegime);
+                                    <tr style="@(++_ri%2==0?rEven:rOdd);cursor:pointer" @onclick="@(() => _sec10Expanded = !_sec10Expanded)">
+                                        <td style="padding:5px 10px;color:#16a34a;user-select:none">
+                                            <span style="font-size:10px;margin-right:4px">@(_sec10Expanded ? "▼" : "▶")</span>
+                                            Less: Exemptions u/s 10
+                                            <span style="font-size:9px;color:#94a3b8;margin-left:4px">@(_or.Sec10Items.Count) item@(_or.Sec10Items.Count == 1?"":"s")</span>
+                                        </td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@Fm(_s10TotalOld)</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">
+                                            @if (_s10TotalNew > 0) { <span style="color:#16a34a">@Fm(_s10TotalNew)</span> }
+                                            else { <span style="color:#dc2626;font-size:10px">Taxable</span> }
+                                        </td>
+                                    </tr>
+                                    @if (_sec10Expanded)
+                                    {
+                                        foreach (var _s10 in _or.Sec10Items)
+                                        {
+                                            var _s10nr = _nr.Sec10Items.FirstOrDefault(x => x.Name == _s10.Name);
+                                            <tr style="background:#f0fdf4">
+                                                <td style="padding:3px 10px 3px 28px;color:#15803d;font-size:11px">└─ @_s10.Name @if (!string.IsNullOrEmpty(_s10.RuleRef)) { <span style="font-size:9px;color:#64748b">@_s10.RuleRef</span> }</td>
+                                                <td style="text-align:right;padding:3px 10px;font-family:monospace;font-size:11px;color:#15803d;border-left:1px solid #f1f5f9">@(_s10.OldRegime > 0 ? Fm(_s10.OldRegime) : "—")</td>
+                                                <td style="text-align:right;padding:3px 10px;font-family:monospace;font-size:11px;border-left:1px solid #f1f5f9">
+                                                    @if ((_s10nr?.NewRegime ?? 0) > 0) { <span style="color:#15803d">@Fm(_s10nr!.NewRegime)</span> }
+                                                    else if (_s10.OldRegime > 0) { <span style="color:#dc2626;font-size:10px">Taxable</span> }
+                                                    else { <span style="color:#94a3b8">—</span> }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                }
+                                @if (_or.ProfTaxDeduction > 0)
+                                {
+                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                        <td style="padding:5px 10px;color:#16a34a">Less: Professional Tax</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@Fm(_or.ProfTaxDeduction)</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#94a3b8;border-left:1px solid #f1f5f9">N/A</td>
+                                    </tr>
+                                }
+                                <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                    <td style="padding:5px 10px;color:#16a34a">Less: Standard Deduction</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@Fm(_or.StandardDeduction)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@Fm(_nr.StandardDeduction)</td>
+                                </tr>
+                                @if (_or.Chapter6A > 0)
+                                {
+                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                        <td style="padding:5px 10px;color:#16a34a">Less: Chapter VI-A Deductions</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@Fm(_or.Chapter6A)</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#94a3b8;border-left:1px solid #f1f5f9">N/A</td>
+                                    </tr>
+                                }
+                                @if (_or.NpsEmployer80CCD2 > 0 || _nr.NpsEmployer80CCD2 > 0)
+                                {
+                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                        <td style="padding:5px 10px;color:#16a34a">Less: NPS Employer 80CCD(2)</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@(_or.NpsEmployer80CCD2 > 0 ? Fm(_or.NpsEmployer80CCD2) : "—")</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@(_nr.NpsEmployer80CCD2 > 0 ? Fm(_nr.NpsEmployer80CCD2) : "—")</td>
+                                    </tr>
+                                }
+                                @if (_or.IncomeOtherSources > 0 || _nr.IncomeOtherSources > 0)
+                                {
+                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                        <td style="padding:5px 10px;color:#dc2626">Add: Income from Other Sources</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#dc2626;border-left:1px solid #f1f5f9">@F(_or.IncomeOtherSources)</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#dc2626;border-left:1px solid #f1f5f9">@F(_nr.IncomeOtherSources)</td>
+                                    </tr>
+                                }
+                                <tr style="background:#eff6ff;font-weight:700;border-top:2px solid #bfdbfe">
+                                    <td style="padding:6px 10px;color:#1e40af">Net Taxable Income</td>
+                                    <td style="text-align:right;padding:6px 10px;font-family:monospace;color:#1e40af;border-left:1px solid #bfdbfe">₹@_or.TotalIncome.ToString("N0")</td>
+                                    <td style="text-align:right;padding:6px 10px;font-family:monospace;color:#1e40af;border-left:1px solid #bfdbfe">₹@_nr.TotalIncome.ToString("N0")</td>
+                                </tr>
+                                <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                    <td style="padding:5px 10px;color:#374151">Tax on Income (slab)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@F(_or.TaxOnIncome)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@F(_nr.TaxOnIncome)</td>
+                                </tr>
+                                @if (_or.Rebate87A > 0 || _nr.Rebate87A > 0)
+                                {
+                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                        <td style="padding:5px 10px;color:#16a34a">Less: Rebate u/s 87A</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@(_or.Rebate87A > 0 ? Fm(_or.Rebate87A) : "—")</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;color:#16a34a;border-left:1px solid #f1f5f9">@(_nr.Rebate87A > 0 ? Fm(_nr.Rebate87A) : "—")</td>
+                                    </tr>
+                                }
+                                @if (_or.Surcharge > 0 || _nr.Surcharge > 0)
+                                {
+                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                        <td style="padding:5px 10px;color:#374151">Add: Surcharge</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@(_or.Surcharge > 0 ? F(_or.Surcharge) : "—")</td>
+                                        <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@(_nr.Surcharge > 0 ? F(_nr.Surcharge) : "—")</td>
+                                    </tr>
+                                }
+                                <tr style="@(++_ri%2==0?rEven:rOdd)">
+                                    <td style="padding:5px 10px;color:#374151">Add: Health &amp; Edu. Cess (4%)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@F(_or.Cess)</td>
+                                    <td style="text-align:right;padding:5px 10px;font-family:monospace;border-left:1px solid #f1f5f9">@F(_nr.Cess)</td>
+                                </tr>
+                                <tr style="background:#fef9c3;font-weight:700;border-top:2px solid #fde047">
+                                    <td style="padding:6px 10px;color:#713f12">Total Annual Tax</td>
+                                    <td style="text-align:right;padding:6px 10px;font-family:monospace;border-left:2px solid @(!_newChosen?"#1565C0":"#fde047");color:@(!_newChosen?"#1565C0":"#713f12");font-size:13px">
+                                        ₹@_or.TotalTax.ToString("N0") @if (!_newChosen) { <span style="background:#1565C0;color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;margin-left:3px">✓</span> }
+                                    </td>
+                                    <td style="text-align:right;padding:6px 10px;font-family:monospace;border-left:2px solid @(_newChosen?"#15803d":"#fde047");color:@(_newChosen?"#15803d":"#713f12");font-size:13px">
+                                        ₹@_nr.TotalTax.ToString("N0") @if (_newChosen) { <span style="background:#15803d;color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;margin-left:3px">✓</span> }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+
+                        <!-- Right: 4 KPI tiles stacked -->
+                        <div style="display:flex;flex-direction:column;gap:8px;min-width:160px">
+                            <div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:10px 14px">
+                                <div style="font-size:9px;color:#0369a1;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">YTD TDS Deducted</div>
+                                <div style="font-size:16px;font-weight:800;font-family:monospace;color:#0369a1">₹@_ytdTotal.ToString("N0")</div>
+                                <div style="font-size:9px;color:#64748b;margin-top:2px">@_sdAnnual.MonthsActual month(s) actual</div>
+                            </div>
+                            <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:10px 14px">
+                                <div style="font-size:9px;color:#713f12;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Balance Tax</div>
+                                <div style="font-size:16px;font-weight:800;font-family:monospace;color:@_balColor">@(Math.Abs(_trueBalance) == 0 ? "₹0" : (_trueBalance < 0 ? "(₹" : "₹") + Math.Abs(_trueBalance).ToString("N0") + (_trueBalance < 0 ? ")" : ""))</div>
+                                <div style="font-size:9px;color:#64748b;margin-top:2px">@_balLabel @(_tdsEntered ? "after TDS paid" : $"— {_sdAnnual.MonthsRemaining} mo. left")</div>
+                            </div>
+                            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px">
+                                <div style="font-size:9px;color:#991b1b;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">TDS This Month</div>
+                                <div style="font-size:16px;font-weight:800;font-family:monospace;color:#dc2626">₹@_sdTds.ToString("N0")</div>
+                                <div style="font-size:9px;color:#64748b;margin-top:2px">@(_tdsEntered ? "Amount entered" : (_sdAnnual.MonthsRemaining > 0 ? $"Balance ÷ {_sdAnnual.MonthsRemaining}" : "Last month"))</div>
+                            </div>
+                            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px">
+                                <div style="font-size:9px;color:#15803d;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Net Pay</div>
+                                <div style="font-size:18px;font-weight:800;font-family:monospace;color:#15803d">₹@_sdNetPay.ToString("N0")</div>
+                                <div style="font-size:9px;color:#64748b;margin-top:2px">Gross − deductions − TDS</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Action bar -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;border-top:2px solid #f1f5f9;padding-top:12px">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                        <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)" style="background:#15803d;box-shadow:0 1px 3px rgba(21,128,61,.35)">💾 Save</button>
+                        @if (_sdCurEntry?.IsLocked == true)
+                        {
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#d97706;color:#92400e;background:#fffbeb" @onclick="SdUnlockMonth">🔓 Unlock</button>
                         }
                         else
                         {
-                            var _nr      = _sdAnnual.NewRegime;
-                            var _or      = _sdAnnual.OldRegime;
-                            bool _newChosen = _sdAnnual.ChosenRegime == "New";
-                            double _chosenTax = _newChosen ? _nr.TotalTax : _or.TotalTax;
-                            double _otherTax  = _newChosen ? _or.TotalTax : _nr.TotalTax;
-                            double _savings   = _chosenTax - _otherTax;
-                            string _otherName = _newChosen ? "Old" : "New";
-                            Func<double,string> F  = v => v == 0 ? "—" : "₹" + v.ToString("N0");
-                            double _ytdTotal    = _sdAnnual.YtdTdsDeducted + _sdTds;
-                            double _trueBalance = _sdAnnual.ChosenTax - _ytdTotal;
-                            bool   _tdsEntered  = _sdTds > 0;
-                            string _balColor    = _trueBalance < 0 ? "#15803d" : _trueBalance > 0 ? "#dc2626" : "#374151";
-                            string _balLabel    = _trueBalance < 0 ? "Excess" : _trueBalance > 0 ? "Due" : "Nil";
-                            Func<double,string> Fm = v => v == 0 ? "—" : "(₹" + v.ToString("N0") + ")";
-
-                            @* Regime savings hint *@
-                            @if (_savings > 500)
-                            {
-                                <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;padding:7px 11px;margin-bottom:8px;font-size:11px;color:#b45309">
-                                    💡 Switching to <strong>@_otherName Regime</strong> saves <strong>₹@_savings.ToString("N0")/year</strong>. Change in Edit Employee → Tax Regime.
-                                </div>
-                            }
-
-                            @* Side-by-side regime computation table *@
-                            <div style="overflow-x:auto">
-                            <table style="width:100%;border-collapse:collapse;font-size:11px">
-                                <colgroup>
-                                    <col style="width:42%" />
-                                    <col style="width:29%" />
-                                    <col style="width:29%" />
-                                </colgroup>
-                                <thead>
-                                    <tr style="background:#f1f5f9">
-                                        <th style="text-align:left;padding:5px 7px;color:#475569;font-weight:600">Particulars</th>
-                                        <th style="text-align:right;padding:5px 7px;border-left:2px solid @(_newChosen?"#e2e8f0":"#1565C0");color:@(_newChosen?"#475569":"#1565C0");font-weight:700">
-                                            Old Regime @if (!_newChosen) { <span style="background:#1565C0;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:3px">✓ Chosen</span> }
-                                        </th>
-                                        <th style="text-align:right;padding:5px 7px;border-left:2px solid @(_newChosen?"#15803d":"#e2e8f0");color:@(_newChosen?"#15803d":"#475569");font-weight:700">
-                                            New Regime @if (_newChosen) { <span style="background:#15803d;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:3px">✓ Chosen</span> }
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @{ string rOdd = "background:#fafafa"; string rEven = "background:#fff"; int _ri = 0; }
-                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                        <td style="padding:4px 7px;color:#374151">Gross Salary (annual)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@F(_or.GrossSalary)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@F(_nr.GrossSalary)</td>
-                                    </tr>
-                                    @if (_or.Sec10Items.Any())
-                                    {
-                                        double _s10TotalOld = _or.Sec10Items.Sum(x => x.OldRegime);
-                                        double _s10TotalNew = _nr.Sec10Items.Sum(x => x.NewRegime);
-                                        <tr style="@(++_ri%2==0?rEven:rOdd);cursor:pointer" @onclick="@(() => _sec10Expanded = !_sec10Expanded)">
-                                            <td style="padding:4px 7px;color:#16a34a;user-select:none">
-                                                <span style="font-size:11px;margin-right:4px">@(_sec10Expanded ? "▼" : "▶")</span>
-                                                Less: Exemptions u/s 10
-                                                <span style="font-size:9px;color:#64748b;margin-left:4px">@(_or.Sec10Items.Count) item@(_or.Sec10Items.Count == 1 ? "" : "s") · click to @(_sec10Expanded ? "collapse" : "expand")</span>
-                                            </td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@Fm(_s10TotalOld)</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">
-                                                @if (_s10TotalNew > 0) { <span style="color:#16a34a">@Fm(_s10TotalNew)</span> }
-                                                else { <span style="color:#dc2626;font-size:10px">Taxable</span> }
-                                            </td>
-                                        </tr>
-                                        @if (_sec10Expanded)
-                                        {
-                                            foreach (var _s10 in _or.Sec10Items)
-                                            {
-                                                var _s10nr = _nr.Sec10Items.FirstOrDefault(x => x.Name == _s10.Name);
-                                                <tr style="background:#f0fdf4">
-                                                    <td style="padding:3px 7px 3px 24px;color:#15803d;font-size:11px">
-                                                        @_s10.Name
-                                                        @if (!string.IsNullOrEmpty(_s10.RuleRef)) { <span style="font-size:9px;color:#64748b;margin-left:4px">@_s10.RuleRef</span> }
-                                                    </td>
-                                                    <td style="text-align:right;padding:3px 7px;font-family:monospace;font-size:11px;color:#15803d;border-left:2px solid #e2e8f0">
-                                                        @(_s10.OldRegime > 0 ? Fm(_s10.OldRegime) : "—")
-                                                    </td>
-                                                    <td style="text-align:right;padding:3px 7px;font-family:monospace;font-size:11px;border-left:2px solid #e2e8f0">
-                                                        @if ((_s10nr?.NewRegime ?? 0) > 0)
-                                                        { <span style="color:#15803d">@Fm(_s10nr!.NewRegime)</span> }
-                                                        else if (_s10.OldRegime > 0)
-                                                        { <span style="color:#dc2626;font-size:10px">Taxable</span> }
-                                                        else
-                                                        { <span style="color:#94a3b8">—</span> }
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
-                                    }
-                                    @if (_or.ProfTaxDeduction > 0)
-                                    {
-                                        <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                            <td style="padding:4px 7px;color:#16a34a">Less: Professional Tax</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@Fm(_or.ProfTaxDeduction)</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#94a3b8;border-left:2px solid #e2e8f0">N/A</td>
-                                        </tr>
-                                    }
-                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                        <td style="padding:4px 7px;color:#16a34a">Less: Standard Deduction</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@Fm(_or.StandardDeduction)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@Fm(_nr.StandardDeduction)</td>
-                                    </tr>
-                                    @if (_or.Chapter6A > 0)
-                                    {
-                                        <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                            <td style="padding:4px 7px;color:#16a34a">Less: Chapter VI-A Deductions</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@Fm(_or.Chapter6A)</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#94a3b8;border-left:2px solid #e2e8f0">N/A</td>
-                                        </tr>
-                                    }
-                                    @if (_or.NpsEmployer80CCD2 > 0 || _nr.NpsEmployer80CCD2 > 0)
-                                    {
-                                        <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                            <td style="padding:4px 7px;color:#16a34a">Less: NPS Employer 80CCD(2)</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@(_or.NpsEmployer80CCD2 > 0 ? Fm(_or.NpsEmployer80CCD2) : "—")</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@(_nr.NpsEmployer80CCD2 > 0 ? Fm(_nr.NpsEmployer80CCD2) : "—")</td>
-                                        </tr>
-                                    }
-                                    @if (_or.IncomeOtherSources > 0 || _nr.IncomeOtherSources > 0)
-                                    {
-                                        <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                            <td style="padding:4px 7px;color:#dc2626">Add: Income from Other Sources</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#dc2626;border-left:2px solid #e2e8f0">@F(_or.IncomeOtherSources)</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#dc2626;border-left:2px solid #e2e8f0">@F(_nr.IncomeOtherSources)</td>
-                                        </tr>
-                                    }
-                                    @* Taxable income sub-total *@
-                                    <tr style="background:#eff6ff;font-weight:700;border-top:1px solid #bfdbfe">
-                                        <td style="padding:5px 7px;color:#1e40af">Net Taxable Income</td>
-                                        <td style="text-align:right;padding:5px 7px;font-family:monospace;color:#1e40af;border-left:2px solid #e2e8f0">₹@_or.TotalIncome.ToString("N0")</td>
-                                        <td style="text-align:right;padding:5px 7px;font-family:monospace;color:#1e40af;border-left:2px solid #e2e8f0">₹@_nr.TotalIncome.ToString("N0")</td>
-                                    </tr>
-                                    @* Tax computation *@
-                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                        <td style="padding:4px 7px;color:#374151">Tax on Income (slab)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@F(_or.TaxOnIncome)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@F(_nr.TaxOnIncome)</td>
-                                    </tr>
-                                    @if (_or.Rebate87A > 0 || _nr.Rebate87A > 0)
-                                    {
-                                        <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                            <td style="padding:4px 7px;color:#16a34a">Less: Rebate u/s 87A</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@(_or.Rebate87A > 0 ? Fm(_or.Rebate87A) : "—")</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;color:#16a34a;border-left:2px solid #e2e8f0">@(_nr.Rebate87A > 0 ? Fm(_nr.Rebate87A) : "—")</td>
-                                        </tr>
-                                    }
-                                    @if (_or.Surcharge > 0 || _nr.Surcharge > 0)
-                                    {
-                                        <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                            <td style="padding:4px 7px;color:#374151">Add: Surcharge</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@(_or.Surcharge > 0 ? F(_or.Surcharge) : "—")</td>
-                                            <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@(_nr.Surcharge > 0 ? F(_nr.Surcharge) : "—")</td>
-                                        </tr>
-                                    }
-                                    <tr style="@(++_ri%2==0?rEven:rOdd)">
-                                        <td style="padding:4px 7px;color:#374151">Add: Health &amp; Edu. Cess (4%)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@F(_or.Cess)</td>
-                                        <td style="text-align:right;padding:4px 7px;font-family:monospace;border-left:2px solid #e2e8f0">@F(_nr.Cess)</td>
-                                    </tr>
-                                    @* Total tax *@
-                                    <tr style="background:#fef9c3;font-weight:700;border-top:1px solid #fde047">
-                                        <td style="padding:5px 7px;color:#713f12">Total Annual Tax</td>
-                                        <td style="text-align:right;padding:5px 7px;font-family:monospace;border-left:2px solid @(!_newChosen?"#1565C0":"#e2e8f0");color:@(!_newChosen?"#1565C0":"#713f12")">
-                                            ₹@_or.TotalTax.ToString("N0")
-                                            @if (!_newChosen) { <span style="background:#1565C0;color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;margin-left:3px">✓</span> }
-                                        </td>
-                                        <td style="text-align:right;padding:5px 7px;font-family:monospace;border-left:2px solid @(_newChosen?"#15803d":"#e2e8f0");color:@(_newChosen?"#15803d":"#713f12")">
-                                            ₹@_nr.TotalTax.ToString("N0")
-                                            @if (_newChosen) { <span style="background:#15803d;color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;margin-left:3px">✓</span> }
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            </div>
-
-                            @* Month-level summary strip *@
-
-                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
-                                <div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;padding:7px 10px">
-                                    <div style="font-size:10px;color:#0369a1;font-weight:600">YTD TDS Deducted</div>
-                                    <div style="font-size:14px;font-weight:700;font-family:monospace">₹@_ytdTotal.ToString("N0")</div>
-                                    <div style="font-size:9px;color:#64748b">@_sdAnnual.MonthsActual month(s) actual</div>
-                                </div>
-                                <div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:7px 10px">
-                                    <div style="font-size:10px;color:#713f12;font-weight:600">Balance Tax</div>
-                                    <div style="font-size:14px;font-weight:700;font-family:monospace;color:@_balColor">@(Math.Abs(_trueBalance) == 0 ? "₹0" : (_trueBalance < 0 ? "(₹" : "₹") + Math.Abs(_trueBalance).ToString("N0") + (_trueBalance < 0 ? ")" : ""))</div>
-                                    <div style="font-size:9px;color:#64748b">@_balLabel @(_tdsEntered ? "after TDS paid" : $"— {_sdAnnual.MonthsRemaining} month(s) left")</div>
-                                </div>
-                                <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:7px 10px">
-                                    <div style="font-size:10px;color:#991b1b;font-weight:600">TDS This Month</div>
-                                    <div style="font-size:14px;font-weight:700;font-family:monospace;color:#dc2626">₹@_sdTds.ToString("N0")</div>
-                                    <div style="font-size:9px;color:#64748b">@(_tdsEntered ? "Amount entered" : (_sdAnnual.MonthsRemaining > 0 ? $"Balance ÷ {_sdAnnual.MonthsRemaining}" : "Last month"))</div>
-                                </div>
-                                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:7px 10px">
-                                    <div style="font-size:10px;color:#15803d;font-weight:600">Net Pay</div>
-                                    <div style="font-size:14px;font-weight:700;font-family:monospace;color:#15803d">₹@_sdNetPay.ToString("N0")</div>
-                                    <div style="font-size:9px;color:#64748b">Gross − deductions − TDS</div>
-                                </div>
-                            </div>
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#16a34a;color:#15803d;background:#f0fdf4" @onclick="SdApproveLock">🔒 Lock</button>
+                        }
+                        <button class="sd-btn sd-btn-outlined" style="border-color:#fca5a5;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
+                        <button class="sd-btn sd-btn-outlined" style="border-color:#c4b5fd;color:#7c3aed" @onclick="SdCopyToAll" title="Copy current month to all remaining months">📋 Copy Forward</button>
+                        @if (_sdCurEntry?.IsLocked == true)
+                        {
+                            <span style="font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;border-radius:5px;padding:4px 10px">🔒 Locked @_sdCurEntry.ApprovedAt</span>
                         }
                     </div>
-
-                    @if (_sdCurEntry?.IsLocked == true)
-                    {
-                        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:10px 14px;margin-top:12px;font-size:12px;color:#15803d">
-                            🔒 <strong>Locked.</strong> This month was approved in Monthly Close on @_sdCurEntry.ApprovedAt. To edit, unlock from the Monthly Close tab.
-                        </div>
-                    }
-                    <!-- Action buttons -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;border-top:2px solid #f1f5f9;padding-top:12px">
-                        <!-- Left: save/lock actions -->
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-                            <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)" style="background:#15803d;box-shadow:0 1px 3px rgba(21,128,61,.35)">💾 Save</button>
-                            @if (_sdCurEntry?.IsLocked == true)
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                        <div style="position:relative;display:inline-block">
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#bfdbfe;color:#1565c0;background:#eff6ff" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
+                            @if (_sdDropComp)
                             {
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#d97706;color:#92400e;background:#fffbeb" @onclick="SdUnlockMonth">🔓 Unlock</button>
+                                <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:140px;margin-bottom:4px;overflow:hidden" @onclick:stopPropagation>
+                                    <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
+                                    <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151;border-top:1px solid #f3f4f6" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
+                                </div>
                             }
-                            else
-                            {
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#16a34a;color:#15803d;background:#f0fdf4" @onclick="SdApproveLock">🔒 Lock</button>
-                            }
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#fca5a5;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#c4b5fd;color:#7c3aed" @onclick="SdCopyToAll" title="Copy current month to all remaining months">📋 Copy Forward</button>
                         </div>
-                        <!-- Right: report downloads -->
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-                            <div style="position:relative;display:inline-block">
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#bfdbfe;color:#1565c0;background:#eff6ff" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
-                                @if (_sdDropComp)
-                                {
-                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:140px;margin-bottom:4px;overflow:hidden" @onclick:stopPropagation>
-                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
-                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151;border-top:1px solid #f3f4f6" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
-                                    </div>
-                                }
-                            </div>
-                            <div style="position:relative;display:inline-block">
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#ddd6fe;color:#7c3aed;background:#faf5ff" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly ▾</button>
-                                @if (_sdDropMonth)
-                                {
-                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:140px;margin-bottom:4px;overflow:hidden" @onclick:stopPropagation>
-                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
-                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151;border-top:1px solid #f3f4f6" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
-                                    </div>
-                                }
-                            </div>
+                        <div style="position:relative;display:inline-block">
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#ddd6fe;color:#7c3aed;background:#faf5ff" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly ▾</button>
+                            @if (_sdDropMonth)
+                            {
+                                <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:140px;margin-bottom:4px;overflow:hidden" @onclick:stopPropagation>
+                                    <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
+                                    <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151;border-top:1px solid #f3f4f6" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
