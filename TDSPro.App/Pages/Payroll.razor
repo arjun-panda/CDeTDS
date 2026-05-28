@@ -3800,7 +3800,8 @@
     async Task SdResetFromStructure()
     {
         if (_sdEmpId == 0 || _sdMonth == 0) { Snackbar.Add("Select an employee and month.", Severity.Warning); return; }
-        if (_sdCurEntry?.IsLocked == true) { Snackbar.Add("Month is locked. Unlock first.", Severity.Warning); return; }
+        var dbReset = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, _sdMonth);
+        if (dbReset?.IsLocked == true) { Snackbar.Add("Month is locked. Unlock first.", Severity.Warning); return; }
         var confirmed = await DialogSvc.ShowMessageBox(
             "Reset month from Salary Structure?",
             $"This will discard the saved {new DateTime(1, _sdMonth, 1):MMMM} entry and re-seed all fields from the employee's current salary structure. Useful when an earlier accidental save left the month blank/zero.",
@@ -3827,6 +3828,9 @@
     {
         if (_sdEmpId == 0 || _sdMonth == 0) { Snackbar.Add("Select an employee and month.", Severity.Warning); return; }
         if (AppState.IsReadOnlyFY) { Snackbar.Add("FY is read-only.", Severity.Warning); return; }
+        // Guard: re-read from DB so a bulk-locked entry is never re-saved as Draft then locked again
+        var dbCheck = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, _sdMonth);
+        if (dbCheck?.IsLocked == true) { Snackbar.Add("Already locked.", Severity.Info); return; }
         try
         {
             // Save first (writes the current edits as Draft)
@@ -3871,7 +3875,9 @@
     {
         if (_sdEmpId == 0) { Snackbar.Add("Select an employee first.", Severity.Warning); return; }
         if (_sdMonth == 0) { Snackbar.Add("Select a month first.", Severity.Warning); return; }
-        if (_sdCurEntry?.IsLocked == true) { Snackbar.Add("This month is locked. Unlock from Monthly Close to edit.", Severity.Warning); return; }
+        // Always re-read from DB — _sdCurEntry may be null/stale if entry was locked via bulk close
+        var dbEntry = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, _sdMonth);
+        if (dbEntry?.IsLocked == true) { Snackbar.Add("This month is locked. Unlock from Monthly Close to edit.", Severity.Warning); return; }
         try
         {
             var entry = BuildSdEntry();
