@@ -264,13 +264,15 @@
                     <MudNumericField T="double?" Value="@(_editing.Amount == 0 ? null : (double?)_editing.Amount)"
                                      Label="Gross Amount (₹)*" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
                                      Placeholder="0.00" HideSpinButtons="true" Class="amount-field"
-                                     ValueChanged="@((double? v) => OnAmountChanged(v ?? 0))" />
+                                     ValueChanged="@((double? v) => OnAmountChanged(v ?? 0))"
+                                     DebounceInterval="0" Immediate="false" />
                 </MudItem>
                 <MudItem xs="3">
                     <MudNumericField T="double?" Value="@(_editing.Rate == 0 ? null : (double?)_editing.Rate)"
                                      Label="Rate %" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
                                      Placeholder="0.00" HideSpinButtons="true" Class="amount-field"
-                                     ValueChanged="@((double? v) => OnRateChanged(v ?? 0))" />
+                                     ValueChanged="@((double? v) => OnRateChanged(v ?? 0))"
+                                     DebounceInterval="0" Immediate="false" />
                 </MudItem>
                 <MudItem xs="5">
                     <MudNumericField T="double?" Value="@(_editing.TdsAmount == 0 ? null : (double?)_editing.TdsAmount)"
