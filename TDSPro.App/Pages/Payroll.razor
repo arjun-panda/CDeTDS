@@ -993,10 +993,10 @@
                 <div class="sd-kpi sd-kpi-teal"><div class="sd-kpi-label">YTD TDS</div><div class="sd-kpi-value">₹@((_sdAnnual != null ? _sdAnnual.YtdTdsDeducted + _sdTds : 0).ToString("N0"))</div></div>
             </div>
 
-            <!-- Two-column grid -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <!-- Three-column grid: Fixed Earnings | Variable Earnings | Deductions+Tax -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
 
-                <!-- LEFT: Earnings -->
+                <!-- COL 1: Fixed Earnings -->
                 <div>
                     <!-- Fixed Earnings -->
                     <div class="sd-paper">
@@ -1198,8 +1198,10 @@
                             </tfoot>
                         </table>
                     </div>
+                </div>
 
-                    <!-- Variable / Additional Earnings -->
+                <!-- COL 2: Variable / Additional Earnings -->
+                <div>
                     <div class="sd-paper sd-accent-blue">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                             <div class="sd-sec-head" style="margin-bottom:0">➕ Variable / Additional Earnings</div>
