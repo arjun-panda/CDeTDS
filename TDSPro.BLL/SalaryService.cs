@@ -69,13 +69,25 @@ namespace TDSPro.BLL
             te.TdsAmount     = entry.TdsDeducted;
             te.Surcharge     = 0;
             te.Cess          = 0;
-            te.TotalTds      = entry.TdsDeducted;
             te.EntryDate     = entryDate;
             te.DueDate       = due;
             te.FinancialYear = entry.FinancialYear;
             te.Quarter       = quarter;
-            te.Status        = existing == null ? "Pending" : te.Status;
             te.Remarks       = $"Salary TDS — {new DateTime(1,entry.Month,1):MMMM} {entry.Year} {tag}";
+            if (existing == null)
+            {
+                // New entry: set defaults for payment fields
+                te.Status    = "Pending";
+                te.ChallanNo = "";
+                te.Interest  = 0;
+                te.LateFee   = 0;
+                te.TotalTds  = entry.TdsDeducted;
+            }
+            else
+            {
+                // Existing entry: preserve user-entered payment fields (challan, interest, late fee, status)
+                te.TotalTds = entry.TdsDeducted + te.Interest + te.LateFee;
+            }
 
             var result = tdsRepo.Save(te);
             return (result.Ok, result.Ok ? $"Sec 192 entry {(existing == null ? "created" : "updated")} (₹{entry.TdsDeducted:N0})" : result.Msg);
