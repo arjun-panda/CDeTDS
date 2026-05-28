@@ -143,9 +143,10 @@ namespace TDSPro.DAL
             //   42=RespEmail  43=RespMobile  44=RespSTD  45=RespPhone  46=RespAddrChange
             //   47=BatchTotalTDS  48=UnmatchedChallans  49=CountSD
             //   50-58=empty  59=RespPAN  60-71=empty
-            // Drop zero-TDS deductees BEFORE BH (its [49] count must match the SD-loop output;
-            // doing this after BH causes T-FV-2127 "Invalid count of salary detail record").
-            data.Deductees = data.Deductees.Where(d => d.TdsDeducted > 0 || d.TdsDeposited > 0).ToList();
+            // Drop completely-empty deductee rows (no payment AND no TDS) before BH so [49] count matches.
+            // Nil-TDS entries (AmountPaid > 0, TdsDeducted = 0) are valid and must NOT be dropped —
+            // NSDL requires them in the return with the "Y" nil-deduction remark.
+            data.Deductees = data.Deductees.Where(d => d.AmountPaid > 0 || d.TdsDeducted > 0 || d.TdsDeposited > 0).ToList();
             for (int i = 0; i < data.Deductees.Count; i++) data.Deductees[i].SlNo = i + 1;
 
             string prn     = h.IsCorrection ? (h.PreviousPrn ?? "").Trim() : "";
