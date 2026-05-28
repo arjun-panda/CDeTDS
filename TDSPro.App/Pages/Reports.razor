@@ -722,6 +722,7 @@
     void OnTabChanged(int idx)
     {
         _activeTab = idx;
+        _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", idx == 4);
         StateHasChanged();
     }
 
@@ -854,6 +855,6 @@
     public void Dispose()
     {
         AppState.OnChange -= Refresh;
-        // nothing to clean up
+        _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", false);
     }
 }
