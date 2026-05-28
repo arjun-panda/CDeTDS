@@ -993,11 +993,10 @@
                 <div class="sd-kpi sd-kpi-teal"><div class="sd-kpi-label">YTD TDS</div><div class="sd-kpi-value">₹@((_sdAnnual != null ? _sdAnnual.YtdTdsDeducted + _sdTds : 0).ToString("N0"))</div></div>
             </div>
 
-            <!-- Two-column grid: Earnings 60% | Deductions 40% -->
-            <div style="display:grid;grid-template-columns:3fr 2fr;gap:14px;align-items:start">
+            <!-- Three-column grid: Fixed 50% | Variable 25% | Deductions 25% -->
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;align-items:start">
 
-                <!-- LEFT: Earnings (Fixed + Variable stacked) -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+                <!-- COL 1: Fixed Earnings -->
                 <div>
                     <!-- Fixed Earnings -->
                     <div class="sd-paper sd-accent-blue">
@@ -1292,9 +1291,8 @@
                         </table>
                     </div>
                 </div>
-                </div><!-- end inner earnings grid -->
 
-                <!-- RIGHT: Deductions -->
+                <!-- COL 3: Deductions -->
                 <div>
                     <!-- Fixed Deductions -->
                     <div class="sd-paper sd-accent-red">
@@ -1318,8 +1316,7 @@
                         </table>
                     </div>
 
-                    <!-- Schedules + Variable Deductions side by side -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+
 
                     <!-- Deduction Schedules -->
                     <div class="sd-paper sd-accent-purple">
@@ -1406,8 +1403,6 @@
                             </tfoot>
                         </table>
                     </div>
-
-                    </div><!-- end schedules+varDed grid -->
 
                 </div>
             </div>
