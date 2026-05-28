@@ -29,8 +29,7 @@ namespace TDSPro.BLL
         /// </summary>
         public (bool ok, string msg) UpsertSec192Entry(MonthlySalaryEntry entry, Employee emp, int deductorId)
         {
-            if (entry.TdsDeducted <= 0)
-                return (true, "No TDS this month — Sec 192 entry skipped.");
+            // Do NOT skip nil-TDS employees — 24Q returns require every salary payment as a deductee row.
             if (string.IsNullOrWhiteSpace(emp.Pan))
                 return (false, $"Employee {emp.Name} has no PAN — cannot create Sec 192 entry.");
 
