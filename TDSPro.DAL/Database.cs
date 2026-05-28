@@ -877,6 +877,32 @@ namespace TDSPro.DAL
                 cmd3.ExecuteNonQuery();
             } catch { }
 
+            // ── Fix pf_applicable=0 where pf_fixed_amount>0 (data integrity) ──
+            // Employees with a fixed PF amount must have pf_applicable=1 or PF is silently zero.
+            try
+            {
+                using var connPf = GetConnection();
+                using var cmdPf  = connPf.CreateCommand();
+                cmdPf.CommandText = "UPDATE salary_structures SET pf_applicable=1 WHERE pf_fixed_amount > 0 AND pf_applicable=0";
+                cmdPf.ExecuteNonQuery();
+            } catch { }
+
+            // ── Fix pf_employee=0 in monthly entries where structure has pf_fixed_amount>0 ──
+            try
+            {
+                using var connMp = GetConnection();
+                using var cmdMp  = connMp.CreateCommand();
+                cmdMp.CommandText = @"
+                    UPDATE monthly_salary_entries
+                    SET pf_employee = (SELECT s.pf_fixed_amount FROM salary_structures s WHERE s.employee_id = monthly_salary_entries.employee_id),
+                        net_salary  = gross_payment
+                                      - (SELECT s.pf_fixed_amount FROM salary_structures s WHERE s.employee_id = monthly_salary_entries.employee_id)
+                                      - esi_employee - tds_deducted
+                    WHERE pf_employee = 0
+                      AND employee_id IN (SELECT employee_id FROM salary_structures WHERE pf_fixed_amount > 0)";
+                cmdMp.ExecuteNonQuery();
+            } catch { }
+
             // ── Fix rules effective_from: 2026-04-01 → 2025-04-01 ────────────
             try
             {

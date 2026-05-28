@@ -673,7 +673,9 @@
                                     <div class="fg">
                                         <div class="fr" style="grid-template-columns:auto auto">
                                             <div class="fl">PF Fixed Amount (₹)<small>0 = auto 12% of Basic</small></div>
-                                            <div class="fi"><input type="number" class="num" @bind="_editingEmployee!.Salary!.PfFixedAmount" style="width:110px" /></div>
+                                            <div class="fi"><input type="number" class="num" style="width:110px"
+                                                value="@_editingEmployee!.Salary!.PfFixedAmount"
+                                                @onchange="@((e) => { if (double.TryParse(e.Value?.ToString(), out var v)) { _editingEmployee.Salary.PfFixedAmount = Math.Max(0, v); if (v > 0) _editingEmployee.Salary.PfApplicable = true; } })" /></div>
                                         </div>
                                         <div class="fr" style="grid-template-columns:auto auto">
                                             <div class="fl">Professional Tax State</div>
@@ -692,7 +694,7 @@
                                         </div>
                                     </div>
                                     <div class="tgl-row" style="flex-direction:column;align-items:flex-start;gap:10px;padding-top:10px">
-                                        <label class="tgl-item"><input type="checkbox" @bind="_editingEmployee.Salary.PfApplicable" /> PF Applicable <span class="hint" style="margin-left:4px">(12% of Basic deducted)</span></label>
+                                        <label class="tgl-item"><input type="checkbox" @bind="_editingEmployee.Salary.PfApplicable" /> PF Applicable <span class="hint" style="margin-left:4px">(auto-enabled when Fixed Amount entered; 12% of Basic if Fixed=0)</span></label>
                                         <label class="tgl-item"><input type="checkbox" @bind="_editingEmployee.Salary.EsiApplicable" /> ESI Applicable <span class="hint" style="margin-left:4px">(gross must be ≤ ₹21,000/mo)</span></label>
                                         <label class="tgl-item"><input type="checkbox" @bind="_editingEmployee.HraMonthlyBasis" /> HRA computed on monthly basis</label>
                                         <label class="tgl-item"><input type="checkbox" @bind="_editingEmployee.DaForRetirement" /> DA forms part of retirement salary</label>
