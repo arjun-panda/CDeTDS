@@ -1344,16 +1344,16 @@
                                             <button class="sd-btn-icon" title="Close" @onclick="@(() => CloseSchedule(sch.Id))">✕</button>
                                         </div>
                                     </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:11px;margin-bottom:6px">
-                                        <div style="text-align:center;background:#fff;border-radius:5px;padding:4px 6px">
+                                    <div style="display:flex;gap:0;font-size:11px;margin-bottom:6px;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #ede9fe">
+                                        <div style="flex:1;text-align:center;padding:5px 8px;border-right:1px solid #ede9fe">
                                             <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Total</div>
                                             <div style="font-weight:700;color:#374151">₹@sch.TotalAmount.ToString("N0")</div>
                                         </div>
-                                        <div style="text-align:center;background:#fff;border-radius:5px;padding:4px 6px">
+                                        <div style="flex:1;text-align:center;padding:5px 8px;border-right:1px solid #ede9fe">
                                             <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Balance</div>
                                             <div style="font-weight:700;color:@(sch.Balance > 0 ? "#dc2626" : "#15803d")">₹@sch.Balance.ToString("N0")</div>
                                         </div>
-                                        <div style="text-align:center;background:#ede9fe;border-radius:5px;padding:4px 6px">
+                                        <div style="flex:1;text-align:center;padding:5px 8px;background:#f5f3ff">
                                             <div style="color:#7c3aed;font-size:9px;text-transform:uppercase;letter-spacing:.3px">This Month</div>
                                             <div style="font-weight:700;color:#7c3aed">₹@sch.ThisInstallment.ToString("N0")</div>
                                         </div>
