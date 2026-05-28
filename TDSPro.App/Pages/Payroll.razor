@@ -999,10 +999,10 @@
                 <!-- COL 1: Fixed Earnings -->
                 <div>
                     <!-- Fixed Earnings -->
-                    <div class="sd-paper">
-                        <div class="sd-sec-head">📥 Fixed Earnings (from salary structure)</div>
+                    <div class="sd-paper sd-accent-blue">
+                        <div class="sd-sec-head">📥 Fixed Earnings</div>
                         <table class="sd-dyn-table">
-                            <thead><tr><th style="width:55%">Component</th><th style="text-align:right">Amount (₹)</th></tr></thead>
+                            <thead><tr><th style="width:57%">Component</th><th style="text-align:right">Amount (₹)</th></tr></thead>
                             <tbody>
                                 <tr>
                                     <td>Basic Salary</td>
@@ -1194,7 +1194,7 @@
                                 }
                             </tbody>
                             <tfoot>
-                                <tr><td class="sd-color-blue">Fixed Total</td><td style="text-align:right" class="sd-color-blue">₹@_sdFixedTotal.ToString("N0")</td></tr>
+                                <tr style="background:#eff6ff"><td class="sd-color-blue" style="font-size:12px;letter-spacing:.3px">FIXED TOTAL</td><td style="text-align:right;font-size:15px;font-weight:800" class="sd-color-blue">₹@_sdFixedTotal.ToString("N0")</td></tr>
                             </tfoot>
                         </table>
                     </div>
@@ -1202,12 +1202,12 @@
 
                 <!-- COL 2: Variable / Additional Earnings -->
                 <div>
-                    <div class="sd-paper sd-accent-blue">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                            <div class="sd-sec-head" style="margin-bottom:0">➕ Variable / Additional Earnings</div>
-                            <button class="sd-btn-add" @onclick="AddVarEarnRow">+ Add Row</button>
+                    <div class="sd-paper sd-accent-orange">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <div class="sd-sec-head sd-sec-head-orange" style="margin-bottom:0">➕ Variable Earnings</div>
+                            <button class="sd-btn-add" style="border-color:#f59e0b;color:#b45309" @onclick="AddVarEarnRow">+ Add Row</button>
                         </div>
-                        <div class="sd-info-box">Add one-time or variable payments for this month only — bonus, overtime, arrears, incentive, etc.</div>
+                        <div class="sd-info-box">One-time / variable pay this month — bonus, overtime, arrears, incentive, etc.</div>
                         <table class="sd-dyn-table">
                             <thead>
                                 <tr>
@@ -1278,13 +1278,13 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="2" class="sd-color-orange">Variable Total</td>
+                                    <td colspan="2" class="sd-color-orange" style="font-size:11px">Variable Total</td>
                                     <td style="text-align:right" class="sd-color-orange">₹@_sdVarTotal.ToString("N0")</td>
                                     <td></td>
                                 </tr>
-                                <tr>
-                                    <td colspan="2" style="font-weight:700;color:#1565C0;font-size:14px">GROSS EARNINGS</td>
-                                    <td style="text-align:right;font-weight:700;color:#1565C0;font-size:16px">₹@_sdGrossTotal.ToString("N0")</td>
+                                <tr style="background:#eff6ff">
+                                    <td colspan="2" style="font-weight:700;color:#1565C0;font-size:12px;letter-spacing:.3px">GROSS EARNINGS</td>
+                                    <td style="text-align:right;font-weight:800;color:#1565C0;font-size:15px">₹@_sdGrossTotal.ToString("N0")</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -1292,10 +1292,10 @@
                     </div>
                 </div>
 
-                <!-- RIGHT: Deductions + Tax -->
+                <!-- COL 3: Deductions + Tax -->
                 <div>
                     <!-- Fixed Deductions -->
-                    <div class="sd-paper">
+                    <div class="sd-paper sd-accent-red">
                         <div class="sd-sec-head sd-sec-head-red">📤 Fixed Deductions</div>
                         <table class="sd-dyn-table">
                             <thead><tr><th style="width:55%">Component</th><th style="text-align:right">Amount (₹)</th></tr></thead>
@@ -1317,60 +1317,61 @@
                     </div>
 
                     <!-- Deduction Schedules -->
-                    <div class="sd-paper" style="border-left:4px solid #7c3aed">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                            <div class="sd-sec-head" style="margin-bottom:0;color:#7c3aed">🗓 Deduction Schedules</div>
-                            <button class="sd-btn-add" style="border-color:#7c3aed;color:#7c3aed" @onclick="OpenNewScheduleDialog">+ New Schedule</button>
+                    <div class="sd-paper sd-accent-purple">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <div class="sd-sec-head sd-sec-head-purple" style="margin-bottom:0">🗓 Recovery Schedules</div>
+                            <button class="sd-btn-add" style="border-color:#c4b5fd;color:#7c3aed" @onclick="OpenNewScheduleDialog">+ New</button>
                         </div>
-                        <div class="sd-info-box" style="border-color:#7c3aed">Loan / advance recovery — enter once, auto-deducted each month until balance is zero.</div>
                         @if (_schedules.Count == 0)
                         {
-                            <div style="color:#9ca3af;font-size:12px;padding:6px 0">No active schedules.</div>
+                            <div style="color:#c4b5fd;font-size:11px;padding:4px 0;font-style:italic">No active schedules — loan/advance recovery auto-posts each month.</div>
                         }
                         else
                         {
-                            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">
-                                <thead>
-                                    <tr style="background:#f5f3ff;color:#5b21b6;font-weight:700">
-                                        <th style="padding:5px 8px;text-align:left">Type</th>
-                                        <th style="padding:5px 8px;text-align:left">Description</th>
-                                        <th style="padding:5px 8px;text-align:right">Total</th>
-                                        <th style="padding:5px 8px;text-align:right">Recovered</th>
-                                        <th style="padding:5px 8px;text-align:right">Balance</th>
-                                        <th style="padding:5px 8px;text-align:right">This Month</th>
-                                        <th style="padding:5px 8px;text-align:right">Months Left</th>
-                                        <th style="padding:5px 8px;text-align:center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var sch in _schedules)
-                                    {
-                                        <tr style="border-bottom:1px solid #ede9fe">
-                                            <td style="padding:5px 8px"><span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 6px;font-size:11px">@sch.Type</span></td>
-                                            <td style="padding:5px 8px;color:#374151">@sch.Description</td>
-                                            <td style="padding:5px 8px;text-align:right">₹@sch.TotalAmount.ToString("N0")</td>
-                                            <td style="padding:5px 8px;text-align:right;color:#15803d">₹@sch.RecoveredAmt.ToString("N0")</td>
-                                            <td style="padding:5px 8px;text-align:right;color:@(sch.Balance > 0 ? "#dc2626" : "#15803d");font-weight:700">₹@sch.Balance.ToString("N0")</td>
-                                            <td style="padding:5px 8px;text-align:right;color:#7c3aed;font-weight:600">₹@sch.ThisInstallment.ToString("N0")</td>
-                                            <td style="padding:5px 8px;text-align:right;color:#6b7280">@(sch.MonthsRemaining > 0 ? sch.MonthsRemaining.ToString() : "—")</td>
-                                            <td style="padding:5px 8px;text-align:center">
-                                                <button class="sd-btn-icon" style="color:#7c3aed" title="Edit" @onclick="@(() => OpenEditScheduleDialog(sch))">✏</button>
-                                                <button class="sd-btn-icon" style="color:#dc2626" title="Close schedule" @onclick="@(() => CloseSchedule(sch.Id))">✕</button>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
+                            @foreach (var sch in _schedules)
+                            {
+                                var _pct = sch.TotalAmount > 0 ? (int)Math.Round(sch.RecoveredAmt / sch.TotalAmount * 100) : 0;
+                                <div style="border:1px solid #ede9fe;border-radius:7px;padding:9px 11px;margin-bottom:7px;background:#faf5ff">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                                        <div style="display:flex;align-items:center;gap:6px">
+                                            <span class="sd-chip sd-chip-purple">@sch.Type</span>
+                                            <span style="font-size:12px;font-weight:600;color:#374151">@(string.IsNullOrWhiteSpace(sch.Description) ? sch.Type : sch.Description)</span>
+                                        </div>
+                                        <div style="display:flex;gap:2px">
+                                            <button class="sd-btn-icon" style="color:#7c3aed" title="Edit" @onclick="@(() => OpenEditScheduleDialog(sch))">✏</button>
+                                            <button class="sd-btn-icon" title="Close" @onclick="@(() => CloseSchedule(sch.Id))">✕</button>
+                                        </div>
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:11px;margin-bottom:6px">
+                                        <div style="text-align:center;background:#fff;border-radius:5px;padding:4px 6px">
+                                            <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Total</div>
+                                            <div style="font-weight:700;color:#374151">₹@sch.TotalAmount.ToString("N0")</div>
+                                        </div>
+                                        <div style="text-align:center;background:#fff;border-radius:5px;padding:4px 6px">
+                                            <div style="color:#94a3b8;font-size:9px;text-transform:uppercase;letter-spacing:.3px">Balance</div>
+                                            <div style="font-weight:700;color:@(sch.Balance > 0 ? "#dc2626" : "#15803d")">₹@sch.Balance.ToString("N0")</div>
+                                        </div>
+                                        <div style="text-align:center;background:#ede9fe;border-radius:5px;padding:4px 6px">
+                                            <div style="color:#7c3aed;font-size:9px;text-transform:uppercase;letter-spacing:.3px">This Month</div>
+                                            <div style="font-weight:700;color:#7c3aed">₹@sch.ThisInstallment.ToString("N0")</div>
+                                        </div>
+                                    </div>
+                                    <div style="background:#e5e7eb;border-radius:20px;height:4px;overflow:hidden">
+                                        <div style="background:#7c3aed;width:@_pct%;height:100%;border-radius:20px;transition:width .3s"></div>
+                                    </div>
+                                    <div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right">@_pct% recovered · @(sch.MonthsRemaining > 0 ? $"{sch.MonthsRemaining} month(s) left" : "closing this month")</div>
+                                </div>
+                            }
                         }
                     </div>
 
                     <!-- Variable Deductions -->
-                    <div class="sd-paper sd-accent-orange">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <div class="sd-paper sd-accent-red">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                             <div class="sd-sec-head sd-sec-head-red" style="margin-bottom:0">➖ Variable Deductions</div>
-                            <button class="sd-btn-add" style="border-color:#c62828;color:#c62828" @onclick="AddVarDedRow">+ Add Row</button>
+                            <button class="sd-btn-add" style="border-color:#fca5a5;color:#c62828" @onclick="AddVarDedRow">+ Add Row</button>
                         </div>
-                        <div class="sd-info-box" style="border-color:#e65100">One-time deductions this month — loan recovery, advance, canteen, etc.</div>
+                        <div class="sd-info-box" style="border-color:#fca5a5">One-time deductions this month — canteen, club, etc. (Scheduled recoveries auto-appear above.)</div>
                         <table class="sd-dyn-table">
                             <thead><tr><th style="width:65%">Name / Description</th><th style="text-align:right;width:25%">Amount (₹)</th><th style="width:10%"></th></tr></thead>
                             <tbody>
@@ -1392,9 +1393,9 @@
                                     <td style="text-align:right" class="sd-color-red">₹@_sdVarDedTotal.ToString("N0")</td>
                                     <td></td>
                                 </tr>
-                                <tr>
-                                    <td style="font-weight:700;color:#c62828;font-size:14px">TOTAL DEDUCTIONS</td>
-                                    <td style="text-align:right;font-weight:700;color:#c62828;font-size:16px">₹@_sdTotalDed.ToString("N0")</td>
+                                <tr style="background:#fff1f2">
+                                    <td style="font-weight:700;color:#c62828;font-size:12px;letter-spacing:.3px">TOTAL DEDUCTIONS</td>
+                                    <td style="text-align:right;font-weight:800;color:#c62828;font-size:15px">₹@_sdTotalDed.ToString("N0")</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -1623,40 +1624,40 @@
                         </div>
                     }
                     <!-- Action buttons -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;border-top:1px solid #e2e8f0;padding-top:12px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;border-top:2px solid #f1f5f9;padding-top:12px">
                         <!-- Left: save/lock actions -->
                         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-                            <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)">💾 Save</button>
+                            <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)" style="background:#15803d;box-shadow:0 1px 3px rgba(21,128,61,.35)">💾 Save</button>
                             @if (_sdCurEntry?.IsLocked == true)
                             {
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#92400e;color:#92400e" @onclick="SdUnlockMonth">🔓 Unlock</button>
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#d97706;color:#92400e;background:#fffbeb" @onclick="SdUnlockMonth">🔓 Unlock</button>
                             }
                             else
                             {
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#15803d;color:#15803d" @onclick="SdApproveLock">🔒 Lock</button>
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#16a34a;color:#15803d;background:#f0fdf4" @onclick="SdApproveLock">🔒 Lock</button>
                             }
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#dc2626;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
-                            <button class="sd-btn sd-btn-outlined" @onclick="SdCopyToAll" title="Copy current month to all remaining months">📋 Copy Forward</button>
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#fca5a5;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
+                            <button class="sd-btn sd-btn-outlined" style="border-color:#c4b5fd;color:#7c3aed" @onclick="SdCopyToAll" title="Copy current month to all remaining months">📋 Copy Forward</button>
                         </div>
                         <!-- Right: report downloads -->
                         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
                             <div style="position:relative;display:inline-block">
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#1565c0;color:#1565c0" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#bfdbfe;color:#1565c0;background:#eff6ff" @onclick="() => { _sdDropComp = !_sdDropComp; _sdDropMonth = false; }">📄 Computation ▾</button>
                                 @if (_sdDropComp)
                                 {
-                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-bottom:2px" @onclick:stopPropagation>
-                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
-                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
+                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:140px;margin-bottom:4px;overflow:hidden" @onclick:stopPropagation>
+                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:true); }">📄 PDF</button>
+                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151;border-top:1px solid #f3f4f6" @onclick="async () => { _sdDropComp=false; await SdDownloadAnnual(html:false); }">📊 Excel</button>
                                     </div>
                                 }
                             </div>
                             <div style="position:relative;display:inline-block">
-                                <button class="sd-btn sd-btn-outlined" style="border-color:#7c3aed;color:#7c3aed" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly ▾</button>
+                                <button class="sd-btn sd-btn-outlined" style="border-color:#ddd6fe;color:#7c3aed;background:#faf5ff" @onclick="() => { _sdDropMonth = !_sdDropMonth; _sdDropComp = false; }">📋 Monthly ▾</button>
                                 @if (_sdDropMonth)
                                 {
-                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:140px;margin-bottom:2px" @onclick:stopPropagation>
-                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
-                                        <button style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
+                                    <div style="position:absolute;bottom:100%;left:0;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:140px;margin-bottom:4px;overflow:hidden" @onclick:stopPropagation>
+                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:true); }">📄 PDF</button>
+                                        <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#374151;border-top:1px solid #f3f4f6" @onclick="() => { _sdDropMonth=false; SdDownloadMonthly(html:false); }">📊 Excel</button>
                                     </div>
                                 }
                             </div>
