@@ -47,14 +47,14 @@ body.reports-payroll-active .mud-main-content {
 /* Payroll Summary — force-visible scrollbars, override any global hide rules */
 #payroll-tbl-wrap {
     scrollbar-width: auto !important;
-    scrollbar-color: #f97316 #1e293b !important;
+    scrollbar-color: #94a3b8 #e2e8f0 !important;
     -ms-overflow-style: scrollbar !important;
 }
-#payroll-tbl-wrap::-webkit-scrollbar         { display: block !important; width: 14px !important; height: 14px !important; }
-#payroll-tbl-wrap::-webkit-scrollbar-track   { background: #1e293b !important; }
-#payroll-tbl-wrap::-webkit-scrollbar-thumb   { background: #f97316 !important; border-radius: 4px !important; border: 2px solid #1e293b !important; }
-#payroll-tbl-wrap::-webkit-scrollbar-thumb:hover { background: #ea580c !important; }
-#payroll-tbl-wrap::-webkit-scrollbar-corner  { background: #1e293b !important; }
+#payroll-tbl-wrap::-webkit-scrollbar         { display: block !important; width: 8px !important; height: 8px !important; }
+#payroll-tbl-wrap::-webkit-scrollbar-track   { background: #e2e8f0 !important; border-radius: 4px !important; }
+#payroll-tbl-wrap::-webkit-scrollbar-thumb   { background: #94a3b8 !important; border-radius: 4px !important; }
+#payroll-tbl-wrap::-webkit-scrollbar-thumb:hover { background: #1565C0 !important; }
+#payroll-tbl-wrap::-webkit-scrollbar-corner  { background: #e2e8f0 !important; }
 
 /* Sidebar — its own thin scrollbar is fine */
 .mud-drawer {
