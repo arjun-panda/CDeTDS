@@ -47,7 +47,17 @@ namespace TDSPro.BLL
                 var existing = _salRepo.Get(emp.Id, fy, month);
                 if (existing != null)
                 {
-                    rows.Add(MonthlyCloseRow.FromEntry(existing, emp));
+                    var row = MonthlyCloseRow.FromEntry(existing, emp);
+                    // For unlocked rows, refresh PF from current salary structure so changes
+                    // to PfFixedAmount are picked up without requiring a manual Reset.
+                    if (!existing.IsLocked && emp.Salary != null)
+                    {
+                        var ss2 = emp.Salary;
+                        row.Pf = ss2.PfApplicable
+                            ? (ss2.PfFixedAmount > 0 ? ss2.PfFixedAmount : Math.Round(row.Basic * 0.12))
+                            : 0;
+                    }
+                    rows.Add(row);
                     continue;
                 }
 

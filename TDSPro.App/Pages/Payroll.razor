@@ -3723,8 +3723,24 @@
         _sdArrears = e.Arrears; _sdOther = Math.Max(0, e.OtherAllowances - _otherLinesSum); _sdNpsEmployer = e.NpsEmployer;
         _sdPerqTotal = e.PerqTotal; _sdPerqExempted = e.PerqExempted;
         _sdLeaveEnc = e.LeaveEncTotal; _sdLeaveEncEx = e.LeaveEncExempted;
-        _sdPf = e.PfEmployee; _sdVpf = e.VPF; _sdPt = e.ProfessionalTax;
-        _sdEsi = e.EsiEmployee; _sdTds = e.TdsDeducted;
+        // For unlocked entries: always recalc PF/ESI from current salary structure so a
+        // change to PfFixedAmount is reflected automatically without a manual Reset.
+        // Locked entries preserve whatever was deducted at the time of approval.
+        if (!e.IsLocked && seedSs != null)
+        {
+            _sdPf = seedSs.PfApplicable
+                ? (seedSs.PfFixedAmount > 0 ? seedSs.PfFixedAmount : Math.Round(seedSs.Basic * 0.12))
+                : 0;
+            _sdEsi = seedSs.EsiApplicable && seedSs.GrossSalary <= 21000
+                ? Math.Round(seedSs.GrossSalary * 0.0075) : 0;
+        }
+        else
+        {
+            _sdPf = e.PfEmployee;
+            _sdEsi = e.EsiEmployee;
+        }
+        _sdVpf = e.VPF; _sdPt = e.ProfessionalTax;
+        _sdTds = e.TdsDeducted;
         _sdLopDays = e.LopDays;
         _sdVarEarnRows = new();
         _sdVarDedRows  = new();
