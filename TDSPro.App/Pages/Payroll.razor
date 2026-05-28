@@ -1268,54 +1268,58 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="white-space:nowrap"><span title="Fully Taxable">Bonus <span style="font-size:9px;color:#94a3b8">●</span></span></td>
+                                    <td style="white-space:nowrap"><span class="sd-tt">Bonus<span class="sd-tt-badge sd-tt-badge-grey">T</span><span class="sd-tt-pop">Fully Taxable</span></span></td>
                                     <td><input type="number" style="text-align:right" @bind="_sdBonus" @bind:event="oninput" /></td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td style="white-space:nowrap"><span title="Fully Taxable">Commission <span style="font-size:9px;color:#94a3b8">●</span></span></td>
+                                    <td style="white-space:nowrap"><span class="sd-tt">Commission<span class="sd-tt-badge sd-tt-badge-grey">T</span><span class="sd-tt-pop">Fully Taxable</span></span></td>
                                     <td><input type="number" style="text-align:right" @bind="_sdCommission" @bind:event="oninput" /></td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td style="white-space:nowrap"><span title="Fully Taxable">Advance Salary <span style="font-size:9px;color:#94a3b8">●</span></span></td>
+                                    <td style="white-space:nowrap"><span class="sd-tt">Advance Salary<span class="sd-tt-badge sd-tt-badge-grey">T</span><span class="sd-tt-pop">Fully Taxable</span></span></td>
                                     <td><input type="number" style="text-align:right" @bind="_sdAdvance" @bind:event="oninput" /></td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td style="white-space:nowrap"><span title="Fully Taxable">Arrears <span style="font-size:9px;color:#94a3b8">●</span></span></td>
+                                    <td style="white-space:nowrap"><span class="sd-tt">Arrears<span class="sd-tt-badge sd-tt-badge-grey">T</span><span class="sd-tt-pop">Fully Taxable</span></span></td>
                                     <td><input type="number" style="text-align:right" @bind="_sdArrears" @bind:event="oninput" /></td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td style="white-space:nowrap"><span title="Fully Taxable">Leave Enc. (Total) <span style="font-size:9px;color:#94a3b8">●</span></span></td>
+                                    <td style="white-space:nowrap"><span class="sd-tt">Leave Enc. (Total)<span class="sd-tt-badge sd-tt-badge-grey">T</span><span class="sd-tt-pop">Fully Taxable</span></span></td>
                                     <td><input type="number" style="text-align:right" @bind="_sdLeaveEnc" @bind:event="oninput" /></td>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <td style="white-space:nowrap"><span title="Exempt u/s 10(10AA)">Leave Enc. (Exempt) <span style="font-size:9px;color:#15803d">●</span></span></td>
+                                    <td style="white-space:nowrap"><span class="sd-tt">Leave Enc. (Exempt)<span class="sd-tt-badge sd-tt-badge-green">E</span><span class="sd-tt-pop">Exempt u/s 10(10AA) — not taxable</span></span></td>
                                     <td><input type="number" style="text-align:right" @bind="_sdLeaveEncEx" @bind:event="oninput" /></td>
                                     <td></td>
                                 </tr>
-                                <!-- Dynamic add rows: type selector hidden in tooltip-style dropdown -->
+                                <!-- Dynamic add rows: badge circle overlaid with invisible select for type change -->
                                 @for (int _vi = 0; _vi < _sdVarEarnRows.Count; _vi++)
                                 {
                                     var _idx = _vi;
-                                    var _typeColor = _sdVarEarnRows[_idx].Type == "Exempt" ? "#15803d" : _sdVarEarnRows[_idx].Type == "Partly Exempt" ? "#b45309" : "#94a3b8";
-                                    var _typeTitle = _sdVarEarnRows[_idx].Type == "Exempt" ? "Exempt — not taxable" : _sdVarEarnRows[_idx].Type == "Partly Exempt" ? "Partly Exempt — partially taxable" : "Fully Taxable — fully taxable";
+                                    var _badgeClass = _sdVarEarnRows[_idx].Type == "Exempt" ? "sd-tt-badge sd-tt-badge-green" : _sdVarEarnRows[_idx].Type == "Partly Exempt" ? "sd-tt-badge sd-tt-badge-amber" : "sd-tt-badge sd-tt-badge-grey";
+                                    var _badgeLetter = _sdVarEarnRows[_idx].Type == "Exempt" ? "E" : _sdVarEarnRows[_idx].Type == "Partly Exempt" ? "P" : "T";
+                                    var _badgeTip = _sdVarEarnRows[_idx].Type == "Exempt" ? "Exempt — not taxable" : _sdVarEarnRows[_idx].Type == "Partly Exempt" ? "Partly Exempt — partially taxable" : "Fully Taxable";
                                     <tr>
-                                        <td>
+                                        <td style="white-space:nowrap">
                                             <div style="display:flex;align-items:center;gap:4px">
                                                 <input type="text" placeholder="e.g. Incentive, Joining Bonus..." value="@_sdVarEarnRows[_idx].Name"
-                                                       style="flex:1"
+                                                       style="flex:1;min-width:0"
                                                        @onchange="@((e) => { var r = _sdVarEarnRows[_idx]; _sdVarEarnRows[_idx] = (e.Value?.ToString() ?? "", r.Type, r.Amount); })" />
-                                                <select style="width:28px;border:none;background:none;cursor:pointer;font-size:14px;padding:0;color:@_typeColor;appearance:none;-webkit-appearance:none;text-align:center"
-                                                        title="@_typeTitle"
-                                                        @onchange="@((e) => { var r = _sdVarEarnRows[_idx]; _sdVarEarnRows[_idx] = (r.Name, e.Value?.ToString() ?? "Fully Taxable", r.Amount); })">
-                                                    <option value="Fully Taxable" selected="@(_sdVarEarnRows[_idx].Type == "Fully Taxable")">T</option>
-                                                    <option value="Partly Exempt" selected="@(_sdVarEarnRows[_idx].Type == "Partly Exempt")">P</option>
-                                                    <option value="Exempt" selected="@(_sdVarEarnRows[_idx].Type == "Exempt")">E</option>
-                                                </select>
+                                                <span class="sd-tt" style="flex-shrink:0;position:relative">
+                                                    <span class="@_badgeClass" style="cursor:pointer">@_badgeLetter</span>
+                                                    <span class="sd-tt-pop">@_badgeTip — click to change</span>
+                                                    <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                                                            @onchange="@((e) => { var r = _sdVarEarnRows[_idx]; _sdVarEarnRows[_idx] = (r.Name, e.Value?.ToString() ?? "Fully Taxable", r.Amount); })">
+                                                        <option value="Fully Taxable" selected="@(_sdVarEarnRows[_idx].Type == "Fully Taxable")">Fully Taxable</option>
+                                                        <option value="Partly Exempt" selected="@(_sdVarEarnRows[_idx].Type == "Partly Exempt")">Partly Exempt</option>
+                                                        <option value="Exempt" selected="@(_sdVarEarnRows[_idx].Type == "Exempt")">Exempt</option>
+                                                    </select>
+                                                </span>
                                             </div>
                                         </td>
                                         <td><input type="number" style="text-align:right" value="@_sdVarEarnRows[_idx].Amount"

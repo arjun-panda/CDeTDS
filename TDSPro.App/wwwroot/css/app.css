@@ -331,6 +331,30 @@ body.dashboard-active .mud-main-content {
 .sd-color-orange { color: #b45309; font-weight: 700; }
 .sd-color-purple { color: #7c3aed; font-weight: 700; }
 
+/* Tooltip badge */
+.sd-tt { position:relative; display:inline-flex; align-items:center; }
+.sd-tt-badge {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:14px; height:14px; border-radius:50%; font-size:9px; font-weight:700;
+    cursor:default; margin-left:5px; flex-shrink:0; vertical-align:middle;
+    font-style:normal; line-height:1; user-select:none;
+}
+.sd-tt-badge-grey  { background:#e5e7eb; color:#6b7280; }
+.sd-tt-badge-green { background:#dcfce7; color:#15803d; }
+.sd-tt-badge-amber { background:#fef3c7; color:#b45309; }
+.sd-tt .sd-tt-pop {
+    display:none; position:absolute; left:50%; transform:translateX(-50%);
+    bottom:calc(100% + 6px); white-space:nowrap;
+    background:#1e293b; color:#f1f5f9; font-size:10px; font-weight:500;
+    padding:5px 9px; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.25);
+    pointer-events:none; z-index:999; letter-spacing:.2px;
+}
+.sd-tt .sd-tt-pop::after {
+    content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+    border:5px solid transparent; border-top-color:#1e293b;
+}
+.sd-tt:hover .sd-tt-pop { display:block; }
+
 /* PAN / TAN fixed-width uppercase inputs */
 .pan-field input, .tan-field input {
     text-transform: uppercase;
