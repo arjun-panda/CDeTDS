@@ -22,6 +22,11 @@
                 <div class="ch-kpi"><span class="ch-kpi-lbl">Surcharge</span><span class="ch-kpi-val">₹@_items.Sum(x=>x.Surcharge).ToString("N0")</span></div>
                 <div class="ch-kpi-sep"></div>
                 <div class="ch-kpi"><span class="ch-kpi-lbl">Total Paid</span><span class="ch-kpi-val" style="color:#6a1b9a">₹@_items.Sum(x=>x.TotalAmount).ToString("N0")</span></div>
+                @if (_totalUnlinked > 0)
+                {
+                    <div class="ch-kpi-sep"></div>
+                    <div class="ch-kpi"><span class="ch-kpi-lbl">Unlinked</span><span class="ch-kpi-val" style="color:#b45309">@_totalUnlinked</span></div>
+                }
             </div>
         }
         <div style="flex:1"></div>
@@ -41,6 +46,24 @@
         </div>
     }
 </div>
+
+@* ── Unlinked entries warning ── *@
+@if (_totalUnlinked > 0)
+{
+    <div style="display:flex;flex-direction:column;gap:4px;background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:8px 14px;margin-bottom:10px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:700;color:#92400e">⚠ @_totalUnlinked unlinked TDS entr@(_totalUnlinked == 1 ? "y" : "ies") — link to a challan before generating the return</span>
+            <div style="flex:1"></div>
+            @foreach (var (q, n) in _unlinkedByQuarter.OrderBy(x => x.Key))
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                           Style="font-size:11px;padding:2px 10px;min-width:0"
+                           OnClick="() => LinkNow(q)">Link @n in @q</MudButton>
+            }
+        </div>
+        <span style="font-size:11px;color:#78350f">Open the challan edit dialog → check entries → Save. Or click "Link" to open the first challan for that quarter with unlinked entries shown.</span>
+    </div>
+}
 
 @if (_items.Count == 0)
 {
@@ -327,6 +350,10 @@ else
         else _expandedSections.Add(sec);
     }
 
+    // Unlinked entry counts per quarter
+    private Dictionary<string, int> _unlinkedByQuarter = new();
+    private int _totalUnlinked => _unlinkedByQuarter.Values.Sum();
+
     private bool _dialogOpen;
     private Challan? _editing;
     private DateTime? _challanDate;
@@ -350,10 +377,53 @@ else
     void Load()
     {
         _items = Svc.GetAll(AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null, AppState.CurrentFY);
-        // expand new sections; preserve existing collapse state
         foreach (var sec in _items.Select(c => string.IsNullOrEmpty(c.Section) ? "" : c.Section).Distinct())
             _expandedSections.Add(sec);
         RebuildView();
+        RefreshUnlinked();
+    }
+
+    void RefreshUnlinked()
+    {
+        _unlinkedByQuarter = new();
+        if (AppState.CurrentDeductorId == 0) return;
+        try
+        {
+            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"SELECT quarter, COUNT(1) FROM tds_entries
+                WHERE deductor_id=@d AND financial_year=@fy
+                  AND (challan_no IS NULL OR challan_no='')
+                  AND status NOT IN ('Adjusted')
+                GROUP BY quarter";
+            cmd.Parameters.AddWithValue("@d",  AppState.CurrentDeductorId);
+            cmd.Parameters.AddWithValue("@fy", AppState.CurrentFY);
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+            {
+                var q = rdr.GetString(0);
+                var n = rdr.GetInt32(1);
+                if (n > 0) _unlinkedByQuarter[q] = n;
+            }
+        }
+        catch { }
+    }
+
+    void LinkNow(string quarter)
+    {
+        // Open the first challan for this quarter so the user can link entries
+        var challan = _items.FirstOrDefault(c => c.Quarter == quarter)
+                   ?? _items.FirstOrDefault();
+        if (challan == null) { Snackbar.Add("No challans found. Add a challan first.", Severity.Warning); return; }
+        OpenEdit(challan);
+        // Override the entry list to show unlinked entries for this quarter (ignoring section filter)
+        _linkableEntries = EntrySvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY)
+            .Where(e => e.Quarter == quarter && e.Status != "Adjusted"
+                     && (string.IsNullOrEmpty(e.ChallanNo) || e.ChallanNo == challan.ChallanNo))
+            .OrderBy(e => e.EntryNo).ToList();
+        _previouslyLinkedIds = _linkableEntries.Where(e => e.ChallanNo == challan.ChallanNo && !string.IsNullOrEmpty(challan.ChallanNo))
+                                               .Select(e => e.Id).ToHashSet();
+        _selectedEntryIds = new HashSet<int>(_previouslyLinkedIds);
     }
 
     void Reload() { Load(); StateHasChanged(); }
@@ -533,7 +603,7 @@ else
             EntrySvc.LinkEntriesToChallan(_editing.ChallanNo, toLink, toUnlink);
         }
 
-        _dialogOpen = false; Load();
+        _dialogOpen = false; Load(); RefreshUnlinked();
         Snackbar.Add($"Challan saved. {_selectedEntryIds.Count} entries linked.", Severity.Success);
     }
 
