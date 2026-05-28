@@ -3651,42 +3651,61 @@
             seedEmp = _employees.FirstOrDefault(x => x.Id == _sdEmpId);
         }
         var seedSs  = seedEmp?.Salary;
-        if (_sdCurEntry != null)
+        // ── Determine field sources ──────────────────────────────────────────
+        // Locked entry  → everything from saved entry (preserves approved figures).
+        // Unlocked entry → structure fields from seedSs (always fresh); month-specific
+        //                  fields (Bonus, Arrears, LOP, TDS, LineItems, Perqs, LeaveEnc)
+        //                  from saved entry so user edits are not lost.
+        // No saved entry → seed everything from salary structure.
+        bool useStructure = !forceSeed && _sdCurEntry != null && !_sdCurEntry.IsLocked && seedSs != null;
+        bool useSaved     = _sdCurEntry != null;
+
+        if (useSaved && _sdCurEntry!.IsLocked)
         {
-            // Saved entry is authoritative — use as-is (written by user save or Monthly Run sync)
+            // Locked: fully authoritative from DB
             e = _sdCurEntry;
         }
-        else
+        else if (seedSs != null)
         {
-            // No saved entry — seed from employee's salary structure
+            // Unlocked or fresh: structure fields always come from seedSs
             e = new MonthlySalaryEntry
             {
-                Basic            = seedSs?.Basic             ?? 0,
-                HRA              = seedSs?.Hra               ?? 0,
-                DaAmount         = seedSs?.Da                ?? 0,
-                SpecialAllowance = seedSs?.SpecialAllowance  ?? 0,
-                MedicalAllowance = seedSs?.MedicalAllowance  ?? 0,
-                Lta              = seedSs?.Lta               ?? 0,
-                OtherAllowances  = seedSs?.OtherAllowance    ?? 0,
-                NpsEmployer      = seedSs?.EmployerNps       ?? 0,
-                PfEmployee       = seedSs != null && (seedSs.PfFixedAmount > 0 || seedSs.PfApplicable)
+                // ── Structure fields (always fresh from salary structure) ──
+                Basic            = seedSs.Basic,
+                HRA              = seedSs.Hra,
+                DaAmount         = seedSs.Da,
+                SpecialAllowance = seedSs.SpecialAllowance,
+                MedicalAllowance = seedSs.MedicalAllowance,
+                Lta              = seedSs.Lta,
+                OtherAllowances  = seedSs.OtherAllowance,
+                NpsEmployer      = seedSs.EmployerNps,
+                PfEmployee       = seedSs.PfApplicable
                                    ? (seedSs.PfFixedAmount > 0 ? seedSs.PfFixedAmount : Math.Round(seedSs.Basic * 0.12))
                                    : 0,
-                EsiEmployee      = seedSs != null && seedSs.EsiApplicable && seedSs.GrossSalary <= 21000
-                                   ? Math.Round(seedSs.GrossSalary * 0.0075)
-                                   : 0,
-                ProfessionalTax  = seedSs != null
-                                   ? PayrollService.GetPtPublic(seedSs.PtState, seedSs.GrossSalary)
-                                   : 0,
+                EsiEmployee      = seedSs.EsiApplicable && seedSs.GrossSalary <= 21000
+                                   ? Math.Round(seedSs.GrossSalary * 0.0075) : 0,
+                ProfessionalTax  = PayrollService.GetPtPublic(seedSs.PtState, seedSs.GrossSalary),
+                // ── Month-specific fields: from saved entry if exists, else zero ──
+                Bonus            = useSaved ? _sdCurEntry!.Bonus         : 0,
+                Commission       = useSaved ? _sdCurEntry!.Commission    : 0,
+                AdvanceSalary    = useSaved ? _sdCurEntry!.AdvanceSalary : 0,
+                Arrears          = useSaved ? _sdCurEntry!.Arrears       : 0,
+                LopDays          = useSaved ? _sdCurEntry!.LopDays       : 0,
+                TdsDeducted      = useSaved ? _sdCurEntry!.TdsDeducted   : 0,
+                TaxComputed      = useSaved ? _sdCurEntry!.TaxComputed   : 0,
+                VPF              = useSaved ? _sdCurEntry!.VPF           : 0,
+                PerqTotal        = useSaved ? _sdCurEntry!.PerqTotal     : 0,
+                PerqExempted     = useSaved ? _sdCurEntry!.PerqExempted  : 0,
+                LeaveEncTotal    = useSaved ? _sdCurEntry!.LeaveEncTotal    : 0,
+                LeaveEncExempted = useSaved ? _sdCurEntry!.LeaveEncExempted : 0,
             };
-            // Seed monthly line items from Section 5 Custom Components.
-            //   Component.Paid (bills/exempt portion) → LineItem.Exempt
-            //   Component.Received - Paid              → LineItem.Taxable
-            // Category mapping:
-            //   allowance / reimbursement → "other"  (shows under Other Allowances)
-            //   perquisite                → "perq"   (shows under Perquisites)
-            //   variable                  → skipped (handled by monthly Bonus row)
-            if (seedSs != null)
+            // Line items: from saved entry if exists (preserves perq/reimb edits);
+            // else seed from salary structure components
+            if (useSaved && _sdCurEntry!.LineItems?.Count > 0)
+            {
+                e.LineItems = _sdCurEntry!.LineItems;
+            }
+            else
             {
                 foreach (var c in seedSs.Components)
                 {
@@ -3695,21 +3714,24 @@
                     e.LineItems.Add(new SalaryLineItem {
                         Category = cat, Name = c.Name,
                         Taxable  = Math.Max(0, c.Received - c.Paid),
-                        Exempt   = c.Paid,
-                        RuleRef  = c.RuleRef
+                        Exempt   = c.Paid, RuleRef = c.RuleRef
                     });
                 }
             }
         }
-        // populate fields
+        else
+        {
+            // No salary structure at all — use saved entry or empty
+            e = _sdCurEntry ?? new MonthlySalaryEntry();
+        }
+
+        // ── Populate UI fields ───────────────────────────────────────────────
         _sdBasic = e.Basic; _sdGradePay = e.GradePay; _sdHra = e.HRA; _sdDaAmt = e.DaAmount;
-        // Detect if HRA matches auto-computed value (within ₹1) — keep auto flag, else mark manual
         var autoHra = Math.Round(_sdBasic * _sdHraPct / 100.0);
         _sdHraAuto = Math.Abs(_sdHra - autoHra) <= 1;
         _sdSpecial = e.SpecialAllowance; _sdLta = e.Lta;
         _sdLtaTaxable = _sdLta; _sdLtaExempt = 0;
         _sdPerqLines.Clear(); _sdOtherLines.Clear();
-        // Restore persisted named line items
         foreach (var li in e.LineItems ?? new List<TDSPro.DAL.Models.SalaryLineItem>())
         {
             if (li.Category == "perq")
@@ -3718,28 +3740,12 @@
                 _sdOtherLines.Add((li.Name, li.Taxable, li.Exempt, li.RuleRef));
         }
         _sdBonus = e.Bonus; _sdCommission = e.Commission; _sdAdvance = e.AdvanceSalary;
-        // Saved OtherAllowances = balance + sum(other line items). Recover pure balance.
         var _otherLinesSum = _sdOtherLines.Sum(l => l.Taxable + l.Exempt);
         _sdArrears = e.Arrears; _sdOther = Math.Max(0, e.OtherAllowances - _otherLinesSum); _sdNpsEmployer = e.NpsEmployer;
         _sdPerqTotal = e.PerqTotal; _sdPerqExempted = e.PerqExempted;
         _sdLeaveEnc = e.LeaveEncTotal; _sdLeaveEncEx = e.LeaveEncExempted;
-        // For unlocked entries: always recalc PF/ESI from current salary structure so a
-        // change to PfFixedAmount is reflected automatically without a manual Reset.
-        // Locked entries preserve whatever was deducted at the time of approval.
-        if (!e.IsLocked && seedSs != null)
-        {
-            _sdPf = seedSs.PfApplicable
-                ? (seedSs.PfFixedAmount > 0 ? seedSs.PfFixedAmount : Math.Round(seedSs.Basic * 0.12))
-                : 0;
-            _sdEsi = seedSs.EsiApplicable && seedSs.GrossSalary <= 21000
-                ? Math.Round(seedSs.GrossSalary * 0.0075) : 0;
-        }
-        else
-        {
-            _sdPf = e.PfEmployee;
-            _sdEsi = e.EsiEmployee;
-        }
-        _sdVpf = e.VPF; _sdPt = e.ProfessionalTax;
+        _sdPf = e.PfEmployee; _sdVpf = e.VPF; _sdPt = e.ProfessionalTax;
+        _sdEsi = e.EsiEmployee;
         _sdTds = e.TdsDeducted;
         _sdLopDays = e.LopDays;
         _sdVarEarnRows = new();
