@@ -102,7 +102,7 @@ namespace TDSPro.BLL
     {
         private readonly DeducteeRepository _repo = new();
 
-        public List<Deductee> GetAll() => _repo.GetAll();
+        public List<Deductee> GetAll(bool includeEmployees = false) => _repo.GetAll(includeEmployees);
         public Deductee? GetById(int id) => _repo.GetById(id);
 
         public (bool Ok, string Msg) Save(Deductee d)

@@ -131,12 +131,14 @@ namespace TDSPro.DAL.Repositories
     // ── Deductee Repository ───────────────────────────────────────────────────
     public class DeducteeRepository
     {
-        public List<Deductee> GetAll()
+        public List<Deductee> GetAll(bool includeEmployees = false)
         {
             var list = new List<Deductee>();
             using var conn = Database.GetConnection();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM deductees WHERE (deductee_code IS NULL OR deductee_code NOT LIKE 'EMP-%') ORDER BY name";
+            cmd.CommandText = includeEmployees
+                ? "SELECT * FROM deductees ORDER BY name"
+                : "SELECT * FROM deductees WHERE (deductee_code IS NULL OR deductee_code NOT LIKE 'EMP-%') ORDER BY name";
             using var r = cmd.ExecuteReader();
             while (r.Read()) list.Add(Map(r));
             return list;
