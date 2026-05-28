@@ -79,17 +79,19 @@ namespace TDSPro.DAL
                 if (string.IsNullOrEmpty(reqId))
                     return Fail($"Pre-login: reqId not found. Response: {r1.body[..Math.Min(300, r1.body.Length)]}");
 
-                // Log cookies received after step 1
-                var cookieList = cookies.GetAllCookies();
-                var cookieDebug = string.Join(", ", cookieList.Cast<Cookie>().Select(c => $"{c.Name}={c.Value[..Math.Min(8,c.Value.Length)]}.."));
-                progress?.Report($"Step 1 OK. reqId={reqId}. Cookies: {cookieDebug}");
+                // Extract XSRF / CSRF token from cookies — portal requires it as a header in Step 2
+                var allCookies  = cookies.GetAllCookies().Cast<Cookie>().ToList();
+                var xsrfToken   = allCookies.FirstOrDefault(c =>
+                    c.Name.Equals("XSRF-TOKEN",  StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.Equals("_csrf",        StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.Equals("csrf-token",   StringComparison.OrdinalIgnoreCase))?.Value ?? "";
+                var cookieDebug = string.Join(", ", allCookies.Select(c => c.Name));
+                progress?.Report($"Step 1 OK. reqId={reqId}. Cookies: {cookieDebug}. XSRF={xsrfToken[..Math.Min(8, xsrfToken.Length)]}..");
 
                 // ── Step 2: password submit ────────────────────────────────────
                 progress?.Report("Step 2: Submitting credentials…");
 
-                // Portal expects password as base64(password) in `pass` field
                 var passB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
-                // Field order and names must match browser payload exactly
                 var step2 = JsonSerializer.Serialize(new
                 {
                     errors                = Array.Empty<object>(),
@@ -120,9 +122,16 @@ namespace TDSPro.DAL
                     imagePath             = (string?)null,
                     serviceName           = "loginService",
                 });
-                progress?.Report($"Step 2 payload len={step2.Length}, passB64={passB64[..Math.Min(10,passB64.Length)]}..");
-                var r2 = await PostJsonWithHeaders(http, LoginUrl, step2,
-                    new[] { ("sn", "loginService") });
+
+                // Build Step 2 headers — include XSRF token if present
+                var step2Headers = new List<(string, string)> { ("sn", "loginService") };
+                if (!string.IsNullOrEmpty(xsrfToken))
+                {
+                    step2Headers.Add(("X-XSRF-TOKEN",  xsrfToken));
+                    step2Headers.Add(("X-CSRF-TOKEN",  xsrfToken));
+                }
+                progress?.Report($"Step 2 sending… passB64={passB64[..Math.Min(10,passB64.Length)]}..");
+                var r2 = await PostJsonWithHeaders(http, LoginUrl, step2, step2Headers.ToArray());
                 if (!r2.ok)
                     return Fail($"Login failed (HTTP {r2.status}): {r2.body[..Math.Min(300, r2.body.Length)]}");
 
