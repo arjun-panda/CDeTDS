@@ -79,6 +79,9 @@ namespace TDSPro.DAL.Models
         // ── Named line items (persisted in salary_line_items) ────────────────
         public List<SalaryLineItem> LineItems { get; set; } = new();
 
+        // Sum of variable deduction line items — subtracted from NetSalary
+        public double VarDedTotal => LineItems.Where(l => l.Category == "varDed").Sum(l => l.Taxable);
+
         // ── HELPERS ─────────────────────────────────────────────────────────
         public string MonthName => System.Globalization.CultureInfo.InvariantCulture
             .DateTimeFormat.GetAbbreviatedMonthName(Month);
@@ -100,7 +103,7 @@ namespace TDSPro.DAL.Models
             // LeaveEncExempted is the leave encashment Sec 10(10AA) exemption
             GrossTaxableSalary = GrossPayment - PerqExempted - LeaveEncExempted;
 
-            NetSalary = GrossPayment - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted;
+            NetSalary = GrossPayment - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted - VarDedTotal;
         }
     }
 

@@ -3776,8 +3776,6 @@
         var otherLinesExempt = _sdOtherLines.Sum(l => l.Exempt);
         var perqLinesTotal   = _sdPerqLines.Sum(l => l.Taxable + l.Exempt);
         var perqLinesExempt  = _sdPerqLines.Sum(l => l.Exempt);
-        var varDedTotal      = _sdVarDedRows.Sum(r => r.Amount);
-
         var entry = new MonthlySalaryEntry
         {
             Id = _sdCurEntry?.Id ?? 0,
@@ -3799,9 +3797,6 @@
             ApprovedAt  = _sdCurEntry?.ApprovedAt  ?? "",
             ApprovedBy  = _sdCurEntry?.ApprovedBy  ?? "",
         };
-        // Variable deductions reduce net salary
-        entry.NetSalary -= varDedTotal;
-
         foreach (var ln in _sdOtherLines)
             entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "other",   Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
         foreach (var ln in _sdPerqLines)
