@@ -37,6 +37,10 @@ namespace TDSPro.DAL
             entry.RecalcGross();
 
             // ── Earnings rows — only non-zero (except Basic which always shows) ──
+            double htmlVarEarnSum   = entry.LineItems.Where(l => l.Category == "varEarn").Sum(l => l.Taxable);
+            double htmlOtherLineSum = entry.LineItems.Where(l => l.Category == "other").Sum(l => l.Taxable + l.Exempt);
+            double htmlOtherBalance = Math.Max(0, entry.OtherAllowances - htmlVarEarnSum - htmlOtherLineSum);
+
             var allEarnings = new List<(string Label, double Amount)>
             {
                 ("Basic Salary",                  entry.Basic),
@@ -49,11 +53,17 @@ namespace TDSPro.DAL
                 ("Commission",                     entry.Commission),
                 ("Advance Salary",                 entry.AdvanceSalary),
                 ("Arrears",                        entry.Arrears),
-                ("Other Allowances",               entry.OtherAllowances),
+                ("Other Allowances",               htmlOtherBalance),
                 ("NPS (Employer)",                 entry.NpsEmployer),
                 ("Perquisites [taxable]",          entry.PerqTaxable),
                 ("Leave Encashment [taxable]",     entry.LeaveEncTaxable),
             };
+            // Insert named varEarn rows (e.g. Incentive, Joining Bonus) after Arrears
+            foreach (var li in entry.LineItems.Where(l => l.Category == "varEarn" && l.Taxable != 0))
+                allEarnings.Insert(allEarnings.FindIndex(x => x.Label == "Other Allowances"), (li.Name, li.Taxable));
+            // Insert named other-allowance rows before NPS
+            foreach (var ol in entry.LineItems.Where(l => l.Category == "other" && (l.Taxable + l.Exempt) != 0))
+                allEarnings.Insert(allEarnings.FindIndex(x => x.Label == "NPS (Employer)"), (ol.Name, ol.Taxable + ol.Exempt));
             var earnings = allEarnings.Where(x => x.Amount != 0 || x.Label == "Basic Salary").ToList();
 
             // ── Deduction rows — only non-zero ───────────────────────────────
@@ -268,6 +278,10 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             entry.RecalcGross();
             string monthLabel = MonthYear(entry.Month, entry.Year);
 
+            double pdfVarEarnSum   = entry.LineItems.Where(l => l.Category == "varEarn").Sum(l => l.Taxable);
+            double pdfOtherLineSum = entry.LineItems.Where(l => l.Category == "other").Sum(l => l.Taxable + l.Exempt);
+            double pdfOtherBalance = Math.Max(0, entry.OtherAllowances - pdfVarEarnSum - pdfOtherLineSum);
+
             var earnings = new List<(string Label, double Amount)>
             {
                 ("Basic Salary",                  entry.Basic),
@@ -280,11 +294,16 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
                 ("Commission",                     entry.Commission),
                 ("Advance Salary",                 entry.AdvanceSalary),
                 ("Arrears",                        entry.Arrears),
-                ("Other Allowances",               entry.OtherAllowances),
+                ("Other Allowances",               pdfOtherBalance),
                 ("NPS (Employer)",                 entry.NpsEmployer),
                 ("Perquisites [taxable]",          entry.PerqTaxable),
                 ("Leave Encashment [taxable]",     entry.LeaveEncTaxable),
-            }.Where(x => x.Amount != 0 || x.Label == "Basic Salary").ToList();
+            };
+            foreach (var li in entry.LineItems.Where(l => l.Category == "varEarn" && l.Taxable != 0))
+                earnings.Insert(earnings.FindIndex(x => x.Label == "Other Allowances"), (li.Name, li.Taxable));
+            foreach (var ol in entry.LineItems.Where(l => l.Category == "other" && (l.Taxable + l.Exempt) != 0))
+                earnings.Insert(earnings.FindIndex(x => x.Label == "NPS (Employer)"), (ol.Name, ol.Taxable + ol.Exempt));
+            earnings = earnings.Where(x => x.Amount != 0 || x.Label == "Basic Salary").ToList();
 
             int lopDays       = entry.LopDays;
             double lopAmount  = lopDays > 0 ? Math.Round(entry.Basic * lopDays / 30.0, 0) : 0;
@@ -602,6 +621,10 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
                          + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
             double net   = gross - ded;
 
+            double xlVarEarnSum   = entry.LineItems.Where(l => l.Category == "varEarn").Sum(l => l.Taxable);
+            double xlOtherLineSum = entry.LineItems.Where(l => l.Category == "other").Sum(l => l.Taxable + l.Exempt);
+            double xlOtherBalance = Math.Max(0, entry.OtherAllowances - xlVarEarnSum - xlOtherLineSum);
+
             var earns = new List<(string, double)> {
                 ("Basic Salary",               entry.Basic),
                 ("House Rent Allowance",        entry.HRA),
@@ -613,11 +636,16 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
                 ("Commission",                  entry.Commission),
                 ("Advance Salary",              entry.AdvanceSalary),
                 ("Arrears",                     entry.Arrears),
-                ("Other Allowances",            entry.OtherAllowances),
+                ("Other Allowances",            xlOtherBalance),
                 ("NPS (Employer)",              entry.NpsEmployer),
                 ("Perquisites (Taxable)",       entry.PerqTaxable),
                 ("Leave Enc. (Taxable)",        entry.LeaveEncTaxable),
-            }.Where(x => x.Item2 != 0 || x.Item1 == "Basic Salary").ToList();
+            };
+            foreach (var li in entry.LineItems.Where(l => l.Category == "varEarn" && l.Taxable != 0))
+                earns.Insert(earns.FindIndex(x => x.Item1 == "Other Allowances"), (li.Name, li.Taxable));
+            foreach (var ol in entry.LineItems.Where(l => l.Category == "other" && (l.Taxable + l.Exempt) != 0))
+                earns.Insert(earns.FindIndex(x => x.Item1 == "NPS (Employer)"), (ol.Name, ol.Taxable + ol.Exempt));
+            earns = earns.Where(x => x.Item2 != 0 || x.Item1 == "Basic Salary").ToList();
 
             var dedsList = new List<(string, double)> {
                 ("Loss of Pay",          xlLopAmount),
