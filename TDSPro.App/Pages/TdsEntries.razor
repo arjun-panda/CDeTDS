@@ -277,7 +277,8 @@
                 <MudItem xs="5">
                     <MudNumericField T="double?" Value="@(_editing.TdsAmount == 0 ? null : (double?)_editing.TdsAmount)"
                                      Label="TDS (₹)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0"
-                                     Placeholder="0" HideSpinButtons="true" Class="amount-field" ReadOnly="true" />
+                                     Placeholder="0" HideSpinButtons="true" Class="amount-field" ReadOnly="true"
+                                     UserAttributes="@(new Dictionary<string,object>{ ["tabindex"] = "-1" })" />
                 </MudItem>
 
                 @* Row 4 — Remarks *@
