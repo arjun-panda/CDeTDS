@@ -555,7 +555,7 @@
     void BuildPortalCards()
     {
         var tracesUser = Database.GetSetting("TracesTan", AppState.CurrentDeductorTan);
-        var itUser     = Database.GetSetting("ItPortalUserId", "");
+        var itUser     = Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
         var tinUser    = Database.GetSetting("TinNsdlTan", AppState.CurrentDeductorTan);
         _portalCards = new()
         {
@@ -907,7 +907,7 @@
         _uploadLoggingIn = true;
         StateHasChanged();
 
-        var result = await UploadSvc.LoginAndOpenAsync();   // silent — no progress log
+        var result = await UploadSvc.LoginAndOpenAsync(AppState.CurrentDeductorId);
 
         _uploadLoggingIn = false;
 
@@ -925,8 +925,8 @@
 
     private async Task DownloadCsi()
     {
-        var tan      = TDSPro.DAL.Database.GetSetting("ItPortalUserId", "");
-        var password = TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", "");
+        var tan      = TDSPro.DAL.Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
+        var password = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{AppState.CurrentDeductorId}", "");
         if (string.IsNullOrEmpty(tan) || string.IsNullOrEmpty(password))
         {
             Snackbar.Add("IT Portal credentials not set. Go to Settings → IT Portal.", Severity.Warning);

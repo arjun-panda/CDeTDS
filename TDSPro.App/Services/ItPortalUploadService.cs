@@ -20,10 +20,12 @@ namespace TDSPro.App.Services
 
         public record UploadLoginResult(bool Success, string? Error);
 
-        public Task<UploadLoginResult> LoginAndOpenAsync(IProgress<string>? progress = null)
+        public Task<UploadLoginResult> LoginAndOpenAsync(int deductorId = 0, IProgress<string>? progress = null)
         {
-            var tan      = TDSPro.DAL.Database.GetSetting("ItPortalUserId", "").Trim().ToUpper();
-            var password = TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", "");
+            var key      = deductorId > 0 ? $"ItPortalUserId_{deductorId}" : "ItPortalUserId";
+            var passKey  = deductorId > 0 ? $"ItPortalPassword_{deductorId}" : "ItPortalPassword";
+            var tan      = TDSPro.DAL.Database.GetSetting(key, "").Trim().ToUpper();
+            var password = TDSPro.DAL.AesEncryption.LoadCredential(passKey, "");
 
             if (string.IsNullOrWhiteSpace(tan))
                 return Task.FromResult(new UploadLoginResult(false,

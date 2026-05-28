@@ -29,10 +29,12 @@ namespace TDSPro.DAL
         }
 
         public static async Task<CsiResult> DownloadAsync(string quarter, string fy,
-            IProgress<string>? progress = null)
+            IProgress<string>? progress = null, int deductorId = 0)
         {
-            var tan      = Database.GetSetting("ItPortalUserId");
-            var password = AesEncryption.LoadCredential("ItPortalPassword");
+            var key      = deductorId > 0 ? $"ItPortalUserId_{deductorId}" : "ItPortalUserId";
+            var passKey  = deductorId > 0 ? $"ItPortalPassword_{deductorId}" : "ItPortalPassword";
+            var tan      = Database.GetSetting(key);
+            var password = AesEncryption.LoadCredential(passKey);
 
             if (string.IsNullOrWhiteSpace(tan))
                 return Fail("IT Portal TAN not configured. Set it in Portals page.");

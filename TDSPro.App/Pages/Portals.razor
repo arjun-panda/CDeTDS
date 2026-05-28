@@ -239,7 +239,7 @@
     {
         _tracesUser = Database.GetSetting("TracesUserId", "");
         _tracesTan  = Database.GetSetting("TracesTan",    AppState.CurrentDeductorTan);
-        _itUser     = Database.GetSetting("ItPortalUserId", "");
+        _itUser     = Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
         _itPan      = Database.GetSetting("ItPortalPan",    "");
         _tinUser    = Database.GetSetting("TinNsdlTan",  AppState.CurrentDeductorTan);
     }
@@ -271,11 +271,11 @@
 
     void SaveItPortal()
     {
-        Database.SetSetting("ItPortalUserId", _itUser);
+        Database.SetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", _itUser);
         Database.SetSetting("ItPortalPan",    _itPan);
         if (!string.IsNullOrEmpty(_itPass))
         {
-            AesEncryption.SaveCredential("ItPortalPassword", _itPass);
+            AesEncryption.SaveCredential($"ItPortalPassword_{AppState.CurrentDeductorId}", _itPass);
             _itPass = "";
         }
         Snackbar.Add("IT Portal credentials saved.", Severity.Success);
@@ -284,9 +284,9 @@
     void ClearItPortal()
     {
         _itUser = _itPass = _itPan = "";
-        Database.SetSetting("ItPortalUserId", "");
+        Database.SetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
         Database.SetSetting("ItPortalPan", "");
-        AesEncryption.ClearCredential("ItPortalPassword");
+        AesEncryption.ClearCredential($"ItPortalPassword_{AppState.CurrentDeductorId}");
         Snackbar.Add("IT Portal credentials cleared.", Severity.Info);
     }
 

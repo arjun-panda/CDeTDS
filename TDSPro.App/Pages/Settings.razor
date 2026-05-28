@@ -763,8 +763,9 @@
         _javaPath     = Database.GetSetting("JavaPath", "");
         _localFvuVersion = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
         _tracesUserId     = Database.GetSetting("TracesUserId", "");
-        _itPortalUserId   = Database.GetSetting("ItPortalUserId", "");
-        _itPortalPassword = Database.GetSetting("ItPortalPassword", "");
+        var _did = AppState.CurrentDeductorId;
+        _itPortalUserId   = Database.GetSetting($"ItPortalUserId_{_did}", "");
+        _itPortalPassword = _did > 0 ? AesEncryption.LoadCredential($"ItPortalPassword_{_did}") : "";
         _dueSoonDays  = int.TryParse(Database.GetSetting("DueSoonDays", "7"), out var d) ? d : 7;
         _dbPath       = Path.Combine(AppState.AppDataPath, "TDSPro.db");
         LoadBackupFiles();
@@ -792,8 +793,9 @@
             _itPortalSaveSeverity = Severity.Warning;
             return;
         }
-        Database.SetSetting("ItPortalUserId", _itPortalUserId.Trim().ToUpperInvariant());
-        AesEncryption.SaveCredential("ItPortalPassword", _itPortalPassword);
+        var did = AppState.CurrentDeductorId;
+        Database.SetSetting($"ItPortalUserId_{did}", _itPortalUserId.Trim().ToUpperInvariant());
+        AesEncryption.SaveCredential($"ItPortalPassword_{did}", _itPortalPassword);
         _itPortalSaveMsg = "IT Portal credentials saved.";
         _itPortalSaveSeverity = Severity.Success;
     }
@@ -1157,11 +1159,12 @@
     void SavePortalCreds()
     {
         Database.SetSetting("TracesUserId",   _tracesUserId);
-        Database.SetSetting("ItPortalUserId", _itPortalUserId);
+        var did2 = AppState.CurrentDeductorId;
+        Database.SetSetting($"ItPortalUserId_{did2}", _itPortalUserId);
         if (!string.IsNullOrEmpty(_tracesPassword))
             Database.SetSetting("TracesPassword",   Database.HashPassword(_tracesPassword));
         if (!string.IsNullOrEmpty(_itPortalPassword))
-            AesEncryption.SaveCredential("ItPortalPassword", _itPortalPassword);
+            AesEncryption.SaveCredential($"ItPortalPassword_{did2}", _itPortalPassword);
         _tracesPassword = _itPortalPassword = "";
         Snackbar.Add("Portal credentials saved.", Severity.Success);
     }
