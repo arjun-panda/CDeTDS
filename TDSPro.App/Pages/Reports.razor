@@ -583,18 +583,18 @@
             else
             {
                 @* Employee × Month table *@
-                <div style="overflow:auto;max-height:calc(100vh - 260px);border:1px solid #e0e0e0;border-radius:8px">
-                    <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="min-width:900px;margin:0">
+                <div style="overflow:auto;max-height:calc(100vh - 260px);border:1px solid #e0e0e0;border-radius:8px;width:100%">
+                    <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="min-width:1400px;width:100%;margin:0">
                         <thead>
                             <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
-                                <th>Code</th>
-                                <th>Employee</th>
-                                <th>PAN</th>
+                                <th style="white-space:nowrap;min-width:80px">Code</th>
+                                <th style="min-width:140px">Employee</th>
+                                <th style="min-width:110px;font-family:monospace">PAN</th>
                                 @foreach (var m in _fyMonthLabels)
-                                { <th style="text-align:right;font-size:10px">@m</th> }
-                                <th style="text-align:right">Total Gross</th>
-                                <th style="text-align:right">Total TDS</th>
-                                <th style="text-align:right">Total Net</th>
+                                { <th style="text-align:right;font-size:10px;min-width:72px;white-space:nowrap">@m</th> }
+                                <th style="text-align:right;min-width:90px;white-space:nowrap">Total Gross</th>
+                                <th style="text-align:right;min-width:80px;white-space:nowrap">Total TDS</th>
+                                <th style="text-align:right;min-width:80px;white-space:nowrap">Total Net</th>
                             </tr>
                         </thead>
                         <tbody>
