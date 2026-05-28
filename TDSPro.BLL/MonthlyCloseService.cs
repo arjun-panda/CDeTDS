@@ -48,14 +48,25 @@ namespace TDSPro.BLL
                 if (existing != null)
                 {
                     var row = MonthlyCloseRow.FromEntry(existing, emp);
-                    // For unlocked rows, refresh PF from current salary structure so changes
-                    // to PfFixedAmount are picked up without requiring a manual Reset.
+                    // Locked: DB is authoritative. Unlocked: always refresh structure fields
+                    // (Basic, HRA, DA, Special, LTA, Other, PF, ESI) from current salary
+                    // structure so any salary revision is reflected without manual Reset.
+                    // Month-specific fields (Bonus, Arrears, LOP, TDS, status) are kept
+                    // from the saved entry.
                     if (!existing.IsLocked && emp.Salary != null)
                     {
                         var ss2 = emp.Salary;
-                        row.Pf = ss2.PfApplicable
-                            ? (ss2.PfFixedAmount > 0 ? ss2.PfFixedAmount : Math.Round(row.Basic * 0.12))
+                        row.Basic   = ss2.Basic;
+                        row.Hra     = ss2.Hra;
+                        row.Da      = ss2.Da;
+                        row.Special = ss2.SpecialAllowance;
+                        row.Lta     = ss2.Lta;
+                        row.Other   = ss2.ComponentsReceived();
+                        row.Pf      = ss2.PfApplicable
+                            ? (ss2.PfFixedAmount > 0 ? ss2.PfFixedAmount : Math.Round(ss2.Basic * 0.12))
                             : 0;
+                        row.Esi     = ss2.EsiApplicable && ss2.GrossSalary <= 21000
+                            ? Math.Round(ss2.GrossSalary * 0.0075) : 0;
                     }
                     rows.Add(row);
                     continue;
