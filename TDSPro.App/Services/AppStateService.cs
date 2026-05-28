@@ -76,7 +76,48 @@ namespace TDSPro.App
             CurrentDeductorTan  = tan;
             FolderManager.SetCompany(tan, name);
             try { Database.SetSetting("LAST_DEDUCTOR_ID", id.ToString()); } catch { }
+            MigrateGlobalCredentials(id);
             NotifyChanged();
+        }
+
+        // One-time migration: move old global credential keys → per-deductor keys.
+        // Runs each time a deductor is selected; no-ops once scoped keys are populated.
+        private static void MigrateGlobalCredentials(int id)
+        {
+            try
+            {
+                var pairs = new[]
+                {
+                    ("ItPortalUserId",  $"ItPortalUserId_{id}"),
+                    ("ItPortalPan",     $"ItPortalPan_{id}"),
+                    ("TracesUserId",    $"TracesUserId_{id}"),
+                    ("TracesTan",       $"TracesTan_{id}"),
+                    ("TinNsdlTan",      $"TinNsdlTan_{id}"),
+                };
+                foreach (var (oldKey, newKey) in pairs)
+                {
+                    if (!string.IsNullOrEmpty(Database.GetSetting(newKey))) continue; // already migrated
+                    var val = Database.GetSetting(oldKey);
+                    if (!string.IsNullOrEmpty(val))
+                        Database.SetSetting(newKey, val);
+                }
+
+                // Encrypted credentials
+                var credPairs = new[]
+                {
+                    ("ItPortalPassword",  $"ItPortalPassword_{id}"),
+                    ("TracesPassword",    $"TracesPassword_{id}"),
+                    ("TinNsdlPassword",   $"TinNsdlPassword_{id}"),
+                };
+                foreach (var (oldKey, newKey) in credPairs)
+                {
+                    if (!string.IsNullOrEmpty(AesEncryption.LoadCredential(newKey))) continue;
+                    var val = AesEncryption.LoadCredential(oldKey);
+                    if (!string.IsNullOrEmpty(val))
+                        AesEncryption.SaveCredential(newKey, val);
+                }
+            }
+            catch { }
         }
 
         public void NotifyStateChanged() => OnChange?.Invoke();
