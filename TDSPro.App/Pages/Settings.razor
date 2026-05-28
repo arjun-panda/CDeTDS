@@ -1283,11 +1283,11 @@
     }
 
     bool IsQuarterFiled(int q)
-        => Database.GetSetting($"Q{q}_Filed_{AppState.CurrentFY}", "0") == "1";
+        => Database.GetSetting($"Q{q}_Filed_{AppState.CurrentDeductorId}_{AppState.CurrentFY}", "0") == "1";
 
     void SetQuarterFiled(int q, bool v)
     {
-        Database.SetSetting($"Q{q}_Filed_{AppState.CurrentFY}", v ? "1" : "0");
+        Database.SetSetting($"Q{q}_Filed_{AppState.CurrentDeductorId}_{AppState.CurrentFY}", v ? "1" : "0");
         Snackbar.Add($"Q{q} marked as {(v ? "filed" : "not filed")}.", Severity.Info);
     }
 
