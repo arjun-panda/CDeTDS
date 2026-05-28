@@ -914,7 +914,6 @@
         @* ── Top toolbar: month picker + counts + Bulk Actions (single compact line) ── *@
         @{
             var _statusCount = _sdEmpStatus.Values.GroupBy(s => s).ToDictionary(g => g.Key, g => g.Count());
-            _statusCount.TryGetValue("Locked", out var _cntLocked);
             _statusCount.TryGetValue("Draft",  out var _cntDraft);
             _statusCount.TryGetValue("Skip",   out var _cntSkip);
         }
@@ -928,7 +927,6 @@
                 }
             </div>
             <div style="flex:1"></div>
-            <span style="font-size:11px;color:#15803d;white-space:nowrap">🔒 @_cntLocked</span>
             <span style="font-size:11px;color:#b45309;white-space:nowrap">📝 @_cntDraft</span>
             <span style="font-size:11px;color:#dc2626;white-space:nowrap">⏸ @_cntSkip</span>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
@@ -962,7 +960,6 @@
                     var isActive = _sdEmpId == emp.Id;
                     var (icon, color) = status switch
                     {
-                        "Locked" => ("🔒", "#15803d"),
                         "Draft"  => ("📝", "#b45309"),
                         "Skip"   => ("⏸",  "#dc2626"),
                         _        => ("○",  "#94a3b8")
@@ -1613,21 +1610,9 @@
                 <!-- Action bar -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;border-top:2px solid #f1f5f9;padding-top:12px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-                        <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" disabled="@(_sdCurEntry?.IsLocked == true)" style="background:#15803d;box-shadow:0 1px 3px rgba(21,128,61,.35)">💾 Save</button>
-                        @if (_sdCurEntry?.IsLocked == true)
-                        {
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#d97706;color:#92400e;background:#fffbeb" @onclick="SdUnlockMonth">🔓 Unlock</button>
-                        }
-                        else
-                        {
-                            <button class="sd-btn sd-btn-outlined" style="border-color:#16a34a;color:#15803d;background:#f0fdf4" @onclick="SdApproveLock">🔒 Lock</button>
-                        }
-                        <button class="sd-btn sd-btn-outlined" style="border-color:#fca5a5;color:#dc2626" @onclick="SdResetFromStructure" disabled="@(_sdCurEntry?.IsLocked == true)" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
+                        <button class="sd-btn sd-btn-success" @onclick="SdSaveMonth" style="background:#15803d;box-shadow:0 1px 3px rgba(21,128,61,.35)">💾 Save</button>
+                        <button class="sd-btn sd-btn-outlined" style="border-color:#fca5a5;color:#dc2626" @onclick="SdResetFromStructure" title="Discard saved values and re-seed from salary structure">♻ Reset</button>
                         <button class="sd-btn sd-btn-outlined" style="border-color:#c4b5fd;color:#7c3aed" @onclick="SdCopyToAll" title="Copy current month to all remaining months">📋 Copy Forward</button>
-                        @if (_sdCurEntry?.IsLocked == true)
-                        {
-                            <span style="font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;border-radius:5px;padding:4px 10px">🔒 Locked @_sdCurEntry.ApprovedAt</span>
-                        }
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
                         <div style="position:relative;display:inline-block">
@@ -1670,15 +1655,13 @@
             <TitleContent>
                 @{
                     var _mcMonth = _sdMonth > 0 ? new DateTime(SalaryService.CalendarYear(AppState.CurrentFY, _sdMonth), _sdMonth, 1).ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture) : "";
-                    var _mcLocked   = _bulkRows.Count(r => r.IsLocked);
-                    var _mcUnlocked = _bulkRows.Count(r => !r.IsLocked);
                     var _mcSkip     = _bulkRows.Count(r => r.Status == "Skip");
                     var _mcSelRows  = _bulkRows.Where(r => _sdBulkSel.TryGetValue(r.EmployeeId, out var v) && v).ToList();
                 }
                 <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;width:100%">
                     <div>
                         <div style="font-size:18px;font-weight:700;color:#111827">Monthly Close — @_mcMonth</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:1px">FY @AppState.CurrentFY &nbsp;·&nbsp; @_mcLocked locked &nbsp;·&nbsp; @_mcUnlocked unlocked @(_mcSkip > 0 ? $" · {_mcSkip} skip" : "")</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:1px">FY @AppState.CurrentFY @(_mcSkip > 0 ? $" · {_mcSkip} skip" : "")</div>
                     </div>
                     <div style="flex:1"></div>
                     @* Summary KPIs *@
@@ -1700,10 +1683,6 @@
                             <div style="font-size:14px;font-weight:700;color:#e65100">₹@_mcSelRows.Sum(r=>r.Tds).ToString("N0")</div>
                         </div>
                     </div>
-                    @if (_sdBulkEdit)
-                    {
-                        <div style="background:#fff3e0;border:1px solid #fbbf24;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;color:#92400e">✏ EDIT MODE</div>
-                    }
                 </div>
             </TitleContent>
             <DialogContent>
@@ -1720,14 +1699,9 @@
                         <div style="background:#e0f2fe;border-radius:6px;padding:4px 12px;font-size:12px;color:#0369a1;font-weight:500">@_sdBulkMsg</div>
                     }
                     <div style="flex:1"></div>
-                    @if (!_sdBulkEdit)
-                    {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" Disabled="_sdBulkBusy"
-                                   StartIcon="@Icons.Material.Filled.Edit" OnClick="BulkStartEdit">Edit / Unlock</MudButton>
-                    }
                     <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" Disabled="_sdBulkBusy || AppState.IsReadOnlyFY"
-                               StartIcon="@Icons.Material.Filled.Lock" OnClick="BulkSaveAndLock">
-                        @(_sdBulkBusy ? "Saving…" : "Save & Lock")
+                               StartIcon="@Icons.Material.Filled.Save" OnClick="BulkSaveAndLock">
+                        @(_sdBulkBusy ? "Saving…" : "Save All")
                     </MudButton>
                     <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="BulkClose" Disabled="_sdBulkBusy"
                                StartIcon="@Icons.Material.Filled.Close">Close</MudButton>
@@ -1767,8 +1741,8 @@
                             {
                                 var sel      = _sdBulkSel.TryGetValue(row.EmployeeId, out var sv) && sv;
                                 var isSkip   = row.Status == "Skip";
-                                var editable = _sdBulkEdit && !row.IsLocked && !isSkip;
-                                var rowBg    = sel ? "#f0f9ff" : row.IsLocked ? "#f1f5f9" : isSkip ? "#fefce8" : "#fff";
+                                var editable = _sdBulkEdit && !isSkip;
+                                var rowBg    = sel ? "#f0f9ff" : isSkip ? "#fefce8" : "#fff";
                                 var lopAmt   = row.LopDays > 0 ? Math.Round(row.Basic * row.LopDays / 30.0) : 0;
                                 <tr @key="@($"{row.EmployeeId}_{row.LopDays}_{(int)row.Gross}_{(int)row.Tds}")"
                                     style="background:@rowBg;border-bottom:1px solid #f1f5f9">
@@ -1783,8 +1757,7 @@
                                         <div style="font-weight:600;color:#111827;font-size:12px">@row.EmployeeName</div>
                                         <div style="font-size:10px;color:#9ca3af;margin-top:1px">
                                             @row.EmployeeCode
-                                            @if (row.IsLocked) { <span style="color:#6b7280;margin-left:4px">🔒 Locked</span> }
-                                            @if (isSkip)       { <span style="color:#d97706;margin-left:4px">⏭ Skip</span> }
+                                            @if (isSkip) { <span style="color:#d97706;margin-left:4px">⏭ Skip</span> }
                                         </div>
                                     </td>
                                     @* LOP *@
@@ -2301,14 +2274,7 @@
                                     <td class="slip-td" style="text-align:right;color:@(entry.TdsDeducted>0?"#dc2626":"inherit")">₹@entry.TdsDeducted.ToString("N0")</td>
                                     <td class="slip-td" style="text-align:right;font-weight:700">₹@entry.NetSalary.ToString("N0")</td>
                                     <td class="slip-td" style="text-align:center">
-                                        @if (entry.IsLocked)
-                                        {
-                                            <span class="slip-badge slip-locked">🔒 Locked</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="slip-badge slip-draft">@entry.Status</span>
-                                        }
+                                        <span class="slip-badge slip-draft">@entry.Status</span>
                                     </td>
                                     <td class="slip-td" style="text-align:center;white-space:nowrap">
                                         <MudTooltip Text="Save PDF">
@@ -2616,7 +2582,7 @@
             }
             else
             {
-                <span style="font-size:11px;color:#9ca3af">24Q = Section 192 salary TDS entries created when you Approve &amp; Lock a month.</span>
+                <span style="font-size:11px;color:#9ca3af">24Q = Section 192 salary TDS entries created automatically when you save a month.</span>
             }
         </div>
 
@@ -2624,8 +2590,8 @@
         {
             <EmptyState Icon="@Icons.Material.Filled.AssignmentTurnedIn"
                         Title="No Sec 192 entries for this quarter"
-                        Subtitle="Section 192 entries are auto-created when you Approve & Lock a salary month. Lock your salary entries to populate this list."
-                        HelpText="Salary Data → pick month → 🔒 Approve & Lock — Sec 192 entry created automatically." />
+                        Subtitle="Section 192 entries are auto-created when you save a salary month."
+                        HelpText="Salary Data → pick employee → pick month → 💾 Save — Sec 192 entry created automatically." />
         }
         @if (_q24Entries.Count > 0)
         {
@@ -3726,12 +3692,12 @@
     void LoadBulkGrid()
     {
         _bulkRows = McSvc.BuildGrid(AppState.CurrentDeductorId, AppState.CurrentFY, _sdMonth);
-        // Always recompute all unlocked rows so structure changes are reflected immediately
-        foreach (var r in _bulkRows.Where(r => !r.IsLocked && r.Status != "Skip"))
+        foreach (var r in _bulkRows.Where(r => r.Status != "Skip"))
             try { McSvc.Compute(r, AppState.CurrentDeductorId); } catch { }
         _sdBulkSel.Clear();
         foreach (var r in _bulkRows)
             _sdBulkSel[r.EmployeeId] = true;
+        _sdBulkEdit = true;
     }
 
     void SetAllBulkSel(bool v)
@@ -3742,16 +3708,8 @@
 
     void BulkStartEdit()
     {
-        var lockedSelected = _bulkRows
-            .Where(r => r.IsLocked && _sdBulkSel.TryGetValue(r.EmployeeId, out var s) && s)
-            .ToList();
-        foreach (var r in lockedSelected)
-            McSvc.Unlock(r.EmployeeId, r.FinancialYear, r.Month, AppState.CurrentDeductorId);
         _sdBulkEdit = true;
-        LoadBulkGrid(); // rebuilds grid + recomputes all unlocked rows from latest salary structure
-        _sdBulkMsg = lockedSelected.Count > 0
-            ? $"Unlocked {lockedSelected.Count} row(s) — values refreshed from salary structure. Review then Save & Lock."
-            : "Edit mode. Values auto-synced from salary structure.";
+        LoadBulkGrid();
     }
 
     void BulkLopChanged(MonthlyCloseRow row, string? val)
@@ -3780,28 +3738,26 @@
     async Task BulkSaveAndLock()
     {
         if (AppState.IsReadOnlyFY) { Snackbar.Add("FY is read-only.", Severity.Warning); return; }
-        _sdBulkBusy = true; _sdBulkMsg = "Saving & locking..."; StateHasChanged();
+        _sdBulkBusy = true; _sdBulkMsg = "Saving..."; StateHasChanged();
         int ok = 0, failed = 0;
         var failures = new List<string>();
         var toProcess = _bulkRows
-            .Where(r => !r.IsLocked && _sdBulkSel.TryGetValue(r.EmployeeId, out var v) && v)
+            .Where(r => _sdBulkSel.TryGetValue(r.EmployeeId, out var v) && v)
             .ToList();
         await Task.Run(() => {
             foreach (var r in toProcess)
             {
                 try
                 {
-                    // Recompute only if TDS was not manually overridden by user
                     if (r.Status != "Skip" && !r.TdsManualOverride) McSvc.Compute(r, AppState.CurrentDeductorId);
-                    McSvc.Approve(r, AppState.CurrentDeductorId);
+                    McSvc.SaveAndSync(r, AppState.CurrentDeductorId);
                     ok++;
                 }
                 catch (Exception ex) { failed++; failures.Add($"{r.EmployeeName}: {ex.Message}"); }
             }
         });
-        _sdBulkEdit = false;
         _sdBulkBusy = false;
-        _sdBulkMsg  = failed > 0 ? $"Locked {ok} · {failed} failed." : $"Locked {ok} employee(s).";
+        _sdBulkMsg  = failed > 0 ? $"Saved {ok} · {failed} failed." : $"Saved {ok} employee(s).";
         if (failures.Any())
             _sdBulkMsg += " — " + string.Join("; ", failures.Take(3));
         LoadBulkGrid();
@@ -3826,8 +3782,7 @@
         {
             var e = SalarySvc.Get(emp.Id, AppState.CurrentFY, _sdMonth);
             if (e == null) { _sdEmpStatus[emp.Id] = "None"; continue; }
-            _sdEmpStatus[emp.Id] = e.IsLocked ? "Locked" :
-                                   (string.IsNullOrEmpty(e.Status) ? "Draft" : e.Status);
+            _sdEmpStatus[emp.Id] = string.IsNullOrEmpty(e.Status) ? "Draft" : e.Status;
         }
     }
 
@@ -3842,7 +3797,7 @@
         _sdCurEntry = forceSeed ? null : SalarySvc.Get(_sdEmpId, AppState.CurrentFY, month);
         // Defensive: if saved entry is effectively empty (likely an accidental zero-save and NOT a deliberate
         // Skip status), fall through to the seed branch so user sees the structure values.
-        if (_sdCurEntry != null && !_sdCurEntry.IsLocked && _sdCurEntry.Status != "Skip"
+        if (_sdCurEntry != null && _sdCurEntry.Status != "Skip"
             && _sdCurEntry.Basic == 0 && _sdCurEntry.HRA == 0 && _sdCurEntry.SpecialAllowance == 0
             && _sdCurEntry.Lta == 0 && _sdCurEntry.OtherAllowances == 0
             && _sdCurEntry.TdsDeducted == 0 && _sdCurEntry.PerqExempted == 0
@@ -3862,19 +3817,14 @@
         var seedSs  = seedEmp?.Salary;
         // ── Determine field sources ──────────────────────────────────────────
         // Locked entry  → everything from saved entry (preserves approved figures).
-        // Unlocked entry → structure fields from seedSs (always fresh); month-specific
-        //                  fields (Bonus, Arrears, LOP, TDS, LineItems, Perqs, LeaveEnc)
-        //                  from saved entry so user edits are not lost.
+        // Saved entry → structure fields from seedSs (always fresh); month-specific
+        //              fields (Bonus, Arrears, LOP, TDS, LineItems, Perqs, LeaveEnc)
+        //              from saved entry so user edits are not lost.
         // No saved entry → seed everything from salary structure.
-        bool useStructure = !forceSeed && _sdCurEntry != null && !_sdCurEntry.IsLocked && seedSs != null;
+        bool useStructure = !forceSeed && _sdCurEntry != null && seedSs != null;
         bool useSaved     = _sdCurEntry != null;
 
-        if (useSaved && _sdCurEntry!.IsLocked)
-        {
-            // Locked: fully authoritative from DB
-            e = _sdCurEntry;
-        }
-        else if (seedSs != null)
+        if (seedSs != null)
         {
             // Unlocked or fresh: structure fields always come from seedSs
             e = new MonthlySalaryEntry
@@ -4063,80 +4013,22 @@
         catch (Exception ex) { Snackbar.Add("Reset succeeded but save failed: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
-    void SdApproveLock()
-    {
-        if (_sdEmpId == 0 || _sdMonth == 0) { Snackbar.Add("Select an employee and month.", Severity.Warning); return; }
-        if (AppState.IsReadOnlyFY) { Snackbar.Add("FY is read-only.", Severity.Warning); return; }
-        // Guard: re-read from DB so a bulk-locked entry is never re-saved as Draft then locked again
-        var dbCheck = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, _sdMonth);
-        if (dbCheck?.IsLocked == true) { Snackbar.Add("Already locked.", Severity.Info); return; }
-        try
-        {
-            // Save first (writes the current edits as Draft)
-            var entry = BuildSdEntry();
-            entry.RecalcGross();
-            SalarySvc.Save(entry);
-            // Then promote to Locked + create Sec 192 entry via service
-            var emp = _employees.FirstOrDefault(e => e.Id == _sdEmpId);
-            if (emp == null) { Snackbar.Add("Employee not found.", Severity.Error); return; }
-            entry.Status = "Locked"; entry.IsLocked = true;
-            entry.ApprovedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            entry.ApprovedBy = "user";
-            SalarySvc.Save(entry);
-            if (entry.TdsDeducted > 0)
-            {
-                var r = SalarySvc.UpsertSec192Entry(entry, emp, AppState.CurrentDeductorId);
-                if (!r.ok) Snackbar.Add($"Locked. Sec 192 warning: {r.msg}", Severity.Warning);
-            }
-            DedSvc.PostInstallments(_sdEmpId, AppState.CurrentDeductorId, AppState.CurrentFY, _sdMonth);
-            LoadSchedules();
-            _sdCurEntry = entry;
-            RefreshSdMonthStrip();
-            RefreshSdEmpStatus();
-            Snackbar.Add($"🔒 Locked {new DateTime(1, _sdMonth, 1):MMMM} for {entry.EmployeeName}. Sec 192 entry created.", Severity.Success);
-        }
-        catch (Exception ex) { Snackbar.Add("Approve error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
-    }
-
-    void SdUnlockMonth()
-    {
-        if (_sdEmpId == 0 || _sdMonth == 0) return;
-        var (ok, msg) = McSvc.Unlock(_sdEmpId, AppState.CurrentFY, _sdMonth, AppState.CurrentDeductorId);
-        if (!ok)
-        {
-            Snackbar.Add($"⛔ {msg}", Severity.Warning);
-            return;
-        }
-        SelectSdMonth(_sdMonth);   // reload
-        RefreshSdEmpStatus();
-        Snackbar.Add($"🔓 Unlocked {new DateTime(1, _sdMonth, 1):MMMM}. {msg}", Severity.Info);
-    }
-
     void SdSaveMonth()
     {
         if (_sdEmpId == 0) { Snackbar.Add("Select an employee first.", Severity.Warning); return; }
         if (_sdMonth == 0) { Snackbar.Add("Select a month first.", Severity.Warning); return; }
-        // Always re-read from DB — _sdCurEntry may be null/stale if entry was locked via bulk close
-        var dbEntry = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, _sdMonth);
-        if (dbEntry?.IsLocked == true) { Snackbar.Add("This month is locked. Unlock from Monthly Close to edit.", Severity.Warning); return; }
         try
         {
             var entry = BuildSdEntry();
             entry.RecalcGross();
-            SalarySvc.Save(entry);
-            _sdCurEntry = entry;
-
-            // Auto-create / update Section 192 TDS entry under the deductor
             var emp = _employees.FirstOrDefault(e => e.Id == _sdEmpId);
-            if (emp != null && entry.TdsDeducted > 0)
-            {
-                var (ok, msg) = SalarySvc.UpsertSec192Entry(entry, emp, AppState.CurrentDeductorId);
-                if (ok) Snackbar.Add(msg, Severity.Info);
-                else    Snackbar.Add($"Sec 192 link skipped: {msg}", Severity.Warning);
-            }
-
+            if (emp == null) { Snackbar.Add("Employee not found.", Severity.Error); return; }
+            var (ok, msg) = McSvc.SaveAndSync(entry, emp, AppState.CurrentDeductorId);
+            _sdCurEntry = entry;
+            if (!ok) Snackbar.Add($"Sec 192 warning: {msg}", Severity.Warning);
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
+            LoadSchedules();
             _sdAnnual = null;
             _ = SdCompute();
             Snackbar.Add($"Saved {new DateTime(1, _sdMonth, 1):MMMM} salary for {entry.EmployeeName}.", Severity.Success);
@@ -4155,7 +4047,7 @@
         var lastMonthName = new DateTime(1, forwardMonths.Last(), 1).ToString("MMMM");
         var confirmed = await DialogSvc.ShowMessageBox(
             "Copy Forward & Save?",
-            $"Copy {new DateTime(1, _sdMonth, 1):MMMM} salary to {lastMonthName} ({forwardMonths.Length} months), compute TDS, and save each month automatically. Existing Draft entries will be overwritten. Locked months will be skipped.",
+            $"Copy {new DateTime(1, _sdMonth, 1):MMMM} salary to {lastMonthName} ({forwardMonths.Length} months), compute TDS, and save each month automatically. Existing entries will be overwritten.",
             yesText: "Yes, Copy & Save All", cancelText: "Cancel");
         if (confirmed != true) return;
 
@@ -4167,15 +4059,12 @@
             var decl  = PayrollSvc.GetDeclaration(_sdEmpId, AppState.CurrentFY)
                         ?? new TaxDeclaration { EmployeeId = _sdEmpId, FinancialYear = AppState.CurrentFY };
             int fyStart = TaxRules.FyStartYear(AppState.CurrentFY);
-            int saved = 0, skippedLocked = 0;
+            int saved = 0;
 
             await Task.Run(() =>
             {
                 foreach (int m in forwardMonths)
                 {
-                    // Skip locked months — don't overwrite filed/approved data
-                    var existing = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, m);
-                    if (existing?.IsLocked == true) { skippedLocked++; continue; }
                     int yr = m >= 4 ? fyStart : fyStart + 1;
                     var copy = new MonthlySalaryEntry
                     {
@@ -4211,9 +4100,7 @@
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
             SelectSdMonth(_sdMonth);
-            var msg = $"Copied & saved {saved} month(s) from {new DateTime(1, _sdMonth, 1):MMMM}.";
-            if (skippedLocked > 0) msg += $" Skipped {skippedLocked} locked month(s).";
-            Snackbar.Add(msg, Severity.Success);
+            Snackbar.Add($"Copied & saved {saved} month(s) from {new DateTime(1, _sdMonth, 1):MMMM}.", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
         _sdComputing = false;

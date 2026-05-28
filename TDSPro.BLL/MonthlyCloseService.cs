@@ -49,12 +49,10 @@ namespace TDSPro.BLL
                 if (existing != null)
                 {
                     var row = MonthlyCloseRow.FromEntry(existing, emp);
-                    // Locked: DB is authoritative. Unlocked: always refresh structure fields
-                    // (Basic, HRA, DA, Special, LTA, Other, PF, ESI) from current salary
-                    // structure so any salary revision is reflected without manual Reset.
-                    // Month-specific fields (Bonus, Arrears, LOP, TDS, status) are kept
-                    // from the saved entry.
-                    if (!existing.IsLocked && emp.Salary != null)
+                    // Always refresh structure fields (Basic, HRA, DA, Special, LTA, Other, PF, ESI)
+                    // from current salary structure so any salary revision is reflected without manual Reset.
+                    // Month-specific fields (Bonus, Arrears, LOP, TDS, status) are kept from saved entry.
+                    if (emp.Salary != null)
                     {
                         var ss2 = emp.Salary;
                         row.Basic   = ss2.Basic;
@@ -267,6 +265,37 @@ namespace TDSPro.BLL
             _dedSvc.PostInstallments(row.EmployeeId, deductorId, row.FinancialYear, row.Month);
 
             return (true, "Locked & Sec 192 entry created.");
+        }
+
+        /// <summary>
+        /// Save entry as Draft and auto-create/update Sec 192 TDS entry (no lock).
+        /// Used by the Salary Data tab "Save" button.
+        /// </summary>
+        public (bool ok, string msg) SaveAndSync(MonthlySalaryEntry entry, Employee emp, int deductorId)
+        {
+            entry.Status   = string.IsNullOrEmpty(entry.Status) || entry.Status == "Locked" ? "Draft" : entry.Status;
+            entry.IsLocked = false;
+            _salRepo.Save(entry);
+
+            var r = _salSvc.UpsertSec192Entry(entry, emp, deductorId);
+            _dedSvc.PostInstallments(entry.EmployeeId, deductorId, entry.FinancialYear, entry.Month);
+            return r;
+        }
+
+        /// <summary>
+        /// Save MonthlyCloseRow as Draft and auto-create/update Sec 192 TDS entry.
+        /// Used by Monthly Close bulk save.
+        /// </summary>
+        public (bool ok, string msg) SaveAndSync(MonthlyCloseRow row, int deductorId)
+        {
+            SaveDraft(row, deductorId);
+            var emp = _empRepo.GetAllEmployees(deductorId).FirstOrDefault(e => e.Id == row.EmployeeId);
+            if (emp == null) return (false, "Employee not found.");
+            var entry = _salRepo.Get(row.EmployeeId, row.FinancialYear, row.Month);
+            if (entry == null) return (false, "Entry not saved.");
+            var r = _salSvc.UpsertSec192Entry(entry, emp, deductorId);
+            _dedSvc.PostInstallments(row.EmployeeId, deductorId, row.FinancialYear, row.Month);
+            return r;
         }
 
         /// <summary>
