@@ -1,28 +1,31 @@
 @* Smart date input — accepts ddMMyyyy, dd/MM/yyyy, dd-MM-yyyy, dd MMM yyyy, etc.
-   Displays as dd-MMM-yyyy once parsed. Binds to DateTime? via Value/ValueChanged. *@
+   Displays as dd-MM-yyyy once parsed. Binds to DateTime? via Value/ValueChanged. *@
 
-<MudTextField Value="@_text"
-              Label="@Label"
-              Variant="@Variant"
-              Margin="@Margin"
-              Class="@Class"
-              Placeholder="e.g. 01042026"
-              Error="@(_error)"
-              ErrorText="Invalid date — try ddMMyyyy or dd-MM-yyyy"
-              Adornment="Adornment.End"
-              AdornmentIcon="@Icons.Material.Filled.CalendarMonth"
-              AdornmentAriaLabel="date"
-              OnAdornmentClick="OpenPicker"
-              ValueChanged="@(EventCallback.Factory.Create<string>(this, OnTextChanged))"
-              @onblur="OnBlur" />
+<div style="position:relative">
+    <MudTextField Value="@_text"
+                  Label="@Label"
+                  Variant="@Variant"
+                  Margin="@Margin"
+                  Class="@Class"
+                  Placeholder="e.g. 01-04-2026"
+                  Error="@(_error)"
+                  ErrorText="Invalid date — try dd-MM-yyyy or ddMMyyyy"
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@Icons.Material.Filled.CalendarMonth"
+                  AdornmentAriaLabel="date"
+                  OnAdornmentClick="OpenPicker"
+                  ValueChanged="@(EventCallback.Factory.Create<string>(this, OnTextChanged))"
+                  @onblur="OnBlur" />
 
-@if (_pickerOpen)
-{
-    <MudDatePicker Date="_pickerDate"
-                   PickerVariant="PickerVariant.Static"
-                   DateChanged="@(EventCallback.Factory.Create<DateTime?>(this, OnPickerDateChanged))"
-                   Style="position:absolute;z-index:9999" />
-}
+    @if (_pickerOpen)
+    {
+        <div style="position:absolute;top:100%;left:0;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:8px;background:#fff">
+            <MudDatePicker Date="_pickerDate"
+                           PickerVariant="PickerVariant.Static"
+                           DateChanged="@(EventCallback.Factory.Create<DateTime?>(this, OnPickerDateChanged))" />
+        </div>
+    }
+</div>
 
 @code {
     [Parameter] public DateTime?       Value        { get; set; }
@@ -39,8 +42,7 @@
 
     protected override void OnParametersSet()
     {
-        // Reflect external value changes without overwriting user typing
-        var display = Value.HasValue ? Value.Value.ToString("dd-MMM-yyyy") : "";
+        var display = Value.HasValue ? Value.Value.ToString("dd-MM-yyyy") : "";
         if (_text != display && !_error)
             _text = display;
     }
@@ -63,7 +65,7 @@
         if (parsed.HasValue)
         {
             _error = false;
-            _text  = parsed.Value.ToString("dd-MMM-yyyy");
+            _text  = parsed.Value.ToString("dd-MM-yyyy");
             await ValueChanged.InvokeAsync(parsed);
         }
         else
@@ -83,7 +85,7 @@
         _pickerOpen = false;
         if (d.HasValue)
         {
-            _text  = d.Value.ToString("dd-MMM-yyyy");
+            _text  = d.Value.ToString("dd-MM-yyyy");
             _error = false;
             await ValueChanged.InvokeAsync(d);
         }
@@ -92,15 +94,12 @@
     static DateTime? ParseDate(string s)
     {
         s = s.Trim();
-        // Pure digits: ddMMyyyy or dMyyyy etc
         if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^\d{6,8}$"))
         {
             s = s.PadLeft(8, '0');
             s = $"{s[..2]}-{s[2..4]}-{s[4..]}";
         }
-        // Replace / or . with -
         s = s.Replace('/', '-').Replace('.', '-').Replace(' ', '-');
-        // Collapse multiple separators
         s = System.Text.RegularExpressions.Regex.Replace(s, @"-+", "-");
 
         string[] formats = {
@@ -113,7 +112,6 @@
                 System.Globalization.DateTimeStyles.None, out var result))
             return result;
 
-        // Last resort — let .NET try
         if (DateTime.TryParse(s, out result))
             return result;
 
