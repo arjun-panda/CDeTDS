@@ -3520,8 +3520,8 @@
     void LoadBulkGrid()
     {
         _bulkRows = McSvc.BuildGrid(AppState.CurrentDeductorId, AppState.CurrentFY, _sdMonth);
-        // Compute gross for rows that have no saved data yet
-        foreach (var r in _bulkRows.Where(r => !r.IsLocked && r.Gross == 0 && r.Status != "Skip"))
+        // Always recompute all unlocked rows so structure changes are reflected immediately
+        foreach (var r in _bulkRows.Where(r => !r.IsLocked && r.Status != "Skip"))
             try { McSvc.Compute(r, AppState.CurrentDeductorId); } catch { }
         _sdBulkSel.Clear();
         foreach (var r in _bulkRows)
@@ -3536,15 +3536,16 @@
 
     void BulkStartEdit()
     {
-        // Unlock all selected locked rows, then enter edit mode
         var lockedSelected = _bulkRows
             .Where(r => r.IsLocked && _sdBulkSel.TryGetValue(r.EmployeeId, out var s) && s)
             .ToList();
         foreach (var r in lockedSelected)
             McSvc.Unlock(r.EmployeeId, r.FinancialYear, r.Month, AppState.CurrentDeductorId);
         _sdBulkEdit = true;
-        LoadBulkGrid();
-        _sdBulkMsg = lockedSelected.Count > 0 ? $"Unlocked {lockedSelected.Count} row(s). Edit values then Save & Lock." : "";
+        LoadBulkGrid(); // rebuilds grid + recomputes all unlocked rows from latest salary structure
+        _sdBulkMsg = lockedSelected.Count > 0
+            ? $"Unlocked {lockedSelected.Count} row(s) — values refreshed from salary structure. Review then Save & Lock."
+            : "Edit mode. Values auto-synced from salary structure.";
     }
 
     void BulkLopChanged(MonthlyCloseRow row, string? val)
