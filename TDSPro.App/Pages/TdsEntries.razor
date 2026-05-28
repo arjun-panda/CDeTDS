@@ -458,6 +458,7 @@
                 SetNatureFromSection(d.Section);
             }
             ApplySmartRate(_editing, d);
+            _rateInput = _editing.Rate;
             AutoCalcTds();
             _infoChips = BuildInfoChips(_editing);
         }
@@ -469,6 +470,7 @@
         _editing.Section = sec;
         var d = _deductees.FirstOrDefault(x => x.Id == _editing.DeducteeId);
         ApplySmartRate(_editing, d);
+        _rateInput = _editing.Rate;
         SetNatureFromSection(sec);
         AutoCalcTds();
         _infoChips = BuildInfoChips(_editing);
@@ -655,6 +657,10 @@
                 ? new DateTime(pd.Year + 1, 4, 30)
                 : new DateTime(pd.Month == 12 ? pd.Year + 1 : pd.Year, pd.Month == 12 ? 1 : pd.Month + 1, 7);
         }
+
+        // Flush backing fields — user may have typed without tabbing away
+        _editing.Amount = _amountInput;
+        _editing.Rate   = _rateInput;
 
         // Always recalculate before saving
         AutoCalcTds();
