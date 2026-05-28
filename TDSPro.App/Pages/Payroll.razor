@@ -3735,24 +3735,29 @@
         _sdSpecial = e.SpecialAllowance; _sdLta = e.Lta;
         _sdLtaTaxable = _sdLta; _sdLtaExempt = 0;
         _sdPerqLines.Clear(); _sdOtherLines.Clear();
+        _sdVarEarnRows = new();
+        _sdVarDedRows  = new();
         foreach (var li in e.LineItems ?? new List<TDSPro.DAL.Models.SalaryLineItem>())
         {
             if (li.Category == "perq")
                 _sdPerqLines.Add((li.Name, li.Taxable, li.Exempt, li.RuleRef));
             else if (li.Category == "other")
                 _sdOtherLines.Add((li.Name, li.Taxable, li.Exempt, li.RuleRef));
+            else if (li.Category == "varEarn")
+                _sdVarEarnRows.Add((li.Name, li.RuleRef, li.Taxable));
+            else if (li.Category == "varDed")
+                _sdVarDedRows.Add((li.Name, li.Taxable));
         }
         _sdBonus = e.Bonus; _sdCommission = e.Commission; _sdAdvance = e.AdvanceSalary;
         var _otherLinesSum = _sdOtherLines.Sum(l => l.Taxable + l.Exempt);
-        _sdArrears = e.Arrears; _sdOther = Math.Max(0, e.OtherAllowances - _otherLinesSum); _sdNpsEmployer = e.NpsEmployer;
+        var _varEarnSum    = _sdVarEarnRows.Where(r => !string.Equals(r.Type, "Exempt", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Amount);
+        _sdArrears = e.Arrears; _sdOther = Math.Max(0, e.OtherAllowances - _otherLinesSum - _varEarnSum); _sdNpsEmployer = e.NpsEmployer;
         _sdPerqTotal = e.PerqTotal; _sdPerqExempted = e.PerqExempted;
         _sdLeaveEnc = e.LeaveEncTotal; _sdLeaveEncEx = e.LeaveEncExempted;
         _sdPf = e.PfEmployee; _sdVpf = e.VPF; _sdPt = e.ProfessionalTax;
         _sdEsi = e.EsiEmployee;
         _sdTds = e.TdsDeducted;
         _sdLopDays = e.LopDays;
-        _sdVarEarnRows = new();
-        _sdVarDedRows  = new();
         if (_sdEmpId > 0 && _sdMonth > 0)
             _ = SdCompute();
     }
@@ -3763,15 +3768,15 @@
         int yr = _sdMonth >= 4 ? fyStart : fyStart + 1;
         var emp = _employees.FirstOrDefault(e => e.Id == _sdEmpId) ?? new Employee();
 
-        // Roll all dynamic variable-earning rows (except Exempt) into OtherAllowances so they save
-        var dynTaxable = _sdVarEarnRows
+        // varEarn rows are saved as line items (not folded into OtherAllowances)
+        var varEarnTaxable   = _sdVarEarnRows
             .Where(r => !string.Equals(r.Type, "Exempt", StringComparison.OrdinalIgnoreCase))
             .Sum(r => r.Amount);
-        // Sum named line items
         var otherLinesTotal  = _sdOtherLines.Sum(l => l.Taxable + l.Exempt);
         var otherLinesExempt = _sdOtherLines.Sum(l => l.Exempt);
         var perqLinesTotal   = _sdPerqLines.Sum(l => l.Taxable + l.Exempt);
         var perqLinesExempt  = _sdPerqLines.Sum(l => l.Exempt);
+        var varDedTotal      = _sdVarDedRows.Sum(r => r.Amount);
 
         var entry = new MonthlySalaryEntry
         {
@@ -3781,9 +3786,7 @@
             Basic = _sdBasic, GradePay = _sdGradePay, HRA = _sdHra, DaAmount = _sdDaAmt,
             SpecialAllowance = _sdSpecial, MedicalAllowance = 0, Lta = _sdLta,
             Bonus = _sdBonus, Commission = _sdCommission, AdvanceSalary = _sdAdvance,
-            Arrears = _sdArrears, OtherAllowances = _sdOther + dynTaxable + otherLinesTotal, NpsEmployer = _sdNpsEmployer,
-            // PerqExempted carries bills-reimbursement exempts (other) and perq exempts.
-            // LTA exempt is handled separately in the tax formula (taxableOld -= ltaExemption) — do NOT include here.
+            Arrears = _sdArrears, OtherAllowances = _sdOther + varEarnTaxable + otherLinesTotal, NpsEmployer = _sdNpsEmployer,
             PerqTotal = perqLinesTotal,
             PerqExempted = otherLinesExempt + perqLinesExempt,
             LeaveEncTotal = _sdLeaveEnc, LeaveEncExempted = _sdLeaveEncEx,
@@ -3796,10 +3799,17 @@
             ApprovedAt  = _sdCurEntry?.ApprovedAt  ?? "",
             ApprovedBy  = _sdCurEntry?.ApprovedBy  ?? "",
         };
+        // Variable deductions reduce net salary
+        entry.NetSalary -= varDedTotal;
+
         foreach (var ln in _sdOtherLines)
-            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "other", Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
+            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "other",   Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
         foreach (var ln in _sdPerqLines)
-            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "perq",  Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
+            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "perq",    Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
+        foreach (var ln in _sdVarEarnRows)
+            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "varEarn", Name = ln.Name, Taxable = ln.Amount, RuleRef = ln.Type });
+        foreach (var ln in _sdVarDedRows)
+            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "varDed",  Name = ln.Name, Taxable = ln.Amount });
         return entry;
     }
 
