@@ -90,6 +90,19 @@
             setBodyClass: function (cls, add) {
                 if (add) document.body.classList.add(cls);
                 else document.body.classList.remove(cls);
+            },
+            getPayrollTop: function () {
+                // Returns [top, left] so the fixed table wrapper sits exactly below the KPI/header
+                // and to the right of the sidebar.
+                var kpi = document.getElementById('payroll-kpi');
+                var top = kpi ? kpi.getBoundingClientRect().bottom + 4
+                              : (function(){
+                                    var hdr = document.querySelector('.reports-sticky-hdr');
+                                    return hdr ? hdr.getBoundingClientRect().bottom + 4 : 184;
+                                })();
+                var mc = document.querySelector('.mud-main-content');
+                var left = mc ? mc.getBoundingClientRect().left : 256;
+                return { top: top, left: left };
             }
         };
 

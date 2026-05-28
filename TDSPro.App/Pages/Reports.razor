@@ -11,7 +11,7 @@
 @using System.IO
 
 @* ── Sticky header ── *@
-<div style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:8px 24px 10px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
+<div class="reports-sticky-hdr" style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:8px 24px 10px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
 
     @* Row 1: title + controls *@
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
@@ -198,7 +198,7 @@
     }
     @if (_activeTab == 4 && _yearSummary != null && _yearSummary.Any())
     {
-        <div style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        <div id="payroll-kpi" style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
             <div class="rpt-kpi"><div class="rpt-kpi-lbl">Employees</div><div class="rpt-kpi-val" style="color:#1565C0">@_yearSummary.Count</div></div>
             <div class="rpt-kpi-sep"></div>
             <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total Gross</div><div class="rpt-kpi-val" style="color:#2e7d32">₹@_yearSummary.Sum(e=>e.TotalGross).ToString("N0")</div></div>
@@ -584,9 +584,9 @@
             else
             {
                 @* ── Payroll Year Summary — full-bleed sticky table ── *@
-                @* Outer wrapper: negative margins to bleed past MudMainContent padding;  *@
-                @* fixed height forces scroll inside this div so position:sticky works.   *@
-                <div id="payroll-tbl-wrap" style="position:relative;margin:8px -24px -44px -24px;overflow:auto;height:calc(100vh - 64px - 193px);">
+                @* Absolute positioning lets the div fill exactly from here to bottom of viewport, *@
+                @* giving a precise scroll container for both H and V with no pixel guessing.       *@
+                <div id="payroll-tbl-wrap" style="position:fixed;top:var(--payroll-top,180px);left:256px;right:0;bottom:0;overflow:auto;margin:0;z-index:1">
 
                     <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:auto;width:max-content;min-width:100%">
                         <colgroup>
@@ -726,7 +726,25 @@
     {
         _activeTab = idx;
         _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", idx == 4);
+        if (idx == 4) _ = SetPayrollTop();
         StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_activeTab == 4) await SetPayrollTop();
+    }
+
+    record PayrollPos(double top, double left);
+    async Task SetPayrollTop()
+    {
+        try
+        {
+            var pos = await JS.InvokeAsync<PayrollPos>("window.tdspro.getPayrollTop");
+            await JS.InvokeVoidAsync("eval",
+                $"(function(){{var el=document.getElementById('payroll-tbl-wrap');if(el){{el.style.top='{pos.top}px';el.style.left='{pos.left}px';}}}})()");
+        }
+        catch { }
     }
 
     void Refresh() { _ = InvokeAsync(LoadAllAsync); }
