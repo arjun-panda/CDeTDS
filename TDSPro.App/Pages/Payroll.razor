@@ -993,13 +993,13 @@
                 <div class="sd-kpi sd-kpi-teal"><div class="sd-kpi-label">YTD TDS</div><div class="sd-kpi-value">₹@((_sdAnnual != null ? _sdAnnual.YtdTdsDeducted + _sdTds : 0).ToString("N0"))</div></div>
             </div>
 
-            <!-- Three-column grid: equal 1/3 each -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:end">
+            <!-- Three-column grid: equal 1/3 each, stretch height -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:stretch">
 
                 <!-- COL 1: Fixed Earnings -->
-                <div>
+                <div style="display:flex;flex-direction:column">
                     <!-- Fixed Earnings -->
-                    <div class="sd-paper sd-accent-blue">
+                    <div class="sd-paper sd-accent-blue" style="flex:1">
                         <div class="sd-sec-head">📥 Fixed Earnings</div>
                         <table class="sd-dyn-table">
                             <thead><tr><th style="width:57%">Component</th><th style="text-align:right">Amount (₹)</th></tr></thead>
@@ -1250,8 +1250,8 @@
                 </div>
 
                 <!-- COL 2: Variable / Additional Earnings -->
-                <div>
-                    <div class="sd-paper sd-accent-orange">
+                <div style="display:flex;flex-direction:column">
+                    <div class="sd-paper sd-accent-orange" style="flex:1">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                             <div class="sd-sec-head sd-sec-head-orange" style="margin-bottom:0">➕ Variable Earnings</div>
                             <button class="sd-btn-add" style="border-color:#f59e0b;color:#b45309" @onclick="AddVarEarnRow">+ Add Row</button>
