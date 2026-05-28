@@ -5,6 +5,7 @@
 @inject PayrollService PayrollSvc
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @implements IDisposable
 @using TDSPro.Common
 @using System.IO
@@ -583,7 +584,7 @@
             else
             {
                 @* Employee × Month table — full-bleed with horizontal scroll *@
-                <div style="margin:0 -16px;overflow-x:auto;border-top:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="margin:0 -24px -44px -24px;overflow:auto;height:calc(100vh - 64px - 185px);border-top:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,.06)">
                     <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
                         <thead>
                             <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
@@ -622,7 +623,7 @@
                                 </tr>
                             }
                         </tbody>
-                        <tfoot>
+                        <tfoot style="position:sticky;bottom:0;z-index:4">
                             <tr style="background:#1565C0;color:#fff;font-weight:700;font-size:12px">
                                 <td colspan="2" style="padding:8px 10px;position:sticky;left:0;background:#1565C0;z-index:5">TOTAL</td>
                                 <td style="padding:8px 10px"></td>
@@ -688,7 +689,12 @@
         await LoadPayrollSummary();
     }
 
-    void OnTabChanged(int idx) { _activeTab = idx; StateHasChanged(); }
+    void OnTabChanged(int idx)
+    {
+        _activeTab = idx;
+        _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", idx == 4);
+        StateHasChanged();
+    }
 
     void Refresh() { _ = InvokeAsync(LoadAllAsync); }
 
@@ -816,5 +822,9 @@
         StateHasChanged();
     }
 
-    public void Dispose() => AppState.OnChange -= Refresh;
+    public void Dispose()
+    {
+        AppState.OnChange -= Refresh;
+        _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", false);
+    }
 }

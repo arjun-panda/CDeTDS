@@ -34,6 +34,12 @@ body.dashboard-active .mud-main-content {
     overflow-y: hidden !important;
 }
 
+/* Reports payroll tab: lock outer scroll so table is the only scroller */
+body.reports-payroll-active .mud-main-content {
+    overflow-y: hidden !important;
+    overflow-x: hidden !important;
+}
+
 /* Sidebar — its own thin scrollbar is fine */
 .mud-drawer {
     height: calc(100vh - 64px) !important;
