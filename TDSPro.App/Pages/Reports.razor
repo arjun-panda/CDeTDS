@@ -583,10 +583,8 @@
             }
             else
             {
-                @* ── Payroll Year Summary — full-bleed sticky table ── *@
-                @* Absolute positioning lets the div fill exactly from here to bottom of viewport, *@
-                @* giving a precise scroll container for both H and V with no pixel guessing.       *@
-                <div id="payroll-tbl-wrap" style="position:fixed;top:var(--payroll-top,180px);left:256px;right:0;bottom:0;overflow:scroll;margin:0;z-index:1">
+                @* ── Payroll Year Summary — scrollable table ── *@
+                <div id="payroll-tbl-wrap" style="width:100%;overflow:scroll;max-height:calc(100vh - 260px)">
 
                     <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:auto;width:max-content;min-width:100%">
                         <colgroup>
@@ -725,26 +723,7 @@
     void OnTabChanged(int idx)
     {
         _activeTab = idx;
-        _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", idx == 4);
-        if (idx == 4) _ = SetPayrollTop();
         StateHasChanged();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_activeTab == 4) await SetPayrollTop();
-    }
-
-    record PayrollPos(double top, double left);
-    async Task SetPayrollTop()
-    {
-        try
-        {
-            var pos = await JS.InvokeAsync<PayrollPos>("window.tdspro.getPayrollTop");
-            await JS.InvokeVoidAsync("eval",
-                $"(function(){{var el=document.getElementById('payroll-tbl-wrap');if(el){{el.style.top='{pos.top}px';el.style.left='{pos.left}px';}}}})()");
-        }
-        catch { }
     }
 
     void Refresh() { _ = InvokeAsync(LoadAllAsync); }
@@ -876,6 +855,6 @@
     public void Dispose()
     {
         AppState.OnChange -= Refresh;
-        _ = JS.InvokeVoidAsync("window.tdspro.setBodyClass", "reports-payroll-active", false);
+        // nothing to clean up
     }
 }
