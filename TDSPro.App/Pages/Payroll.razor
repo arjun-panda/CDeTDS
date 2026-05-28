@@ -6,6 +6,7 @@
 @inject PayrollService PayrollSvc
 @inject SalaryService SalarySvc
 @inject MonthlyCloseService McSvc
+@inject DeductionScheduleService DedSvc
 @inject DeductorService DeductorSvc
 @inject TdsEntryService TdsEntrySvc
 @inject ISnackbar Snackbar
@@ -1313,6 +1314,54 @@
                         </table>
                     </div>
 
+                    <!-- Deduction Schedules -->
+                    <div class="sd-paper" style="border-left:4px solid #7c3aed">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                            <div class="sd-sec-head" style="margin-bottom:0;color:#7c3aed">🗓 Deduction Schedules</div>
+                            <button class="sd-btn-add" style="border-color:#7c3aed;color:#7c3aed" @onclick="OpenNewScheduleDialog">+ New Schedule</button>
+                        </div>
+                        <div class="sd-info-box" style="border-color:#7c3aed">Loan / advance recovery — enter once, auto-deducted each month until balance is zero.</div>
+                        @if (_schedules.Count == 0)
+                        {
+                            <div style="color:#9ca3af;font-size:12px;padding:6px 0">No active schedules.</div>
+                        }
+                        else
+                        {
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">
+                                <thead>
+                                    <tr style="background:#f5f3ff;color:#5b21b6;font-weight:700">
+                                        <th style="padding:5px 8px;text-align:left">Type</th>
+                                        <th style="padding:5px 8px;text-align:left">Description</th>
+                                        <th style="padding:5px 8px;text-align:right">Total</th>
+                                        <th style="padding:5px 8px;text-align:right">Recovered</th>
+                                        <th style="padding:5px 8px;text-align:right">Balance</th>
+                                        <th style="padding:5px 8px;text-align:right">This Month</th>
+                                        <th style="padding:5px 8px;text-align:right">Months Left</th>
+                                        <th style="padding:5px 8px;text-align:center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var sch in _schedules)
+                                    {
+                                        <tr style="border-bottom:1px solid #ede9fe">
+                                            <td style="padding:5px 8px"><span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 6px;font-size:11px">@sch.Type</span></td>
+                                            <td style="padding:5px 8px;color:#374151">@sch.Description</td>
+                                            <td style="padding:5px 8px;text-align:right">₹@sch.TotalAmount.ToString("N0")</td>
+                                            <td style="padding:5px 8px;text-align:right;color:#15803d">₹@sch.RecoveredAmt.ToString("N0")</td>
+                                            <td style="padding:5px 8px;text-align:right;color:@(sch.Balance > 0 ? "#dc2626" : "#15803d");font-weight:700">₹@sch.Balance.ToString("N0")</td>
+                                            <td style="padding:5px 8px;text-align:right;color:#7c3aed;font-weight:600">₹@sch.ThisInstallment.ToString("N0")</td>
+                                            <td style="padding:5px 8px;text-align:right;color:#6b7280">@(sch.MonthsRemaining > 0 ? sch.MonthsRemaining.ToString() : "—")</td>
+                                            <td style="padding:5px 8px;text-align:center">
+                                                <button class="sd-btn-icon" style="color:#7c3aed" title="Edit" @onclick="@(() => OpenEditScheduleDialog(sch))">✏</button>
+                                                <button class="sd-btn-icon" style="color:#dc2626" title="Close schedule" @onclick="@(() => CloseSchedule(sch.Id))">✕</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+
                     <!-- Variable Deductions -->
                     <div class="sd-paper sd-accent-orange">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -1834,6 +1883,97 @@
             <DialogActions>
             </DialogActions>
         </MudDialog>
+        @* ── Deduction Schedule New/Edit dialog ── *@
+        <MudDialog @bind-Visible="_schDialogOpen" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
+            <TitleContent><MudText Typo="Typo.h6" Style="color:#7c3aed">@(_schEditing.Id > 0 ? "Edit Schedule" : "New Deduction Schedule")</MudText></TitleContent>
+            <DialogContent>
+                <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#374151">Type</label>
+                        <select style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px"
+                                @onchange="@((e) => _schEditing.Type = e.Value?.ToString() ?? "Other")">
+                            <option value="Advance" selected="@(_schEditing.Type == "Advance")">Salary Advance</option>
+                            <option value="Loan"    selected="@(_schEditing.Type == "Loan")">Loan</option>
+                            <option value="Other"   selected="@(_schEditing.Type == "Other")">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#374151">Description</label>
+                        <input type="text" placeholder="e.g. Festival advance, Vehicle loan..." style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px;box-sizing:border-box"
+                               value="@_schEditing.Description"
+                               @onchange="@((e) => _schEditing.Description = e.Value?.ToString() ?? "")" />
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#374151">Total Amount (₹)</label>
+                        <input type="number" min="0" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px;box-sizing:border-box"
+                               value="@_schEditing.TotalAmount"
+                               @onchange="@((e) => { double.TryParse(e.Value?.ToString(), out var v); _schEditing.TotalAmount = Math.Max(0, v); })" />
+                    </div>
+                    <div style="background:#f5f3ff;border-radius:8px;padding:12px">
+                        <div style="font-size:12px;font-weight:700;color:#5b21b6;margin-bottom:8px">Installment Mode</div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+                            <input type="radio" name="schMode" checked="@(_schMode == "amount")" @onchange="@(() => { _schMode = "amount"; _schEditing.TotalInstallments = 0; })" />
+                            <span style="font-size:13px">Fixed amount per month</span>
+                        </label>
+                        @if (_schMode == "amount")
+                        {
+                            <input type="number" min="0" placeholder="₹ per month" style="width:100%;border:1px solid #c4b5fd;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box"
+                                   value="@_schEditing.InstallmentAmt"
+                                   @onchange="@((e) => { double.TryParse(e.Value?.ToString(), out var v); _schEditing.InstallmentAmt = Math.Max(0, v); })" />
+                        }
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+                            <input type="radio" name="schMode" checked="@(_schMode == "count")" @onchange="@(() => { _schMode = "count"; _schEditing.InstallmentAmt = 0; })" />
+                            <span style="font-size:13px">Fixed number of installments</span>
+                        </label>
+                        @if (_schMode == "count")
+                        {
+                            <input type="number" min="1" placeholder="Number of months" style="width:100%;border:1px solid #c4b5fd;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box"
+                                   value="@(_schEditing.TotalInstallments > 0 ? _schEditing.TotalInstallments.ToString() : "")"
+                                   @onchange="@((e) => { int.TryParse(e.Value?.ToString(), out var v); _schEditing.TotalInstallments = Math.Max(1, v); })" />
+                        }
+                        @if (_schEditing.TotalAmount > 0 && (_schEditing.InstallmentAmt > 0 || _schEditing.TotalInstallments > 0))
+                        {
+                            <div style="font-size:12px;color:#5b21b6;background:#ede9fe;border-radius:6px;padding:6px 10px">
+                                Installment: ₹@_schEditing.ThisInstallment.ToString("N0") / month &nbsp;·&nbsp; @_schEditing.MonthsRemaining month(s)
+                            </div>
+                        }
+                    </div>
+                    <div style="display:flex;gap:10px">
+                        <div style="flex:1">
+                            <label style="font-size:12px;font-weight:600;color:#374151">Start Month</label>
+                            <select style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px"
+                                    @onchange="@((e) => { int.TryParse(e.Value?.ToString(), out var v); _schEditing.StartMonth = v; })">
+                                @foreach (var m in new[]{4,5,6,7,8,9,10,11,12,1,2,3})
+                                {
+                                    <option value="@m" selected="@(_schEditing.StartMonth == m)">@(new DateTime(1,m,1).ToString("MMMM"))</option>
+                                }
+                            </select>
+                        </div>
+                        <div style="flex:1">
+                            <label style="font-size:12px;font-weight:600;color:#374151">Start FY</label>
+                            <select style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px"
+                                    @onchange="@((e) => _schEditing.StartFy = e.Value?.ToString() ?? AppState.CurrentFY)">
+                                @foreach (var fy in new[]{ AppState.CurrentFY, AppState.CurrentFY.Replace(AppState.CurrentFY[..4], (int.Parse(AppState.CurrentFY[..4])-1).ToString()) })
+                                {
+                                    <option value="@fy" selected="@(_schEditing.StartFy == fy)">@fy</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#374151">Notes (optional)</label>
+                        <input type="text" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px;box-sizing:border-box"
+                               value="@_schEditing.Notes"
+                               @onchange="@((e) => _schEditing.Notes = e.Value?.ToString() ?? "")" />
+                    </div>
+                </div>
+            </DialogContent>
+            <DialogActions>
+                <MudButton Variant="Variant.Text" OnClick="@(() => _schDialogOpen = false)">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="background:#7c3aed" OnClick="SaveSchedule">Save Schedule</MudButton>
+            </DialogActions>
+        </MudDialog>
+
         </div>@* end flex column wrapper *@
     </MudTabPanel>
 
@@ -2913,6 +3053,76 @@
     private List<(string Name, double Amount)> _sdVarDedRows = new();
     void AddVarEarnRow() => _sdVarEarnRows.Add(("", "Fully Taxable", 0));
 
+    // Deduction schedules
+    private List<TDSPro.DAL.Models.DeductionSchedule> _schedules = new();
+    private TDSPro.DAL.Models.DeductionSchedule _schEditing = new();
+    private bool   _schDialogOpen;
+    private string _schMode = "amount"; // "amount" or "count"
+
+    void LoadSchedules()
+    {
+        if (_sdEmpId <= 0) { _schedules = new(); return; }
+        _schedules = DedSvc.GetActive(_sdEmpId);
+    }
+
+    void OpenNewScheduleDialog()
+    {
+        _schEditing = new TDSPro.DAL.Models.DeductionSchedule
+        {
+            EmployeeId = _sdEmpId,
+            DeductorId = AppState.CurrentDeductorId,
+            StartFy    = AppState.CurrentFY,
+            StartMonth = _sdMonth > 0 ? _sdMonth : 4,
+        };
+        _schMode = "amount";
+        _schDialogOpen = true;
+    }
+
+    void OpenEditScheduleDialog(TDSPro.DAL.Models.DeductionSchedule s)
+    {
+        _schEditing = new TDSPro.DAL.Models.DeductionSchedule
+        {
+            Id = s.Id, EmployeeId = s.EmployeeId, DeductorId = s.DeductorId,
+            Type = s.Type, Description = s.Description, TotalAmount = s.TotalAmount,
+            InstallmentAmt = s.InstallmentAmt, TotalInstallments = s.TotalInstallments,
+            RecoveredAmt = s.RecoveredAmt, StartFy = s.StartFy, StartMonth = s.StartMonth,
+            IsActive = s.IsActive, Notes = s.Notes,
+        };
+        _schMode = s.InstallmentAmt > 0 ? "amount" : "count";
+        _schDialogOpen = true;
+    }
+
+    void SaveSchedule()
+    {
+        var (ok, msg) = DedSvc.Save(_schEditing);
+        if (!ok) { Snackbar.Add(msg, Severity.Warning); return; }
+        _schDialogOpen = false;
+        LoadSchedules();
+        SeedScheduledVarDeds(); // refresh auto-seeded rows
+        Snackbar.Add("Schedule saved.", Severity.Success);
+    }
+
+    void CloseSchedule(int id)
+    {
+        DedSvc.Close(id);
+        LoadSchedules();
+        SeedScheduledVarDeds();
+        Snackbar.Add("Schedule closed.", Severity.Info);
+    }
+
+    // Auto-seed varDed rows from due schedules (won't duplicate existing rows)
+    void SeedScheduledVarDeds()
+    {
+        if (_sdEmpId <= 0 || _sdMonth <= 0) return;
+        var dueItems = DedSvc.GetDueLineItems(_sdEmpId, AppState.CurrentFY, _sdMonth);
+        foreach (var li in dueItems)
+        {
+            // Only add if not already present (match by name prefix to avoid duplicates on reload)
+            if (!_sdVarDedRows.Any(r => r.Name == li.Name))
+                _sdVarDedRows.Add((li.Name, li.Taxable));
+        }
+    }
+
     void AddPerqLine()
     {
         if (string.IsNullOrEmpty(_sdPerqPick)) return;
@@ -3758,6 +3968,9 @@
         _sdEsi = e.EsiEmployee;
         _sdTds = e.TdsDeducted;
         _sdLopDays = e.LopDays;
+        LoadSchedules();
+        // Auto-seed varDed from due schedules (only for unlocked months, skips already-loaded rows)
+        if (e.IsLocked == false) SeedScheduledVarDeds();
         if (_sdEmpId > 0 && _sdMonth > 0)
             _ = SdCompute();
     }

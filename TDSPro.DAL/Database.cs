@@ -11,7 +11,7 @@ namespace TDSPro.DAL
         public static string DbPath => _dbPath;
 
         // Current schema version — bump this when adding new migrations
-        private const int SchemaVersion = 15;
+        private const int SchemaVersion = 16;
 
         /// <summary>
         /// Fast path: creates tables + seeds. Returns immediately so the window can show.
@@ -99,6 +99,19 @@ namespace TDSPro.DAL
                 Add("employees", "da_for_retirement",   "INTEGER DEFAULT 0");
                 Add("employees", "is_differently_abled","INTEGER DEFAULT 0");
                 Add("employees", "tax_regime",          "TEXT DEFAULT 'New'");
+
+                // deduction_schedules (new in v16)
+                Add("deduction_schedules", "type",               "TEXT NOT NULL DEFAULT 'Other'");
+                Add("deduction_schedules", "description",        "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "total_amount",       "REAL NOT NULL DEFAULT 0");
+                Add("deduction_schedules", "installment_amt",    "REAL NOT NULL DEFAULT 0");
+                Add("deduction_schedules", "total_installments", "INTEGER NOT NULL DEFAULT 0");
+                Add("deduction_schedules", "recovered_amt",      "REAL NOT NULL DEFAULT 0");
+                Add("deduction_schedules", "start_fy",           "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "start_month",        "INTEGER NOT NULL DEFAULT 4");
+                Add("deduction_schedules", "is_active",          "INTEGER NOT NULL DEFAULT 1");
+                Add("deduction_schedules", "created_at",         "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "notes",              "TEXT NOT NULL DEFAULT ''");
             }
             catch { }
         }
@@ -649,6 +662,29 @@ namespace TDSPro.DAL
                         FOREIGN KEY(monthly_salary_entry_id) REFERENCES monthly_salary_entries(id) ON DELETE CASCADE
                     )";
                 cmd3.ExecuteNonQuery();
+            }
+
+            // Deduction schedules (loan/advance recovery tracking)
+            using (var cmdDs = conn.CreateCommand()) {
+                cmdDs.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS deduction_schedules (
+                        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                        employee_id         INTEGER NOT NULL,
+                        deductor_id         INTEGER NOT NULL DEFAULT 0,
+                        type                TEXT NOT NULL DEFAULT 'Other',
+                        description         TEXT NOT NULL DEFAULT '',
+                        total_amount        REAL NOT NULL DEFAULT 0,
+                        installment_amt     REAL NOT NULL DEFAULT 0,
+                        total_installments  INTEGER NOT NULL DEFAULT 0,
+                        recovered_amt       REAL NOT NULL DEFAULT 0,
+                        start_fy            TEXT NOT NULL DEFAULT '',
+                        start_month         INTEGER NOT NULL DEFAULT 4,
+                        is_active           INTEGER NOT NULL DEFAULT 1,
+                        created_at          TEXT NOT NULL DEFAULT '',
+                        notes               TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(employee_id) REFERENCES employees(id)
+                    )";
+                cmdDs.ExecuteNonQuery();
             }
 
             // Named salary components (replaces rigid Reimb*/AnnualBonus single-value columns)

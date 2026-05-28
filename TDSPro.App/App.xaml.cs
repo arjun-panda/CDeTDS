@@ -76,6 +76,7 @@ namespace TDSPro.App
             services.AddTransient<PayrollService>();
             services.AddTransient<SalaryService>();
             services.AddTransient<MonthlyCloseService>();
+            services.AddTransient<DeductionScheduleService>();
             services.AddTransient<TdsRulesService>();
             services.AddTransient<ReportsService>();
             services.AddTransient<ReturnService>();

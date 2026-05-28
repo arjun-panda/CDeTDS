@@ -11,9 +11,10 @@ namespace TDSPro.BLL
     /// </summary>
     public class MonthlyCloseService
     {
-        private readonly PayrollRepository _empRepo = new();
-        private readonly SalaryRepository  _salRepo = new();
-        private readonly SalaryService     _salSvc  = new();
+        private readonly PayrollRepository         _empRepo    = new();
+        private readonly SalaryRepository          _salRepo    = new();
+        private readonly SalaryService             _salSvc     = new();
+        private readonly DeductionScheduleService  _dedSvc     = new();
 
         /// <summary>
         /// Build the close grid: one row per active employee for (deductor, fy, month).
@@ -260,6 +261,9 @@ namespace TDSPro.BLL
                     }
                 }
             }
+            // Post deduction schedule installments — decrements balance for loan/advance recovery
+            _dedSvc.PostInstallments(row.EmployeeId, deductorId, row.FinancialYear, row.Month);
+
             return (true, "Locked & Sec 192 entry created.");
         }
 
