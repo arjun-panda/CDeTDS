@@ -45,297 +45,189 @@ namespace TDSPro.App.Services
                     await wv.EnsureCoreWebView2Async();
                     var cw = wv.CoreWebView2;
 
-                    cw.Settings.UserAgent =
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+                    cw.Settings.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
 
-                    // Clear previous session
+                    // Clear any previous session so we don't hit "session already active"
                     await cw.Profile.ClearBrowsingDataAsync();
 
-                    // ── Step 1: load login page ───────────────────────────────
-                    progress?.Report("Loading IT Portal login page...");
-                    var navDone = new TaskCompletionSource();
-                    cw.NavigationCompleted += OnNav;
-                    void OnNav(object? s, CoreWebView2NavigationCompletedEventArgs e)
-                    { cw.NavigationCompleted -= OnNav; navDone.TrySetResult(); }
+                    // Step 1: navigate to portal, let Angular fully load + set all WAF cookies
+                    progress?.Report("Loading IT portal...");
                     cw.Navigate(PortalBase + "/iec/foservices/#/login");
+
+                    var navDone = new TaskCompletionSource();
+                    cw.NavigationCompleted += OnFirstNav;
+                    void OnFirstNav(object? s, CoreWebView2NavigationCompletedEventArgs e)
+                    {
+                        cw.NavigationCompleted -= OnFirstNav;
+                        navDone.TrySetResult();
+                    }
                     await navDone.Task;
 
-                    // Wait for Angular to render login form
+                    // Wait for Angular to render the login form
                     progress?.Report("Waiting for login form...");
+                    await Task.Delay(3000);
+
                     bool formReady = false;
-                    for (int i = 0; i < 30; i++)
+                    for (int i = 0; i < 20; i++)
                     {
                         await Task.Delay(1000);
-                        var check = await cw.ExecuteScriptAsync(
-                            "document.querySelector('input[name=\"panAdhaarUserId\"]') !== null ? 'yes' : 'no'");
-                        progress?.Report($"Waiting for login form... ({i+1}s) url={cw.Source}");
-                        if (check.Contains("yes")) { formReady = true; break; }
+                        var hasField = await cw.ExecuteScriptAsync("document.querySelector('input[name=\"panAdhaarUserId\"]') ? 'yes' : 'no'");
+                        progress?.Report($"Waiting for login form... ({i+1}s)");
+                        if (hasField.Contains("yes")) { formReady = true; break; }
                     }
 
                     if (!formReady)
                     {
-                        tcs.TrySetResult(new CsiResult(false, null,
-                            $"Login form did not appear. Last URL: {cw.Source}"));
-                        Cleanup(wv, win); return;
+                        tcs.TrySetResult(new CsiResult(false, null, "Login form did not appear."));
+                        Cleanup(wv, win);
+                        return;
                     }
 
-                    // ── Step 2: fill TAN and click Continue ───────────────────
-                    progress?.Report("Filling TAN...");
+                    // Fill TAN
+                    progress?.Report("Filling credentials...");
                     await cw.ExecuteScriptAsync($$"""
                         (function() {
                             var el = document.querySelector('input[name="panAdhaarUserId"]');
                             if (!el) return;
-                            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+                            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                             setter.call(el, '{{tan}}');
-                            el.dispatchEvent(new Event('input',  {bubbles:true}));
+                            el.dispatchEvent(new Event('input', {bubbles:true}));
                             el.dispatchEvent(new Event('change', {bubbles:true}));
-                            el.dispatchEvent(new Event('blur',   {bubbles:true}));
                         })()
                         """);
-                    await Task.Delay(800);
+                    await Task.Delay(600);
 
+                    // Click Continue
                     await cw.ExecuteScriptAsync(@"
                         (function() {
-                            var btn = Array.from(document.querySelectorAll('button'))
-                                .find(b => /continue/i.test(b.textContent.trim()));
+                            var btn = Array.from(document.querySelectorAll('button')).find(b => /continue/i.test(b.textContent.trim()));
                             if (btn) btn.click();
                         })()");
-                    await Task.Delay(3000);
+                    await Task.Delay(2500);
 
-                    // ── Step 3: fill password and login ──────────────────────
+                    // Wait for password page, tick checkbox + fill password
                     progress?.Report("Filling password...");
+                    await Task.Delay(2000);
 
-                    // Wait up to 10s for password field
-                    bool passReady = false;
-                    for (int i = 0; i < 10; i++)
-                    {
-                        await Task.Delay(1000);
-                        var hasPass = await cw.ExecuteScriptAsync(
-                            "document.querySelector('input[type=\"password\"]') !== null ? 'yes' : 'no'");
-                        if (hasPass.Contains("yes")) { passReady = true; break; }
-                    }
-
-                    if (!passReady)
-                    {
-                        tcs.TrySetResult(new CsiResult(false, null,
-                            $"Password field did not appear. URL: {cw.Source}"));
-                        Cleanup(wv, win); return;
-                    }
-
-                    // Tick checkbox first (must be done before filling password or Login stays disabled)
-                    await cw.ExecuteScriptAsync(@"
-                        (function() {
-                            var cb = document.querySelector('input[type=""checkbox""]');
-                            if (cb && !cb.checked) { cb.click(); }
-                        })()");
-                    await Task.Delay(500);
-
-                    // Fill password using Angular-compatible setter
                     await cw.ExecuteScriptAsync($$"""
                         (function() {
+                            var cb = document.querySelector('input[type="checkbox"]');
+                            if (cb && !cb.checked) { cb.click(); }
                             var el = document.querySelector('input[type="password"]');
                             if (!el) return;
-                            el.focus();
-                            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+                            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                             setter.call(el, '{{password}}');
-                            el.dispatchEvent(new Event('input',  {bubbles:true}));
+                            el.dispatchEvent(new Event('input', {bubbles:true}));
                             el.dispatchEvent(new Event('change', {bubbles:true}));
-                            el.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true}));
-                            el.blur();
-                            el.dispatchEvent(new Event('blur',   {bubbles:true}));
                         })()
                         """);
-                    await Task.Delay(1500);
+                    await Task.Delay(600);
 
-                    // Click the Login button — try multiple selectors
+                    // Click Login button
+                    progress?.Report("Submitting login...");
                     await cw.ExecuteScriptAsync(@"
                         (function() {
-                            // Try by text content (case-insensitive, trimmed)
-                            var btns = Array.from(document.querySelectorAll('button'));
-                            var btn = btns.find(b => /login/i.test(b.textContent.trim()));
-                            if (!btn) btn = btns.find(b => /continue/i.test(b.textContent.trim()));
-                            if (!btn) btn = btns.find(b => /submit/i.test(b.textContent.trim()));
+                            var btn = Array.from(document.querySelectorAll('button')).find(b => /login|sign in|continue/i.test(b.textContent.trim()));
                             if (!btn) btn = document.querySelector('button[type=""submit""]');
-                            if (!btn) btn = document.querySelector('.login-btn, .btn-login, .submit-btn');
-                            if (btn) { btn.focus(); btn.click(); }
-                        })()");
-                    await Task.Delay(500);
-                    // Second attempt — sometimes first click doesn't register in Angular
-                    await cw.ExecuteScriptAsync(@"
-                        (function() {
-                            var btns = Array.from(document.querySelectorAll('button'));
-                            var btn = btns.find(b => /login/i.test(b.textContent.trim()) && !b.disabled);
                             if (btn) btn.click();
                         })()");
 
-                    // ── Step 4: wait for login to succeed ─────────────────────
-                    progress?.Report("Waiting for login...");
+                    // Wait for login to complete
+                    progress?.Report("Waiting for login to complete...");
                     bool loggedIn = false;
-                    for (int i = 0; i < 90; i++)
+                    for (int i = 0; i < 60; i++)
                     {
                         await Task.Delay(1000);
+                        var url = cw.Source;
 
-                        // Dismiss "session already active / dual login" modal
+                        // Handle "Dual Login Detected" modal
                         await cw.ExecuteScriptAsync(@"
                             (function() {
-                                var els = Array.from(document.querySelectorAll('button,a,span'));
-                                var el  = els.find(e => /login\s*here/i.test(e.textContent.trim())
-                                                     && e.textContent.trim().length < 25);
+                                var all = Array.from(document.querySelectorAll('button, a, span, div'));
+                                var el = all.find(e => e.textContent.trim() === 'Login Here');
+                                if (el) { el.click(); return; }
+                                el = all.find(e => /login here/i.test(e.textContent.trim()) && e.textContent.trim().length < 20);
                                 if (el) el.click();
                             })()");
 
-                        // Also dismiss any other confirmation dialogs
-                        await cw.ExecuteScriptAsync(@"
-                            (function() {
-                                var els = Array.from(document.querySelectorAll('button'));
-                                var el  = els.find(e => /^(ok|proceed|yes|confirm)$/i.test(e.textContent.trim()));
-                                if (el) el.click();
-                            })()");
-
-                        var url = cw.Source ?? "";
-                        var urlOk = url.Contains("dashboard") || url.Contains("myaccount")
-                                 || url.Contains("home")      || url.Contains("foservices/#/");
-
-                        // Check for AuthToken cookie
-                        var c1 = await cw.CookieManager.GetCookiesAsync(PortalBase);
-                        var c2 = await cw.CookieManager.GetCookiesAsync("https://incometax.gov.in");
-                        var hasAuth = c1.Any(c => c.Name == "AuthToken")
-                                   || c2.Any(c => c.Name == "AuthToken")
-                                   || c1.Any(c => c.Name.Contains("token", StringComparison.OrdinalIgnoreCase)
-                                                  && c.Value.Length > 20);
-
-                        // Check if we left the login page (Angular SPA — hash changes)
-                        var leftLogin = !url.Contains("#/login") && url.Contains("foservices");
-
-                        // Re-attempt button click every 5s in case first attempt missed
-                        if (i % 5 == 0 && !leftLogin)
-                        {
-                            await cw.ExecuteScriptAsync(@"
-                                (function() {
-                                    var btns = Array.from(document.querySelectorAll('button'));
-                                    var btn = btns.find(b => /login/i.test(b.textContent.trim()) && !b.disabled);
-                                    if (btn) btn.click();
-                                })()");
-                        }
-                        var btnsInfo = await cw.ExecuteScriptAsync(
-                            "JSON.stringify(Array.from(document.querySelectorAll('button')).map(b=>({t:b.textContent.trim().substring(0,20),d:b.disabled})))");
-                        progress?.Report($"Login {i+1}s | leftLogin={leftLogin} auth={hasAuth} | btns={btnsInfo[..Math.Min(120,btnsInfo.Length)]} | url={url[..Math.Min(60,url.Length)]}");
-
-                        if (hasAuth || leftLogin) { loggedIn = true; break; }
+                        var cookies1 = await cw.CookieManager.GetCookiesAsync(PortalBase);
+                        var cookies2 = await cw.CookieManager.GetCookiesAsync("https://incometax.gov.in");
+                        var hasAuth = cookies1.Any(c => c.Name == "AuthToken") || cookies2.Any(c => c.Name == "AuthToken");
+                        var onDashboard = url.Contains("dashboard") || url.Contains("home") || url.Contains("myaccount");
+                        progress?.Report($"Waiting for login... ({i+1}s)");
+                        if (hasAuth || onDashboard) { loggedIn = true; break; }
                     }
 
                     if (!loggedIn)
                     {
-                        // Capture page state for diagnosis
-                        var finalUrl  = cw.Source ?? "";
-                        var pageTitle = await cw.ExecuteScriptAsync("document.title");
-                        tcs.TrySetResult(new CsiResult(false, null,
-                            $"Login did not complete after 90s. URL: {finalUrl} | Title: {pageTitle}\n" +
-                            "Check credentials in Portals page. The portal may require OTP — log in manually once to clear any security prompt."));
-                        Cleanup(wv, win); return;
+                        tcs.TrySetResult(new CsiResult(false, null, "Login did not complete — check credentials in Portals page."));
+                        Cleanup(wv, win);
+                        return;
                     }
 
-                    // ── Step 5: fetch CSI via fetch() inside the logged-in session ──
-                    progress?.Report("Logged in. Fetching CSI file...");
-                    await Task.Delay(1500);
+                    progress?.Report("Logged in. Fetching CSI...");
+                    await Task.Delay(1000);
 
-                    var escapedTan  = tan.Replace("'", "\\'");
-                    var escapedFrom = fromDate.Replace("'", "\\'");
-                    var escapedTo   = toDate.Replace("'", "\\'");
-
-                    var csiScript = $@"
+                    var csiScript = $$"""
                         window._csiData = undefined;
-                        (async () => {{
-                            try {{
-                                const r = await fetch('{CsiApiUrl}', {{
-                                    method: 'POST',
-                                    credentials: 'include',
-                                    headers: {{ 'Content-Type': 'application/json', 'sn': 'NA' }},
-                                    body: JSON.stringify({{
-                                        header:   {{ formName: 'PO-03-PYMNT' }},
-                                        formData: {{
-                                            pan:              '{escapedTan}',
-                                            fromDate:         '{escapedFrom}',
-                                            toDate:           '{escapedTo}',
-                                            actType:          'O',
-                                            loggedInUserID:   '{escapedTan}',
-                                            loggedInUserType: 'TDS'
-                                        }}
-                                    }})
-                                }});
-                                const ct  = r.headers.get('content-type') || '';
+                        (async () => {
+                            try {
+                                const r = await fetch('{{CsiApiUrl}}', {
+                                    method:'POST',
+                                    credentials:'include',
+                                    headers:{'Content-Type':'application/json','sn':'NA'},
+                                    body:JSON.stringify({
+                                        header:{formName:'PO-03-PYMNT'},
+                                        formData:{pan:'{{tan}}',fromDate:'{{fromDate}}',toDate:'{{toDate}}',
+                                                  actType:'O',loggedInUserID:'{{tan}}',loggedInUserType:'TDS'}
+                                    })
+                                });
                                 const buf = await r.arrayBuffer();
                                 const bytes = new Uint8Array(buf);
-                                let bin = '';
-                                for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-                                window._csiData = btoa(bin) + '|' + ct + '|' + r.status;
-                            }} catch(e) {{
-                                window._csiData = 'ERROR:' + e.message;
-                            }}
-                        }})();
-                        true";
-
+                                let binary = '';
+                                for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+                                window._csiData = btoa(binary);
+                            } catch(e) { window._csiData = 'ERROR:' + e.message; }
+                        })();
+                        true
+                        """;
                     await cw.ExecuteScriptAsync(csiScript);
 
-                    // Poll for result (max 60s)
-                    string csiRaw = "";
+                    // Poll for _csiData (max 60s)
+                    progress?.Report("Waiting for CSI data...");
+                    string csiBase64 = "";
                     for (int i = 0; i < 60; i++)
                     {
                         await Task.Delay(1000);
-                        var poll = await cw.ExecuteScriptAsync(
-                            "typeof window._csiData === 'undefined' ? '__PENDING__' : String(window._csiData)");
+                        var poll = await cw.ExecuteScriptAsync("typeof window._csiData === 'undefined' ? '__PENDING__' : String(window._csiData)");
                         var val = poll.Trim('"');
                         if (val != "__PENDING__")
                         {
-                            csiRaw = System.Text.RegularExpressions.Regex.Unescape(val);
+                            csiBase64 = System.Text.RegularExpressions.Regex.Unescape(val);
                             break;
                         }
-                        progress?.Report($"Waiting for CSI data... ({i+1}s)");
+                        progress?.Report($"Waiting for CSI... ({i+1}s)");
                     }
 
                     Cleanup(wv, win);
 
-                    if (string.IsNullOrEmpty(csiRaw))
-                    { tcs.TrySetResult(new CsiResult(false, null, "CSI request timed out.")); return; }
+                    if (string.IsNullOrEmpty(csiBase64))
+                    { tcs.TrySetResult(new CsiResult(false, null, "CSI download timed out.")); return; }
 
-                    if (csiRaw.StartsWith("ERROR:"))
-                    { tcs.TrySetResult(new CsiResult(false, null, "CSI fetch error: " + csiRaw[6..])); return; }
-
-                    // Parse base64|contentType|statusCode
-                    var parts     = csiRaw.Split('|');
-                    var b64       = parts[0];
-                    var ct        = parts.Length > 1 ? parts[1] : "";
-                    var httpCode  = parts.Length > 2 ? parts[2] : "";
-
-                    byte[] fileBytes;
-                    try { fileBytes = Convert.FromBase64String(b64); }
-                    catch (Exception ex)
-                    { tcs.TrySetResult(new CsiResult(false, null, "Base64 decode failed: " + ex.Message)); return; }
-
-                    // If portal returned JSON error body
-                    if (ct.Contains("json") || (fileBytes.Length < 500 && fileBytes.Length > 0
-                        && fileBytes[0] == '{'))
-                    {
-                        var body = System.Text.Encoding.UTF8.GetString(fileBytes);
-                        tcs.TrySetResult(new CsiResult(false, null,
-                            $"CSI API error (HTTP {httpCode}): {body[..Math.Min(300, body.Length)]}"));
-                        return;
-                    }
-
-                    if (fileBytes.Length < 10)
-                    { tcs.TrySetResult(new CsiResult(false, null, $"CSI response too small ({fileBytes.Length} bytes, HTTP {httpCode}).")); return; }
+                    if (csiBase64.StartsWith("ERROR:"))
+                    { tcs.TrySetResult(new CsiResult(false, null, "CSI fetch failed: " + csiBase64)); return; }
 
                     try
                     {
+                        var bytes = Convert.FromBase64String(csiBase64);
+                        if (bytes.Length < 10)
+                        { tcs.TrySetResult(new CsiResult(false, null, "CSI response empty: " + System.Text.Encoding.UTF8.GetString(bytes))); return; }
                         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-                        await File.WriteAllBytesAsync(outputPath, fileBytes);
+                        await File.WriteAllBytesAsync(outputPath, bytes);
                         tcs.TrySetResult(new CsiResult(true, outputPath, null));
                     }
                     catch (Exception ex)
-                    {
-                        tcs.TrySetResult(new CsiResult(false, null, "Save failed: " + ex.Message));
-                    }
+                    { tcs.TrySetResult(new CsiResult(false, null, "Save failed: " + ex.Message)); }
                 }
                 catch (Exception ex)
                 {
@@ -349,11 +241,15 @@ namespace TDSPro.App.Services
 
         private static void Cleanup(WebView2? wv, Window? win)
         {
-            Application.Current.Dispatcher.InvokeAsync(() =>
+            try
             {
-                try { wv?.Dispose(); } catch { }
-                try { win?.Close();  } catch { }
-            });
+                Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    try { wv?.Dispose(); } catch { }
+                    try { win?.Close(); } catch { }
+                });
+            }
+            catch { }
         }
     }
 }

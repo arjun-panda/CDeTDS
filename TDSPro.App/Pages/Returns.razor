@@ -926,8 +926,15 @@
 
     private async Task DownloadCsi()
     {
-        var tan      = TDSPro.DAL.Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
-        var password = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{AppState.CurrentDeductorId}", "");
+        var did = AppState.CurrentDeductorId;
+        // Try scoped key first, fall back to old global key (migration for existing installs)
+        var tan      = TDSPro.DAL.Database.GetSetting($"ItPortalUserId_{did}", "");
+        if (string.IsNullOrEmpty(tan))
+            tan = TDSPro.DAL.Database.GetSetting("ItPortalUserId", "");
+        var password = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{did}", "");
+        if (string.IsNullOrEmpty(password))
+            password = TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", "");
+
         if (string.IsNullOrEmpty(tan) || string.IsNullOrEmpty(password))
         {
             Snackbar.Add("IT Portal credentials not set. Go to Portals page and save them.", Severity.Warning);
