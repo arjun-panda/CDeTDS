@@ -85,7 +85,7 @@ namespace TDSPro.DAL
             allDeductions.Add(($"Income Tax ({TDSPro.Common.TaxRules.SalaryTdsSection(entry.FinancialYear)})", entry.TdsDeducted));
             var deductions = allDeductions.Where(x => x.Amount != 0).ToList();
 
-            double grossEarnings   = entry.GrossPayment;
+            double grossEarnings   = earnings.Sum(x => x.Amount);
             double totalDeductions = htmlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
                                    + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
             double netSalary       = grossEarnings - totalDeductions;
@@ -616,10 +616,8 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             entry.RecalcGross();
             int    xlLopDays   = entry.LopDays;
             double xlLopAmount = xlLopDays > 0 ? Math.Round(entry.Basic * xlLopDays / 30.0, 0) : 0;
-            double gross = entry.GrossPayment;
             double ded   = xlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
                          + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
-            double net   = gross - ded;
 
             double xlVarEarnSum   = entry.LineItems.Where(l => l.Category == "varEarn").Sum(l => l.Taxable);
             double xlOtherLineSum = entry.LineItems.Where(l => l.Category == "other").Sum(l => l.Taxable + l.Exempt);
@@ -658,6 +656,8 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
                 dedsList.Add((li.Name, li.Taxable));
             dedsList.Add(($"Income Tax ({TDSPro.Common.TaxRules.SalaryTdsSection(entry.FinancialYear)})", entry.TdsDeducted));
             var deds = dedsList.Where(x => x.Item2 != 0).ToList();
+            double gross = earns.Sum(x => x.Item2);
+            double net   = gross - ded;
 
             int maxRows = Math.Max(earns.Count, deds.Count);
             for (int i=0; i<maxRows; i++)
