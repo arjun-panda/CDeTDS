@@ -588,12 +588,6 @@
                 @* fixed height forces scroll inside this div so position:sticky works.   *@
                 <div id="payroll-tbl-wrap" style="position:relative;margin:8px -24px -44px -24px;overflow:auto;height:calc(100vh - 64px - 193px);">
 
-                    @* Right-edge fade hint so users know more columns exist *@
-                    <div style="pointer-events:none;position:sticky;left:0;width:100%;height:0;z-index:20">
-                        <div style="position:absolute;right:0;top:0;width:48px;height:calc(100vh - 64px - 193px);
-                                    background:linear-gradient(to left,rgba(0,0,0,.13),transparent)"></div>
-                    </div>
-
                     <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;min-width:100%">
                         <colgroup>
                             <col style="min-width:80px;width:80px">   @* Code *@
