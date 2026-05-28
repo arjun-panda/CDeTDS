@@ -583,7 +583,8 @@
             else
             {
                 @* Employee × Month table — full-bleed with horizontal scroll *@
-                <div style="margin:0 -16px;overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 260px);border-top:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="margin:0 -16px;overflow-y:auto;max-height:calc(100vh - 260px);border-top:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="overflow-x:auto">
                     <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
                         <thead>
                             <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
@@ -637,6 +638,7 @@
                             </tr>
                         </tfoot>
                     </table>
+                </div>
                 </div>
             }
         }
