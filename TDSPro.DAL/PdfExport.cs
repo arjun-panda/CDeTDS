@@ -196,7 +196,7 @@ tr:nth-child(even) td{background:#F8FAFC}
 
         internal void Complete()
         {
-            _html.Append($"<div class='footer'>TDS Pro v3.0 &nbsp;|&nbsp; Income-tax Act 2025 &nbsp;|&nbsp; Printed: {_createdAt}</div>");
+            _html.Append($"<div class='footer'>TDS Pro v{TDSPro.Common.AppConstants.AppVersion} &nbsp;|&nbsp; Income-tax Act 2025 &nbsp;|&nbsp; Printed: {_createdAt}</div>");
             _html.Append("</div></body></html>");
             File.WriteAllText(_path, _html.ToString(), System.Text.Encoding.UTF8);
         }

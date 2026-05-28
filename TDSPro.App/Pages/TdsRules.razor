@@ -268,7 +268,7 @@
                             </tr>
                             <tr>
                                 <td><b>Effective From</b></td>
-                                <td>1 April 2026 (FY 2026-27)</td>
+                                <td>1 April @(AppState.CurrentFY.Length >= 4 ? AppState.CurrentFY[..4] : DateTime.Today.Year.ToString()) (FY @AppState.CurrentFY)</td>
                             </tr>
                             <tr>
                                 <td><b>Act Reference</b></td>
@@ -491,7 +491,7 @@
         _editingRule = new TdsRule
         {
             IsActive = true, IsResident = true, DeducteeType = "All",
-            CessRate = 4.0, EffectiveFrom = new DateTime(2025, 4, 1)
+            CessRate = 4.0, EffectiveFrom = new DateTime(AppState.CurrentFY.Length >= 4 && int.TryParse(AppState.CurrentFY[..4], out var fyY) ? fyY : DateTime.Today.Year, 4, 1)
         };
         _ruleEffFrom   = _editingRule.EffectiveFrom;
         _ruleEffTo     = null;

@@ -225,7 +225,7 @@ namespace TDSPro.DAL
 
 <div class=""footer"">
   This is a computer-generated paper return. File the validated .fvu file at https://www.tin-nsdl.com or https://incometax.gov.in
-  &nbsp;·&nbsp; TDS Pro v2.0 &nbsp;·&nbsp; Generated: {now}
+  &nbsp;·&nbsp; TDS Pro v{TDSPro.Common.AppConstants.AppVersion} &nbsp;·&nbsp; Generated: {now}
 </div>
 
 <script>
