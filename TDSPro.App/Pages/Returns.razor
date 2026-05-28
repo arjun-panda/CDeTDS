@@ -7,7 +7,7 @@
 @inject DeductorService DeductorSvc
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-@inject CsiDownloadService CsiSvc
+@* CsiDownloadService removed — now using CsiDownloader direct HTTP API *@
 @inject ItPortalUploadService UploadSvc
 @inject UpdateCheckService UpdateSvc
 
@@ -926,35 +926,8 @@
 
     private async Task DownloadCsi()
     {
-        var tan      = TDSPro.DAL.Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
-        var password = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{AppState.CurrentDeductorId}", "");
-        if (string.IsNullOrEmpty(tan) || string.IsNullOrEmpty(password))
-        {
-            Snackbar.Add("IT Portal credentials not set. Go to Settings → IT Portal.", Severity.Warning);
-            return;
-        }
-
-        var fy    = AppState.CurrentFY;
-        var parts = fy.Split('-');
-        if (parts.Length < 2 || !int.TryParse(parts[0], out var fromYInt) || !int.TryParse(parts[1], out var toYSuffix))
-        {
-            Snackbar.Add("Cannot determine FY dates — please select a valid financial year.", Severity.Error);
-            return;
-        }
-        var fromY = parts[0];
-        var toY   = 2000 + toYSuffix;
-        var from  = $"{fromY}-04-01";
-        var to    = $"{toY}-03-31";
-        if (DateTime.TryParse(to, out var toDate) && toDate > DateTime.Today)
-            to = DateTime.Today.ToString("yyyy-MM-dd");
-
-        TDSPro.DAL.FolderManager.EnsureStructure(fy);
-        var outPath = System.IO.Path.Combine(
-            TDSPro.DAL.FolderManager.CsiFolder,
-            $"{tan}.csi");
-
         _csiDownloading = true;
-        _csiStatus = "Opening portal...";
+        _csiStatus = "Connecting...";
         StateHasChanged();
 
         var progress = new Progress<string>(msg =>
@@ -963,7 +936,8 @@
             InvokeAsync(StateHasChanged);
         });
 
-        var result = await CsiSvc.DownloadAsync(tan, password, from, to, outPath, progress);
+        var result = await Task.Run(() =>
+            TDSPro.DAL.CsiDownloader.DownloadAsync(_quarter, AppState.CurrentFY, progress, AppState.CurrentDeductorId));
 
         _csiDownloading = false;
         _csiStatus = "";
@@ -976,7 +950,7 @@
         }
         else
         {
-            Snackbar.Add("CSI download failed: " + result.Error, Severity.Error);
+            Snackbar.Add("CSI download failed: " + result.Message, Severity.Error);
         }
     }
 
