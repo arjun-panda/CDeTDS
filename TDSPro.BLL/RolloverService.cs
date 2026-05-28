@@ -95,7 +95,7 @@ namespace TDSPro.BLL
                     }
 
                     double pf = 0;
-                    if (ss.PfApplicable)
+                    if (ss.PfFixedAmount > 0 || ss.PfApplicable)
                         pf = ss.PfFixedAmount > 0
                             ? ss.PfFixedAmount
                             : Math.Min(ss.Basic * 0.12, 1800);

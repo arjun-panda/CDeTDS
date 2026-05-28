@@ -62,7 +62,7 @@ namespace TDSPro.BLL
                         row.Special = ss2.SpecialAllowance;
                         row.Lta     = ss2.Lta;
                         row.Other   = ss2.ComponentsReceived();
-                        row.Pf      = ss2.PfApplicable
+                        row.Pf      = (ss2.PfFixedAmount > 0 || ss2.PfApplicable)
                             ? (ss2.PfFixedAmount > 0 ? ss2.PfFixedAmount : Math.Round(ss2.Basic * 0.12))
                             : 0;
                         row.Esi     = ss2.EsiApplicable && ss2.GrossSalary <= 21000
@@ -170,7 +170,7 @@ namespace TDSPro.BLL
             var ss = emp.Salary;
             if (ss != null)
             {
-                double pfMo = ss.PfApplicable
+                double pfMo = (ss.PfFixedAmount > 0 || ss.PfApplicable)
                     ? (ss.PfFixedAmount > 0 ? ss.PfFixedAmount : Math.Round(basic * 0.12))
                     : 0;
                 entry.PfEmployee = pfMo;

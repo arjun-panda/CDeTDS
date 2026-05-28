@@ -3679,7 +3679,7 @@
                 Lta              = seedSs.Lta,
                 OtherAllowances  = seedSs.OtherAllowance,
                 NpsEmployer      = seedSs.EmployerNps,
-                PfEmployee       = seedSs.PfApplicable
+                PfEmployee       = (seedSs.PfFixedAmount > 0 || seedSs.PfApplicable)
                                    ? (seedSs.PfFixedAmount > 0 ? seedSs.PfFixedAmount : Math.Round(seedSs.Basic * 0.12))
                                    : 0,
                 EsiEmployee      = seedSs.EsiApplicable && seedSs.GrossSalary <= 21000
