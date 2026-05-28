@@ -69,13 +69,15 @@ namespace TDSPro.DAL
                 ("VPF / Extra PF",            entry.VPF),
                 ("Professional Tax",          entry.ProfessionalTax),
                 ("ESI (Employee)",            entry.EsiEmployee),
-                ($"Income Tax ({TDSPro.Common.TaxRules.SalaryTdsSection(entry.FinancialYear)})", entry.TdsDeducted),
             };
+            foreach (var li in entry.LineItems.Where(l => l.Category == "varDed"))
+                allDeductions.Add((li.Name, li.Taxable));
+            allDeductions.Add(($"Income Tax ({TDSPro.Common.TaxRules.SalaryTdsSection(entry.FinancialYear)})", entry.TdsDeducted));
             var deductions = allDeductions.Where(x => x.Amount != 0).ToList();
 
             double grossEarnings   = entry.GrossPayment;
             double totalDeductions = htmlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
-                                   + entry.EsiEmployee + entry.TdsDeducted;
+                                   + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
             double netSalary       = grossEarnings - totalDeductions;
 
             // Pad both lists to equal length for side-by-side layout
@@ -287,18 +289,22 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             int lopDays       = entry.LopDays;
             double lopAmount  = lopDays > 0 ? Math.Round(entry.Basic * lopDays / 30.0, 0) : 0;
 
-            var deductions = new List<(string Label, double Amount)>
+            var deductionsList = new List<(string Label, double Amount)>
             {
                 ("Loss of Pay",               lopAmount),
                 ("Provident Fund (Employee)", entry.PfEmployee),
                 ("VPF / Extra PF",            entry.VPF),
                 ("Professional Tax",          entry.ProfessionalTax),
                 ("ESI (Employee)",            entry.EsiEmployee),
-                ("Income Tax (TDS)",          entry.TdsDeducted),
-            }.Where(x => x.Amount != 0).ToList();
+            };
+            foreach (var li in entry.LineItems.Where(l => l.Category == "varDed"))
+                deductionsList.Add((li.Name, li.Taxable));
+            deductionsList.Add(("Income Tax (TDS)", entry.TdsDeducted));
+            var deductions = deductionsList.Where(x => x.Amount != 0).ToList();
 
             double grossTotal = earnings.Sum(e => e.Amount);
-            double dedTotal   = deductions.Sum(d => d.Amount);
+            double dedTotal   = lopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
+                              + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
             double netPay     = grossTotal - dedTotal;
 
             // Compose deductor address line + pay period
@@ -592,7 +598,8 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             int    xlLopDays   = entry.LopDays;
             double xlLopAmount = xlLopDays > 0 ? Math.Round(entry.Basic * xlLopDays / 30.0, 0) : 0;
             double gross = entry.GrossPayment;
-            double ded   = xlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax + entry.EsiEmployee + entry.TdsDeducted;
+            double ded   = xlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
+                         + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
             double net   = gross - ded;
 
             var earns = new List<(string, double)> {
@@ -612,14 +619,17 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
                 ("Leave Enc. (Taxable)",        entry.LeaveEncTaxable),
             }.Where(x => x.Item2 != 0 || x.Item1 == "Basic Salary").ToList();
 
-            var deds = new List<(string, double)> {
+            var dedsList = new List<(string, double)> {
                 ("Loss of Pay",          xlLopAmount),
                 ("Provident Fund",       entry.PfEmployee),
                 ("VPF / Extra PF",       entry.VPF),
                 ("Professional Tax",     entry.ProfessionalTax),
                 ("ESI (Employee)",       entry.EsiEmployee),
-                ($"Income Tax ({TDSPro.Common.TaxRules.SalaryTdsSection(entry.FinancialYear)})", entry.TdsDeducted),
-            }.Where(x => x.Item2 != 0).ToList();
+            };
+            foreach (var li in entry.LineItems.Where(l => l.Category == "varDed"))
+                dedsList.Add((li.Name, li.Taxable));
+            dedsList.Add(($"Income Tax ({TDSPro.Common.TaxRules.SalaryTdsSection(entry.FinancialYear)})", entry.TdsDeducted));
+            var deds = dedsList.Where(x => x.Item2 != 0).ToList();
 
             int maxRows = Math.Max(earns.Count, deds.Count);
             for (int i=0; i<maxRows; i++)
