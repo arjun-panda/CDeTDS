@@ -259,26 +259,45 @@
                                   Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
 
-                @* Row 3 — Amount, Rate, TDS, Calc *@
+                @* Row 3 — Amount, Rate, TDS *@
                 <MudItem xs="4">
-                    <MudNumericField T="double?" Value="@(_editing.Amount == 0 ? null : (double?)_editing.Amount)"
-                                     Label="Gross Amount (₹)*" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
-                                     Placeholder="0.00" HideSpinButtons="true" Class="amount-field"
-                                     ValueChanged="@((double? v) => OnAmountChanged(v ?? 0))"
-                                     DebounceInterval="0" Immediate="false" />
+                    <div class="mud-input-control mud-input-outlined mud-input-control-margin-dense">
+                        <div class="mud-input-control-input-container">
+                            <div class="mud-input mud-input-outlined mud-input-adorned-none mud-shrink">
+                                <input type="number" step="0.01" min="0"
+                                       value="@(_editing.Amount == 0 ? "" : _editing.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
+                                       placeholder="0.00"
+                                       class="mud-input-slot mud-input-root mud-input-root-outlined amount-field"
+                                       style="padding:10px 14px;width:100%;border:none;outline:none;background:transparent;font-size:14px"
+                                       @onchange="@((ChangeEventArgs e) => OnAmountChanged(double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0))" />
+                                <fieldset aria-hidden="true" class="mud-input-outlined-border"><legend><span>Gross Amount (₹)*</span></legend></fieldset>
+                                <label class="mud-input-label mud-input-label-outlined mud-input-label-inputcontrol mud-shrink">Gross Amount (₹)*</label>
+                            </div>
+                        </div>
+                    </div>
                 </MudItem>
                 <MudItem xs="3">
-                    <MudNumericField T="double?" Value="@(_editing.Rate == 0 ? null : (double?)_editing.Rate)"
-                                     Label="Rate %" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
-                                     Placeholder="0.00" HideSpinButtons="true" Class="amount-field"
-                                     ValueChanged="@((double? v) => OnRateChanged(v ?? 0))"
-                                     DebounceInterval="0" Immediate="false" />
+                    <div class="mud-input-control mud-input-outlined mud-input-control-margin-dense">
+                        <div class="mud-input-control-input-container">
+                            <div class="mud-input mud-input-outlined mud-input-adorned-none mud-shrink">
+                                <input type="number" step="0.01" min="0"
+                                       value="@(_editing.Rate == 0 ? "" : _editing.Rate.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
+                                       placeholder="0.00"
+                                       class="mud-input-slot mud-input-root mud-input-root-outlined amount-field"
+                                       style="padding:10px 14px;width:100%;border:none;outline:none;background:transparent;font-size:14px"
+                                       @onchange="@((ChangeEventArgs e) => OnRateChanged(double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0))" />
+                                <fieldset aria-hidden="true" class="mud-input-outlined-border"><legend><span>Rate %</span></legend></fieldset>
+                                <label class="mud-input-label mud-input-label-outlined mud-input-label-inputcontrol mud-shrink">Rate %</label>
+                            </div>
+                        </div>
+                    </div>
                 </MudItem>
                 <MudItem xs="5">
-                    <MudNumericField T="double?" Value="@(_editing.TdsAmount == 0 ? null : (double?)_editing.TdsAmount)"
-                                     Label="TDS (₹)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N0"
-                                     Placeholder="0" HideSpinButtons="true" Class="amount-field" ReadOnly="true"
-                                     UserAttributes="@(new Dictionary<string,object>{ ["tabindex"] = "-1" })" />
+                    <MudTextField Value="@(_editing.TdsAmount == 0 ? "0" : _editing.TdsAmount.ToString("N0"))"
+                                  Label="TDS (₹)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  ReadOnly="true" tabindex="-1"
+                                  Class="amount-field"
+                                  UserAttributes="@(new Dictionary<string,object>{ ["tabindex"] = "-1" })" />
                 </MudItem>
 
                 @* Row 4 — Remarks *@
