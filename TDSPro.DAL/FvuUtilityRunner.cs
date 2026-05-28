@@ -372,7 +372,11 @@ namespace TDSPro.DAL
             // Look for: same folder as input TXT, or outputDir, with .csi extension.
             var csiName = formCode + ".csi";
             var tempCsi = Path.Combine(tempDir, csiName);
-            string? realCsiPath = FindCsiFile(inputTxtPath, outputDir);
+            // Extract TAN from filename (e.g. 24Q_DELI03886B_202526_Q1.txt → DELI03886B)
+            var inputFileName = Path.GetFileNameWithoutExtension(inputTxtPath);
+            var filenameParts = inputFileName.Split('_');
+            var tanHint = filenameParts.Length >= 2 ? filenameParts[1] : "";
+            string? realCsiPath = FindCsiFile(inputTxtPath, outputDir, tanHint);
             if (realCsiPath != null)
             {
                 // CSI file may be stored as raw NSDL text or as a JSON wrapper {"csiResponse":"..."}.
@@ -1459,7 +1463,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
         }
 
         // ── Find CSI file in common download locations ────────────────────────
-        private static string? FindCsiFile(string inputTxtPath, string outputDir)
+        private static string? FindCsiFile(string inputTxtPath, string outputDir, string tanHint = "")
         {
             var searchDirs = new List<string>();
 
@@ -1470,37 +1474,42 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
             // 2. Output directory
             searchDirs.Add(outputDir);
 
-            // 3. App's dedicated CSI folder under Documents\TDSPro\CSI (where FolderManager saves files)
+            // 3. App's dedicated CSI folder
             var docsCsi = Path.Combine(FolderManager.BasePath, "CSI");
             if (Directory.Exists(docsCsi)) searchDirs.Add(docsCsi);
 
-            // 4. %APPDATA%\TDSPro\CSI (legacy location)
+            // 4. %APPDATA%\TDSPro\CSI (legacy)
             var appCsi = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "TDSPro", "CSI");
             if (Directory.Exists(appCsi)) searchDirs.Add(appCsi);
 
-            // 5. User's Downloads folder
-            var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-            if (Directory.Exists(downloads)) searchDirs.Add(downloads);
+            // 5. Downloads, Desktop, Documents
+            var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            searchDirs.Add(Path.Combine(profile, "Downloads"));
+            searchDirs.Add(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
+            searchDirs.Add(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
 
-            // 6. Desktop
-            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            if (Directory.Exists(desktop)) searchDirs.Add(desktop);
-
-            // 7. Documents root
-            var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            if (Directory.Exists(docs)) searchDirs.Add(docs);
-
-            // Search each dir for any .csi file — pick the most recently modified one
             foreach (var dir in searchDirs.Distinct())
             {
+                if (!Directory.Exists(dir)) continue;
                 try
                 {
-                    var found = Directory.GetFiles(dir, "*.csi", SearchOption.TopDirectoryOnly)
-                        .OrderByDescending(File.GetLastWriteTime)
-                        .FirstOrDefault();
-                    if (found != null) return found;
+                    var allCsi = Directory.GetFiles(dir, "*.csi", SearchOption.TopDirectoryOnly);
+
+                    // Prefer file whose name contains the TAN (e.g. DELI03886B.csi or DELI03886B090526.csi)
+                    if (!string.IsNullOrEmpty(tanHint))
+                    {
+                        var tanMatch = allCsi
+                            .Where(f => Path.GetFileName(f).IndexOf(tanHint, StringComparison.OrdinalIgnoreCase) >= 0)
+                            .OrderByDescending(File.GetLastWriteTime)
+                            .FirstOrDefault();
+                        if (tanMatch != null) return tanMatch;
+                    }
+
+                    // Fallback: most recently modified CSI in this dir
+                    var fallback = allCsi.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
+                    if (fallback != null) return fallback;
                 }
                 catch { }
             }
