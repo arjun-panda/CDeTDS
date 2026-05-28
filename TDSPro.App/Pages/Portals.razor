@@ -237,11 +237,12 @@
 
     protected override void OnInitialized()
     {
-        _tracesUser = Database.GetSetting("TracesUserId", "");
-        _tracesTan  = Database.GetSetting("TracesTan",    AppState.CurrentDeductorTan);
-        _itUser     = Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
-        _itPan      = Database.GetSetting("ItPortalPan",    "");
-        _tinUser    = Database.GetSetting("TinNsdlTan",  AppState.CurrentDeductorTan);
+        var did = AppState.CurrentDeductorId;
+        _tracesUser = Database.GetSetting($"TracesUserId_{did}", "");
+        _tracesTan  = Database.GetSetting($"TracesTan_{did}",    AppState.CurrentDeductorTan);
+        _itUser     = Database.GetSetting($"ItPortalUserId_{did}", "");
+        _itPan      = Database.GetSetting($"ItPortalPan_{did}",    "");
+        _tinUser    = Database.GetSetting($"TinNsdlTan_{did}",  AppState.CurrentDeductorTan);
     }
 
     void ToggleTracesPass() => _showTraces = !_showTraces;
@@ -250,11 +251,11 @@
 
     void SaveTraces()
     {
-        Database.SetSetting("TracesUserId", _tracesUser);
-        Database.SetSetting("TracesTan",    _tracesTan);
+        Database.SetSetting($"TracesUserId_{AppState.CurrentDeductorId}", _tracesUser);
+        Database.SetSetting($"TracesTan_{AppState.CurrentDeductorId}",    _tracesTan);
         if (!string.IsNullOrEmpty(_tracesPass))
         {
-            AesEncryption.SaveCredential("TracesPassword", _tracesPass);
+            AesEncryption.SaveCredential($"TracesPassword_{AppState.CurrentDeductorId}", _tracesPass);
             _tracesPass = "";
         }
         Snackbar.Add("TRACES credentials saved.", Severity.Success);
@@ -263,19 +264,20 @@
     void ClearTraces()
     {
         _tracesUser = _tracesPass = _tracesTan = "";
-        Database.SetSetting("TracesUserId", "");
-        Database.SetSetting("TracesTan", "");
-        AesEncryption.ClearCredential("TracesPassword");
+        Database.SetSetting($"TracesUserId_{AppState.CurrentDeductorId}", "");
+        Database.SetSetting($"TracesTan_{AppState.CurrentDeductorId}", "");
+        AesEncryption.ClearCredential($"TracesPassword_{AppState.CurrentDeductorId}");
         Snackbar.Add("TRACES credentials cleared.", Severity.Info);
     }
 
     void SaveItPortal()
     {
-        Database.SetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", _itUser);
-        Database.SetSetting("ItPortalPan",    _itPan);
+        var did = AppState.CurrentDeductorId;
+        Database.SetSetting($"ItPortalUserId_{did}", _itUser);
+        Database.SetSetting($"ItPortalPan_{did}",    _itPan);
         if (!string.IsNullOrEmpty(_itPass))
         {
-            AesEncryption.SaveCredential($"ItPortalPassword_{AppState.CurrentDeductorId}", _itPass);
+            AesEncryption.SaveCredential($"ItPortalPassword_{did}", _itPass);
             _itPass = "";
         }
         Snackbar.Add("IT Portal credentials saved.", Severity.Success);
@@ -283,19 +285,21 @@
 
     void ClearItPortal()
     {
+        var did = AppState.CurrentDeductorId;
         _itUser = _itPass = _itPan = "";
-        Database.SetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
-        Database.SetSetting("ItPortalPan", "");
-        AesEncryption.ClearCredential($"ItPortalPassword_{AppState.CurrentDeductorId}");
+        Database.SetSetting($"ItPortalUserId_{did}", "");
+        Database.SetSetting($"ItPortalPan_{did}", "");
+        AesEncryption.ClearCredential($"ItPortalPassword_{did}");
         Snackbar.Add("IT Portal credentials cleared.", Severity.Info);
     }
 
     void SaveTin()
     {
-        Database.SetSetting("TinNsdlTan", _tinUser);
+        var did = AppState.CurrentDeductorId;
+        Database.SetSetting($"TinNsdlTan_{did}", _tinUser);
         if (!string.IsNullOrEmpty(_tinPass))
         {
-            AesEncryption.SaveCredential("TinNsdlPassword", _tinPass);
+            AesEncryption.SaveCredential($"TinNsdlPassword_{did}", _tinPass);
             _tinPass = "";
         }
         Snackbar.Add("TIN-NSDL credentials saved.", Severity.Success);
@@ -303,9 +307,10 @@
 
     void ClearTin()
     {
+        var did = AppState.CurrentDeductorId;
         _tinUser = _tinPass = "";
-        Database.SetSetting("TinNsdlTan", "");
-        AesEncryption.ClearCredential("TinNsdlPassword");
+        Database.SetSetting($"TinNsdlTan_{did}", "");
+        AesEncryption.ClearCredential($"TinNsdlPassword_{did}");
         Snackbar.Add("TIN-NSDL credentials cleared.", Severity.Info);
     }
 
@@ -348,9 +353,9 @@
         await Task.CompletedTask;
     }
 
-    async Task OpenTraces()   { ShowLaunchDialog("TRACES Login", _tracesTan, "TracesPassword", "https://traces.tdscpc.gov.in/auth/login/loginScreen"); await Task.CompletedTask; }
-    async Task OpenItPortal() { ShowLaunchDialog("IT Portal Login", _itUser, "ItPortalPassword", "https://eportal.incometax.gov.in/iec/foservices/#/login"); await Task.CompletedTask; }
-    async Task OpenTinNsdl()  { ShowLaunchDialog("TIN-NSDL Login", _tinUser, "TinNsdlPassword", "https://onlineservices.tin.egov-nsdl.com/etaxnew/tdsnontds.jsp"); await Task.CompletedTask; }
+    async Task OpenTraces()   { var did = AppState.CurrentDeductorId; ShowLaunchDialog("TRACES Login", _tracesTan, $"TracesPassword_{did}", "https://traces.tdscpc.gov.in/auth/login/loginScreen"); await Task.CompletedTask; }
+    async Task OpenItPortal() { var did = AppState.CurrentDeductorId; ShowLaunchDialog("IT Portal Login", _itUser, $"ItPortalPassword_{did}", "https://eportal.incometax.gov.in/iec/foservices/#/login"); await Task.CompletedTask; }
+    async Task OpenTinNsdl()  { var did = AppState.CurrentDeductorId; ShowLaunchDialog("TIN-NSDL Login", _tinUser, $"TinNsdlPassword_{did}", "https://onlineservices.tin.egov-nsdl.com/etaxnew/tdsnontds.jsp"); await Task.CompletedTask; }
     async Task OpenOltas()    => await OpenUrl("https://eportal.incometax.gov.in/iec/foservices/#/login");
 
     void OpenTracesDownloads()

@@ -554,13 +554,14 @@
 
     void BuildPortalCards()
     {
-        var tracesUser = Database.GetSetting("TracesTan", AppState.CurrentDeductorTan);
-        var itUser     = Database.GetSetting($"ItPortalUserId_{AppState.CurrentDeductorId}", "");
-        var tinUser    = Database.GetSetting("TinNsdlTan", AppState.CurrentDeductorTan);
+        var did        = AppState.CurrentDeductorId;
+        var tracesUser = Database.GetSetting($"TracesTan_{did}", AppState.CurrentDeductorTan);
+        var itUser     = Database.GetSetting($"ItPortalUserId_{did}", "");
+        var tinUser    = Database.GetSetting($"TinNsdlTan_{did}", AppState.CurrentDeductorTan);
         _portalCards = new()
         {
             new("RPU + FVU",     "Download RPU & FVU utility",    "https://www.protean-tinpan.com/services/etds-etcs/fvu.html", "#1565C0"),
-            new("TRACES",        "Form 16 / 16A, defaults",       "https://traces.tdscpc.gov.in/auth/login/loginScreen",                  "#6a1b9a", tracesUser, "TracesPassword"),
+            new("TRACES",        "Form 16 / 16A, defaults",       "https://traces.tdscpc.gov.in/auth/login/loginScreen",                  "#6a1b9a", tracesUser, $"TracesPassword_{did}"),
             new("Java",          "Required to run FVU",           "https://www.java.com/download/",                             "#795548"),
         };
     }
