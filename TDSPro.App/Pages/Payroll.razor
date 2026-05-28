@@ -1774,7 +1774,7 @@
                                     style="background:@rowBg;border-bottom:1px solid #f1f5f9">
                                     @* Checkbox *@
                                     <td style="text-align:center;padding:6px 4px">
-                                        <input type="checkbox" checked="@sel" disabled="@(row.IsLocked || _sdBulkBusy)"
+                                        <input type="checkbox" checked="@sel" disabled="@_sdBulkBusy"
                                                style="width:15px;height:15px;cursor:pointer"
                                                @onchange="@((e) => _sdBulkSel[row.EmployeeId] = (bool)(e.Value ?? false))" />
                                     </td>
@@ -3736,7 +3736,7 @@
     void SetAllBulkSel(bool v)
     {
         foreach (var r in _bulkRows)
-            if (!r.IsLocked) _sdBulkSel[r.EmployeeId] = v;
+            _sdBulkSel[r.EmployeeId] = v;
     }
 
     void BulkStartEdit()
