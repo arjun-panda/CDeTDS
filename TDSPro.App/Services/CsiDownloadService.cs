@@ -123,30 +123,49 @@ namespace TDSPro.App.Services
                         Cleanup(wv, win); return;
                     }
 
+                    // Tick checkbox first (must be done before filling password or Login stays disabled)
+                    await cw.ExecuteScriptAsync(@"
+                        (function() {
+                            var cb = document.querySelector('input[type=""checkbox""]');
+                            if (cb && !cb.checked) { cb.click(); }
+                        })()");
+                    await Task.Delay(500);
+
+                    // Fill password using Angular-compatible setter
                     await cw.ExecuteScriptAsync($$"""
                         (function() {
-                            // Tick secure access checkbox if present
-                            var cb = document.querySelector('input[type="checkbox"]');
-                            if (cb && !cb.checked) cb.click();
-
-                            // Fill password
                             var el = document.querySelector('input[type="password"]');
                             if (!el) return;
+                            el.focus();
                             var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
                             setter.call(el, '{{password}}');
                             el.dispatchEvent(new Event('input',  {bubbles:true}));
                             el.dispatchEvent(new Event('change', {bubbles:true}));
+                            el.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true}));
+                            el.blur();
                             el.dispatchEvent(new Event('blur',   {bubbles:true}));
                         })()
                         """);
-                    await Task.Delay(800);
+                    await Task.Delay(1500);
 
-                    // Click Login / Continue
+                    // Click the Login button — try multiple selectors
                     await cw.ExecuteScriptAsync(@"
                         (function() {
-                            var btn = Array.from(document.querySelectorAll('button'))
-                                .find(b => /^(login|sign in|continue)$/i.test(b.textContent.trim()));
+                            // Try by text content (case-insensitive, trimmed)
+                            var btns = Array.from(document.querySelectorAll('button'));
+                            var btn = btns.find(b => /login/i.test(b.textContent.trim()));
+                            if (!btn) btn = btns.find(b => /continue/i.test(b.textContent.trim()));
+                            if (!btn) btn = btns.find(b => /submit/i.test(b.textContent.trim()));
                             if (!btn) btn = document.querySelector('button[type=""submit""]');
+                            if (!btn) btn = document.querySelector('.login-btn, .btn-login, .submit-btn');
+                            if (btn) { btn.focus(); btn.click(); }
+                        })()");
+                    await Task.Delay(500);
+                    // Second attempt — sometimes first click doesn't register in Angular
+                    await cw.ExecuteScriptAsync(@"
+                        (function() {
+                            var btns = Array.from(document.querySelectorAll('button'));
+                            var btn = btns.find(b => /login/i.test(b.textContent.trim()) && !b.disabled);
                             if (btn) btn.click();
                         })()");
 
@@ -189,7 +208,19 @@ namespace TDSPro.App.Services
                         // Check if we left the login page (Angular SPA — hash changes)
                         var leftLogin = !url.Contains("#/login") && url.Contains("foservices");
 
-                        progress?.Report($"Login wait {i+1}s | auth={hasAuth} leftLogin={leftLogin} url={url[..Math.Min(80,url.Length)]}");
+                        // Re-attempt button click every 5s in case first attempt missed
+                        if (i % 5 == 0 && !leftLogin)
+                        {
+                            await cw.ExecuteScriptAsync(@"
+                                (function() {
+                                    var btns = Array.from(document.querySelectorAll('button'));
+                                    var btn = btns.find(b => /login/i.test(b.textContent.trim()) && !b.disabled);
+                                    if (btn) btn.click();
+                                })()");
+                        }
+                        var btnsInfo = await cw.ExecuteScriptAsync(
+                            "JSON.stringify(Array.from(document.querySelectorAll('button')).map(b=>({t:b.textContent.trim().substring(0,20),d:b.disabled})))");
+                        progress?.Report($"Login {i+1}s | leftLogin={leftLogin} auth={hasAuth} | btns={btnsInfo[..Math.Min(120,btnsInfo.Length)]} | url={url[..Math.Min(60,url.Length)]}");
 
                         if (hasAuth || leftLogin) { loggedIn = true; break; }
                     }
