@@ -1723,9 +1723,9 @@
                             @foreach (var row in _bulkRows)
                             {
                                 var sel      = _sdBulkSel.TryGetValue(row.EmployeeId, out var sv) && sv;
-                                var editable = _sdBulkEdit && !row.IsLocked;
                                 var isSkip   = row.Status == "Skip";
-                                var rowBg    = sel ? "#f0f9ff" : row.IsLocked ? "#fafafa" : isSkip ? "#fefce8" : "#fff";
+                                var editable = _sdBulkEdit && !row.IsLocked && !isSkip;
+                                var rowBg    = sel ? "#f0f9ff" : row.IsLocked ? "#f1f5f9" : isSkip ? "#fefce8" : "#fff";
                                 var lopAmt   = row.LopDays > 0 ? Math.Round(row.Basic * row.LopDays / 30.0) : 0;
                                 <tr @key="@($"{row.EmployeeId}_{row.LopDays}_{(int)row.Gross}_{(int)row.Tds}")"
                                     style="background:@rowBg;border-bottom:1px solid #f1f5f9">
@@ -1748,9 +1748,10 @@
                                     <td style="text-align:center;padding:6px 4px;border-right:2px solid #f1f5f9">
                                         @if (editable)
                                         {
-                                            <input type="number" min="0" max="30" value="@row.LopDays"
+                                            <input type="number" min="0" max="30"
                                                    style="width:46px;text-align:center;border:1px solid #fbbf24;border-radius:4px;padding:3px 4px;font-size:12px;background:#fffbeb"
-                                                   @oninput="@((e) => BulkLopChanged(row, e.Value?.ToString()))" />
+                                                   value="@row.LopDays"
+                                                   @onchange="@((e) => BulkLopChanged(row, e.Value?.ToString()))" />
                                         }
                                         else if (row.LopDays > 0)
                                         {
@@ -3940,7 +3941,7 @@
                         PerqTotal = base_.PerqTotal, PerqExempted = base_.PerqExempted,
                         LeaveEncTotal = base_.LeaveEncTotal, LeaveEncExempted = base_.LeaveEncExempted,
                         PfEmployee = base_.PfEmployee, VPF = base_.VPF, ProfessionalTax = base_.ProfessionalTax,
-                        EsiEmployee = base_.EsiEmployee,
+                        EsiEmployee = base_.EsiEmployee, TdsDeducted = 0, TaxComputed = 0,
                         LineItems = base_.LineItems.Select(li => new TDSPro.DAL.Models.SalaryLineItem
                         {
                             Category = li.Category, Name = li.Name,
@@ -3950,7 +3951,8 @@
                     try
                     {
                         var annual = SalarySvc.ComputeMonth(copy, emp, AppState.CurrentFY, decl);
-                        copy.TaxComputed = annual.ThisMonthTds;
+                        copy.TaxComputed  = annual.ThisMonthTds;
+                        copy.TdsDeducted  = annual.ThisMonthTds;
                     }
                     catch { }
                     copy.RecalcGross();
