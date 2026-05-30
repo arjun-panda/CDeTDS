@@ -84,7 +84,8 @@ else
                 <col style="width:100px"/>  @* BSR *@
                 <col style="width:80px"/>   @* quarter *@
                 <col/>                       @* bank *@
-                <col style="width:100px"/>  @* TDS *@
+                <col style="width:100px"/>  @* TDS deposited *@
+                <col style="width:110px"/>  @* linked / balance *@
                 <col style="width:100px"/>  @* total *@
                 <col style="width:96px"/>   @* actions *@
             </colgroup>
@@ -96,7 +97,8 @@ else
                     <th class="ch-th">BSR Code</th>
                     <th class="ch-th">Quarter</th>
                     <th class="ch-th">Bank</th>
-                    <th class="ch-th" style="text-align:right">TDS (₹)</th>
+                    <th class="ch-th" style="text-align:right">TDS Dep (₹)</th>
+                    <th class="ch-th" style="text-align:right">Linked / Balance</th>
                     <th class="ch-th" style="text-align:right">Total (₹)</th>
                     <th class="ch-th"></th>
                 </tr>
@@ -112,7 +114,7 @@ else
 
                 @* ── Section header row ── *@
                 <tr class="ch-sec-row" @onclick="() => ToggleSection(sec)">
-                    <td class="ch-sec-td" colspan="9">
+                    <td class="ch-sec-td" colspan="10">
                         <div style="display:flex;align-items:center;gap:8px">
                             <span style="font-size:13px;color:#94a3b8;transition:transform .15s;display:inline-block;transform:rotate(@(expanded?"90deg":"0deg"))">▶</span>
                             <span class="ch-sec-badge">@(string.IsNullOrEmpty(sec) ? "No Section" : sec)</span>
@@ -138,6 +140,16 @@ else
                             <td class="ch-td"><span class="ch-qtr-badge">@c.Quarter</span></td>
                             <td class="ch-td" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151">@c.BankName</td>
                             <td class="ch-td" style="text-align:right;font-weight:600;color:#1e293b">₹@c.TdsAmount.ToString("N0")</td>
+                            @{
+                                var linked  = _challanLinked.TryGetValue(c.ChallanNo ?? "", out var lv) ? lv : 0;
+                                var balance = c.TdsAmount - linked;
+                                var balColor = balance < -1 ? "#dc2626" : balance > 1 ? "#92400e" : "#15803d";
+                                var balLabel = balance < -1 ? $"⚠ over ₹{Math.Abs(balance):N0}" : balance > 1 ? $"₹{balance:N0} free" : "✓ balanced";
+                            }
+                            <td class="ch-td" style="text-align:right;font-size:11px">
+                                <div style="color:#475569">₹@linked.ToString("N0") linked</div>
+                                <div style="font-weight:700;color:@balColor">@balLabel</div>
+                            </td>
                             <td class="ch-td" style="text-align:right;font-weight:700;color:#1e293b">₹@c.TotalAmount.ToString("N0")</td>
                             <td class="ch-td" style="white-space:nowrap">
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"   Size="Size.Small"
@@ -155,6 +167,7 @@ else
                             Subtotal — @rows.Count challan@(rows.Count==1?"":"s")
                         </td>
                         <td class="ch-subtotal-td" style="text-align:right;font-weight:700;color:#1e293b">₹@grpTds.ToString("N0")</td>
+                        <td class="ch-subtotal-td"></td>
                         <td class="ch-subtotal-td" style="text-align:right;font-weight:700;color:#1e40af">₹@grpTotal.ToString("N0")</td>
                         <td class="ch-subtotal-td"></td>
                     </tr>
@@ -164,6 +177,7 @@ else
             <tr class="ch-grand-row">
                 <td class="ch-grand-td" colspan="6" style="text-align:right;font-size:12px;font-weight:700;color:#1e293b">Grand Total</td>
                 <td class="ch-grand-td" style="text-align:right;font-weight:700;color:#1e293b">₹@_filteredItems.Sum(x=>x.TdsAmount).ToString("N0")</td>
+                <td class="ch-grand-td"></td>
                 <td class="ch-grand-td" style="text-align:right;font-weight:800;color:#1e40af">₹@_filteredItems.Sum(x=>x.TotalAmount).ToString("N0")</td>
                 <td class="ch-grand-td"></td>
             </tr>
@@ -225,6 +239,11 @@ else
                 @* ── section header + balance bar on one line ── *@
                 <div style="display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;margin-bottom:6px">
                     <span style="font-weight:700;font-size:12px;color:#1d4ed8;white-space:nowrap">Link TDS Entries — @_editing.Quarter</span>
+                    <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#475569;cursor:pointer;white-space:nowrap">
+                        <input type="checkbox" checked="@_showAllSections"
+                               @onchange="@(e => { _showAllSections = (bool)(e.Value ?? false); LoadLinkableEntries(_editing.Quarter, _editing.ChallanNo); })" />
+                        All sections
+                    </label>
                     <div style="flex:1"></div>
                     @if (_linkableEntries.Count > 0)
                     {
@@ -354,6 +373,10 @@ else
     private Dictionary<string, int> _unlinkedByQuarter = new();
     private int _totalUnlinked => _unlinkedByQuarter.Values.Sum();
 
+    // Linked TDS amount per challan_no — for balance display in table
+    private Dictionary<string, double> _challanLinked = new();
+    private bool _showAllSections = false; // entry link dialog: show entries from all sections
+
     private bool _dialogOpen;
     private Challan? _editing;
     private DateTime? _challanDate;
@@ -381,6 +404,28 @@ else
             _expandedSections.Add(sec);
         RebuildView();
         RefreshUnlinked();
+        RefreshChallanLinked();
+    }
+
+    void RefreshChallanLinked()
+    {
+        _challanLinked = new();
+        if (AppState.CurrentDeductorId == 0) return;
+        try
+        {
+            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"SELECT challan_no, SUM(tds_amount) FROM tds_entries
+                WHERE deductor_id=@d AND financial_year=@fy
+                  AND (challan_no IS NOT NULL AND challan_no != '')
+                GROUP BY challan_no";
+            cmd.Parameters.AddWithValue("@d",  AppState.CurrentDeductorId);
+            cmd.Parameters.AddWithValue("@fy", AppState.CurrentFY);
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+                _challanLinked[rdr.GetString(0)] = rdr.IsDBNull(1) ? 0 : rdr.GetDouble(1);
+        }
+        catch { }
     }
 
     void RefreshUnlinked()
@@ -457,6 +502,7 @@ else
         };
         _challanDate = c.ChallanDate; _saveError = "";
         _autoMatchedIds = new(); _autoMatchMsg = ""; _autoMatchOk = false;
+        _showAllSections = false;
         LoadLinkableEntries(c.Quarter, c.ChallanNo);
         _dialogOpen = true;
     }
@@ -469,7 +515,7 @@ else
             .Where(e => e.Quarter == quarter &&
                         e.Status != "Adjusted" &&
                         (string.IsNullOrEmpty(e.ChallanNo) || e.ChallanNo == existingChallanNo) &&
-                        (string.IsNullOrEmpty(challanSection) || e.Section == challanSection))
+                        (_showAllSections || string.IsNullOrEmpty(challanSection) || e.Section == challanSection))
             .OrderBy(e => e.EntryNo)
             .ToList();
         _previouslyLinkedIds = _linkableEntries.Where(e => e.ChallanNo == existingChallanNo && !string.IsNullOrEmpty(existingChallanNo))
@@ -602,7 +648,7 @@ else
             EntrySvc.LinkEntriesToChallan(_editing.ChallanNo, toLink, toUnlink);
         }
 
-        _dialogOpen = false; Load(); RefreshUnlinked();
+        _dialogOpen = false; Load(); RefreshUnlinked(); RefreshChallanLinked();
         Snackbar.Add($"Challan saved. {_selectedEntryIds.Count} entries linked.", Severity.Success);
     }
 
