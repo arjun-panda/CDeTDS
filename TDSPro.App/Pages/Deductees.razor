@@ -274,7 +274,7 @@ else
             _editing.Rate = Svc.GetDefaultRate(_editing.Section, _editing.DeducteeType);
 
         var (ok, msg) = Svc.Save(_editing);
-        if (ok) { _dialogOpen = false; Load(); Snackbar.Add("Deductee saved.", Severity.Success); }
+        if (ok) { _dialogOpen = false; Load(); AppState.NotifyStateChanged(); Snackbar.Add("Deductee saved.", Severity.Success); }
         else _saveError = msg;
     }
 
@@ -286,7 +286,7 @@ else
             yesText: "Delete", cancelText: "Cancel");
         if (confirmed != true) return;
         var (ok, msg) = Svc.Delete(d.Id);
-        if (ok) { Load(); Snackbar.Add("Deleted.", Severity.Success); }
+        if (ok) { Load(); AppState.NotifyStateChanged(); Snackbar.Add("Deleted.", Severity.Success); }
         else Snackbar.Add(msg, Severity.Error);
     }
 }

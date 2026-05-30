@@ -547,6 +547,7 @@
         {
             var r = await Task.Run(() => ExcelEngine.ImportEntries(_entriesFilePath));
             _entryResult = r;
+            if (!r.HasErrors) AppState.NotifyStateChanged();
             Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
@@ -561,6 +562,7 @@
         {
             var r = await Task.Run(() => ExcelEngine.ImportDeductees(_deducteesFilePath));
             _deducteeResult = r;
+            if (!r.HasErrors) AppState.NotifyStateChanged();
             Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
@@ -575,6 +577,7 @@
         {
             var r = await Task.Run(() => ExcelEngine.ImportChallans(_challansFilePath, AppState.CurrentDeductorId, AppState.CurrentFY));
             _challanResult = r;
+            if (!r.HasErrors) AppState.NotifyStateChanged();
             Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
@@ -589,6 +592,7 @@
         {
             var r = await Task.Run(() => ExcelEngine.ImportEmployees(_employeesFilePath, AppState.CurrentDeductorId));
             _employeeResult = r;
+            if (!r.HasErrors) AppState.NotifyStateChanged();
             Snackbar.Add(r.Summary, r.HasErrors ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
@@ -608,6 +612,7 @@
                 : null;
             var r = await Task.Run(() => ConsoImporter.Import(_consoFilePath, zipPassword: password));
             _consoResult = r;
+            if (r.Success) AppState.NotifyStateChanged();
             Snackbar.Add(r.Message, r.Success ? Severity.Success : Severity.Error);
             if (r.Success) Snackbar.Add("Backup taken before import — restore from Settings → Backup & Restore if needed.", Severity.Info);
         }

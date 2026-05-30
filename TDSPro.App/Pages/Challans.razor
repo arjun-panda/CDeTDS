@@ -649,6 +649,7 @@ else
         }
 
         _dialogOpen = false; Load(); RefreshUnlinked(); RefreshChallanLinked();
+        AppState.NotifyStateChanged();
         Snackbar.Add($"Challan saved. {_selectedEntryIds.Count} entries linked.", Severity.Success);
     }
 

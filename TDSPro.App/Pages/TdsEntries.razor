@@ -672,7 +672,7 @@
         _editing.TotalTds = _editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee;
 
         var (ok, msg) = Svc.Save(_editing);
-        if (ok) { _dialogOpen = false; Load(); Snackbar.Add("TDS entry saved.", Severity.Success); }
+        if (ok) { _dialogOpen = false; Load(); AppState.NotifyStateChanged(); Snackbar.Add("TDS entry saved.", Severity.Success); }
         else _saveError = msg;
     }
 
@@ -684,7 +684,7 @@
             yesText: "Mark Adjusted", cancelText: "Cancel");
         if (confirmed != true) return;
         var (ok, msg) = Svc.MarkAdjusted(e.Id);
-        if (ok) { Load(); Snackbar.Add($"{e.EntryNo} marked as Adjusted.", Severity.Success); }
+        if (ok) { Load(); AppState.NotifyStateChanged(); Snackbar.Add($"{e.EntryNo} marked as Adjusted.", Severity.Success); }
         else Snackbar.Add(msg, Severity.Error);
     }
 
@@ -712,7 +712,7 @@
             yesText: "Delete", cancelText: "Cancel");
         if (confirmed != true) return;
         var (ok, msg) = Svc.Delete(e.Id);
-        if (ok) { Load(); Snackbar.Add("Deleted.", Severity.Success); }
+        if (ok) { Load(); AppState.NotifyStateChanged(); Snackbar.Add("Deleted.", Severity.Success); }
         else Snackbar.Add(msg, Severity.Error);
     }
 

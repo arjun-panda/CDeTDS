@@ -365,6 +365,9 @@
 
         _addingNew = false;
         _new = new Deductor { IsActive = true, State = "Delhi" };
+        // Update nav bar and notify all pages if this company is currently selected
+        if (saved != null && saved.Id == AppState.CurrentDeductorId)
+            AppState.SetDeductor(saved.Id, saved.CompanyName, saved.Tan);
         Snackbar.Add(wasEdit ? "Company updated." : "Company added successfully.", Severity.Success);
     }
 }

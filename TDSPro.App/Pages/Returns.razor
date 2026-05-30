@@ -2,6 +2,7 @@
 @using System.IO
 @using TDSPro.Common
 @using TDSPro.BLL
+@implements IDisposable
 @inject AppStateService AppState
 @inject ReturnService Svc
 @inject DeductorService DeductorSvc
@@ -626,6 +627,7 @@
 
     protected override void OnInitialized()
     {
+        AppState.OnChange += OnContextChanged;
         _quarter = CurrentAutoQuarter();
         CheckFvuReadiness();
         LoadQuickStatus();
@@ -633,6 +635,9 @@
         LoadFilingHistory();
         _ = CheckFvuVersionAsync();
     }
+
+    void OnContextChanged() { LoadQuickStatus(); InvokeAsync(StateHasChanged); }
+    public void Dispose() => AppState.OnChange -= OnContextChanged;
 
     private async Task CheckFvuVersionAsync()
     {
