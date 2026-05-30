@@ -1,41 +1,65 @@
-TDS Pro v3.0.0 — TDS Compliance Software
+TDS Pro v1.0.0 — TDS Compliance Software
 =========================================
-Income-tax Act 2025 | NSDL FVU v9.0
+Income-tax Act 1961 | NSDL FVU 9.4 | FY 2025-26
 
 QUICK START
 ───────────
 1. Launch TDS Pro from the Desktop or Start Menu
-2. Default login: admin / admin  (change password in Settings immediately)
-3. Setup Wizard runs automatically on first launch
-4. Add your company under Deductor Master (Alt+2)
-5. Add deductees with PAN under Deductee Master (Alt+3)
-6. Enter TDS deductions under TDS Entry (Alt+4)
-7. Map challans under Challan 281 (Alt+5)
-8. Generate quarterly return under Return / FVU (Alt+7)
+2. Default login: admin / admin  (change in Users page immediately)
+3. Select or add your company (Deductor) from the top toolbar
+4. Add employees/vendors under Deductees
+5. Enter TDS deductions under TDS Entries
+6. Record bank payments under Challans
+7. Run payroll under Payroll (for 24Q salary returns)
+8. Generate returns under Returns / FVU
+
+WHAT'S INCLUDED
+───────────────
+- Java 8 JRE        : Bundled — no separate Java install needed
+- NSDL FVU 9.4      : Bundled — no separate download needed
+- Microsoft WebView2 : Installed automatically during setup
+- .NET 8 Runtime    : Bundled — no separate .NET install needed
 
 DATA LOCATION
 ─────────────
 Database : %APPDATA%\TDSPro\tds_pro.db
 Backups  : %APPDATA%\TDSPro\Backup\
-Working  : Documents\TDSPro\
-Logs     : %APPDATA%\TDSPro\crash.log
+Returns  : Documents\TDSPro\{FY}\Returns\
+Logs     : %APPDATA%\TDSPro\Logs\
 
-FVU SETUP (REQUIRED FOR RETURN FILING)
-───────────────────────────────────────
-1. Download FVU.jar from: https://www.tin-nsdl.com/downloads/etds-etcs/
-2. Install Java (JRE 8+) from: https://www.java.com
-3. Go to Settings (F1) → FVU Settings → set FVU.jar path
+PAGES
+─────
+Dashboard         — Summary of TDS activity
+Deductees         — Employees / vendors / payees
+TDS Entries       — Individual TDS deduction records
+Challans          — Challan 281 bank payment records
+Payroll           — Monthly salary, TDS computation, Form 16
+Reports           — Payroll summary, Form 16, Excel export
+Returns / FVU     — Generate 24Q / 26Q / 27EQ FVU file & paper return
+TDS Rules         — TDS rate lookup and reference
+Excel Import/Export — Bulk import deductees and entries
+Challan 281 Print — Printable Challan 281 form
+Portal Logins     — Quick launch to TRACES / IT Portal / TIN-NSDL
+Interest Calc     — Section 234 interest calculator
+Audit Log         — All user actions with timestamp
+Users             — Add/remove users, change passwords
+Settings          — FVU path, company defaults, preferences
+License           — View trial status / enter license key
 
-KEYBOARD SHORTCUTS
-──────────────────
-Alt+1   Dashboard        Alt+5   Challan 281
-Alt+2   Deductor         Alt+6   Reports
-Alt+3   Deductee         Alt+7   Return / FVU
-Alt+4   TDS Entry        Ctrl+I  Interest Calculator
-F1      Settings         Ctrl+L  Audit Log
-F5      Refresh
+RETURNS SUPPORTED
+─────────────────
+24Q  — Salary TDS (Section 192) — Q1 to Q4 with Annexure II in Q4
+26Q  — Non-salary TDS (194C, 194J, 194A, 194I, etc.)
+27EQ — TCS (Section 206C family)
+NIL  — Nil return when no deductions in a quarter
+
+LICENSE
+───────
+Trial  : 30 days from first launch, 25 entries max, 1 deductor
+Pro    : Unlimited entries and deductors (enter key in License page)
 
 SUPPORT
 ───────
-Email   : support@capitaldesk.co.in
+Email   : admin@capitaldesk.co.in
 Website : https://capitaldesk.co.in
+Hours   : Mon–Sat, 10 AM – 6 PM IST
