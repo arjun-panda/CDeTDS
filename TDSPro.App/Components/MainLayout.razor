@@ -318,6 +318,28 @@ else
         ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
         ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
         ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates a printable HTML copy of exactly what was filed — Annexure I (deductee details) and, for 24Q Q4, Annexure II (annual salary breakup per employee). Click Paper Return → it opens in your browser → use Ctrl+P to save as PDF. Useful for internal records, CA review, or employee reference."),
+        ("Returns & FVU", "Excess challan amount in original return — adding new entries to utilise it via correction",
+            "Scenario: Original return has a challan of e.g. ₹50,000 but only ₹30,000 worth of entries were filed. " +
+            "Now you need to add ₹20,000 of missing entries (even if same deductee/section/amount as existing ones) to utilise the excess.\n\n" +
+            "This is a C3 correction — you are ADDING entries that were absent from the original.\n\n" +
+            "STEP 1 — Import Conso file (strongly recommended):\n" +
+            "• Excel Import/Export → TRACES Conso File → import original return data\n" +
+            "• This ensures TDS Pro has the original entries so the correction includes everything\n\n" +
+            "STEP 2 — Add the new entries:\n" +
+            "• TDS Entries → Add → select deductee, section, amount, payment date\n" +
+            "• Use the ACTUAL payment date of the new transaction (even if same deductee and amount as another entry, it is a separate transaction)\n" +
+            "• Link to the SAME existing challan (BSR + challan no stays the same — the ₹50,000 challan)\n" +
+            "• Do NOT change the challan amount — it stays at ₹50,000\n\n" +
+            "STEP 3 — Generate C3 correction:\n" +
+            "• Returns / FVU → Correction Return → C3 → enter Previous PRN (= original PRN)\n" +
+            "• Original PRN = same as Previous PRN (first correction on the original)\n" +
+            "• Generate → Validate → Upload to TRACES\n\n" +
+            "WHAT HAPPENS: The correction FVU will contain the original ₹30,000 of entries PLUS the new ₹20,000 entries, " +
+            "all under the ₹50,000 challan. Total entries now = ₹50,000 = challan amount. T-FV-3169 reconciliation will pass.\n\n" +
+            "NOTE ON 'DUPLICATE-LOOKING' ENTRIES: Two entries for the same deductee, same amount, same section are valid " +
+            "if they represent two separate payments/transactions. TDS Pro allows this — there is no restriction. " +
+            "Just ensure each entry has the correct payment date of that specific transaction."),
+
         ("Returns & FVU", "Original return filed with no default. Now I realise some entries and a challan were missed — how to correct?",
             "This is a C3 correction — you are ADDING a challan and entries that were completely absent from the original return.\n\n" +
             "STEP 1 — Import the original data from TRACES:\n" +
