@@ -468,9 +468,9 @@ namespace TDSPro.DAL
             string F(double v) => ((long)Math.Round(v, MidpointRounding.AwayFromZero)).ToString() + ".00";
             string F4(double v) => v.ToString("F4");
             string section = newAct ? MapToNewActSection(d.Section) : d.Section;
-            // 192/192A (salary) invalid in 26Q — remap to 194J as closest non-salary section
-            if (!newAct && (section == "192" || section == "192A"))
-                section = "194J";
+            // 192/192A (salary) must never appear in 26Q — data error at source
+            if (section == "192" || section == "192A" || section == "392" || section == "392(1)")
+                throw new InvalidOperationException($"Section {d.Section} (salary) found in 26Q return for '{d.Name}' ({d.Pan}). Salary entries belong in 24Q only. Remove this entry from TDS Entries before generating 26Q.");
             string nsdlSection = newAct ? section : NsdlNonSalarySection(section);
 
             double tds = d.TdsDeducted;
