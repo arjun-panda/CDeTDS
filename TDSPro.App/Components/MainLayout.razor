@@ -318,6 +318,23 @@ else
         ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
         ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
         ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates a printable HTML copy of exactly what was filed — Annexure I (deductee details) and, for 24Q Q4, Annexure II (annual salary breakup per employee). Click Paper Return → it opens in your browser → use Ctrl+P to save as PDF. Useful for internal records, CA review, or employee reference."),
+        ("Returns & FVU", "Can I file a correction for a return originally filed using RPU or another software?",
+            "Yes. TDS Pro can file corrections for returns filed with any tool — NSDL RPU, third-party software, or TDS Pro itself. " +
+            "The key is to import the original return data from TRACES first so TDS Pro has the exact data that was filed.\n\n" +
+            "STEP-BY-STEP:\n" +
+            "1. Log in to TRACES → Statements / Payments → Request for Conso File\n" +
+            "2. Select Form Type (24Q or 26Q), FY and Quarter → Submit → Download the .zip Conso file\n" +
+            "3. In TDS Pro → Excel Import/Export → Import Data → TRACES Conso File\n" +
+            "4. Select the downloaded .zip file → enter password (format: TAN_RequestNumber e.g. DELI99999B_1234567)\n" +
+            "5. TDS Pro imports all challans and TDS entries from the original return\n" +
+            "6. Make your corrections in TDS Entries / Challans / Payroll as needed\n" +
+            "7. Go to Returns / FVU → select Form Type + Quarter → tick Correction Return → select C1/C2/C3\n" +
+            "8. Enter the PRN manually: find it at IT Portal → e-File → Income Tax Forms → View Filed Returns\n" +
+            "9. Generate .txt → Validate FVU → Upload to TRACES\n\n" +
+            "NOTE: The PRN fields will NOT be auto-filled from Filing History if the original was filed outside TDS Pro. " +
+            "You must enter the PRN manually. After filing, save the new PRN in the Filing History panel (pencil icon) " +
+            "so future corrections can auto-fill from it."),
+
         ("Returns & FVU", "How do I file correction returns for both 24Q and 26Q?",
             "24Q and 26Q are separate returns — each has its own PRN and must be corrected independently. Step-by-step:\n\n" +
             "FOR 24Q CORRECTION:\n" +
