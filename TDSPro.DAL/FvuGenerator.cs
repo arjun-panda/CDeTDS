@@ -438,9 +438,10 @@ namespace TDSPro.DAL
                     // S16 always emits once per employee — standard deduction u/s 16(ia).
                     // Amount must match SD[15]; FVU T-FV-4045 validates SD[15] == sum of S16 sub-records.
                     lines.Add(BuildS16(sd, sdSeq, L()));
-                    // C6A: emit a consolidated row when Chapter VI-A total > 0 (NSDL spec v6.2 section "C6A").
-                    // Without this, SD field 21 (count) > 0 but no C6A line → FVU validator rejects.
-                    if (sd.Chapter6ATotal > 0)
+                    // C6A: emit only when Ch6A is reported in SD[20]/SD[21] (new regime only).
+                    // Old regime: SD[20]=SD[21]=0 (T_FV_6354), so no C6A sub-record allowed.
+                    bool sdIsNew = sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
+                    if (sd.Chapter6ATotal > 0 && sdIsNew)
                         lines.Add(BuildC6A(sd, sdSeq, L()));
                     sdSeq++;
                 }
