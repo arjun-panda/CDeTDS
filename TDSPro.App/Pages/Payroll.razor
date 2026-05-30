@@ -3760,6 +3760,7 @@
         _sdBulkMsg  = failed > 0 ? $"Saved {ok} · {failed} failed." : $"Saved {ok} employee(s).";
         if (failures.Any())
             _sdBulkMsg += " — " + string.Join("; ", failures.Take(3));
+        AppState.NotifyStateChanged();
         LoadBulkGrid();
         RefreshSdEmpStatus();
         if (_sdEmpId > 0) SelectSdMonth(_sdMonth);
@@ -4025,6 +4026,7 @@
             var (ok, msg) = McSvc.SaveAndSync(entry, emp, AppState.CurrentDeductorId);
             _sdCurEntry = entry;
             if (!ok) Snackbar.Add($"Sec 192 warning: {msg}", Severity.Warning);
+            AppState.NotifyStateChanged();
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
             LoadSchedules();
@@ -4096,6 +4098,7 @@
                 }
             });
 
+            AppState.NotifyStateChanged();
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
             SelectSdMonth(_sdMonth);
