@@ -261,105 +261,158 @@ namespace TDSPro.DAL
             }
 
             // ── Annexure II — Salary Details (24Q Q4 only) ────────────────────
-            // Column layout matches official NSDL Form 24Q Annexure II exactly.
+            // Two-table layout exactly matching official NSDL Form 24Q Annexure II
+            // Table 1: cols 330-342  |  Table 2: cols 343-356
             if (h.FormType == "24Q" && h.Quarter == "Q4" && d.SalaryDetails.Any())
             {
-                sb.Append(@"<div class=""section-title"">ANNEXURE II — DETAILS OF SALARY PAID AND TAX DEDUCTED THEREON FROM THE EMPLOYEES (u/s 192)</div>
-<table style=""font-size:7pt"">
-<thead>
-<tr style=""background:#1565C0;color:#fff"">
-  <th rowspan=""2"">Sl.</th>
-  <th rowspan=""2"">Name &amp; PAN</th>
-  <th colspan=""2"">Period of Employment</th>
-  <th colspan=""3"">Gross Salary (₹)</th>
-  <th rowspan=""2"">Allowances exempt u/s 10 (₹)</th>
-  <th rowspan=""2"">Balance (₹)</th>
-  <th rowspan=""2"">Std Ded u/s 16(ia) (₹)</th>
-  <th rowspan=""2"">Ent. Allow. u/s 16(ii) (₹)</th>
-  <th rowspan=""2"">Prof. Tax u/s 16(iii) (₹)</th>
-  <th rowspan=""2"">Income u/h Salary (₹)</th>
-  <th rowspan=""2"">Ch. VI-A Ded. (₹)</th>
-  <th rowspan=""2"">Gross Total Income (₹)</th>
-  <th rowspan=""2"">Tax on Income (₹)</th>
-  <th rowspan=""2"">Rebate 87A (₹)</th>
-  <th rowspan=""2"">Surcharge (₹)</th>
-  <th rowspan=""2"">Cess (₹)</th>
-  <th rowspan=""2"">Net Tax Payable (₹)</th>
-  <th rowspan=""2"">TDS Cur. Emp. (₹)</th>
-  <th rowspan=""2"">TDS Prev. Emp. (₹)</th>
-  <th rowspan=""2"">Total TDS (₹)</th>
-  <th rowspan=""2"">115BAC</th>
-</tr>
-<tr style=""background:#1565C0;color:#fff"">
-  <th>From</th><th>To</th>
-  <th>Salary 17(1)</th><th>Perqs 17(2)</th><th>Profits 17(3)</th>
-</tr>
-</thead><tbody>");
+                sb.Append($@"<div class=""section-title"">ANNEXURE II — Detail of salary paid / credited during FY {h.FinancialYear} and net tax payable</div>");
 
+                // Pre-compute per-employee derived values
                 int sSlNo = 1;
-                double sTot17_1=0, sTotExempt=0, sTotStd=0, sTotCh6a=0, sTotGti=0,
-                       sTotTaxable=0, sTotTax=0, sTotRebate=0, sTotSur=0, sTotCess=0,
-                       sTotNet=0, sTotTds=0, sTotPrevTds=0;
+                // Table 1 totals
+                double t335=0, t337=0, t338=0, t340=0, t342=0;
+                // Table 2 totals
+                double t343=0, t345=0, t346=0, t347=0, t348=0, t349=0, t351=0, t352=0, t353=0, t354=0, t355=0;
+
+                // ── TABLE 1 ── cols 330-342
+                sb.Append(@"<table style=""font-size:7pt;margin-bottom:6px"">
+<thead><tr style=""background:#1565C0;color:#fff;font-size:6.5pt"">
+  <th>Sl<br/>330</th>
+  <th>PAN<br/>331</th>
+  <th>Name of Employee<br/>332</th>
+  <th>Age<br/>333</th>
+  <th>Date From<br/>334</th>
+  <th>Date To<br/>334</th>
+  <th>Taxable Salary<br/>Cur. Emp (₹)<br/>335</th>
+  <th>Taxable Salary<br/>Prev. Emp (₹)<br/>336</th>
+  <th>Total Salary<br/>335+336 (₹)<br/>337</th>
+  <th>Dedn u/s 16(ii)<br/>+16(ia) (₹)<br/>338</th>
+  <th>Dedn u/s<br/>16(iii) (₹)<br/>339</th>
+  <th>Income u/h<br/>Salaries (₹)<br/>340</th>
+  <th>Income Other<br/>Sources (₹)<br/>341</th>
+  <th>Gross Total<br/>Income (₹)<br/>342</th>
+</tr></thead><tbody>");
+
+                var rows = new List<(ReturnSalaryDetail s, string ageCode, double col335, double col337, double col338, double col340, double col342)>();
                 foreach (var s in d.SalaryDetails)
                 {
-                    string regime = s.TaxRegime == "O" ? "New(115BAC)" : "Old";
-                    sTot17_1    += s.Salary17_1;      sTotExempt  += s.ExemptU10;
-                    sTotStd     += s.StandardDeduction; sTotCh6a  += s.Chapter6ATotal;
-                    sTotGti     += s.GrossTotalIncome; sTotTaxable += s.TaxableIncome;
-                    sTotTax     += s.TaxPayable;       sTotRebate  += s.Rebate87A;
-                    sTotSur     += s.Surcharge;        sTotCess    += s.Cess;
-                    sTotNet     += s.TotalTaxPayable;  sTotTds     += s.TdsDeducted;
-                    sTotPrevTds += s.PrevEmpTds;
-                    // Derived fields matching NSDL Annexure II columns
-                    double grossTotal17 = s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3;
-                    double balance      = Math.Max(0, grossTotal17 - s.ExemptU10);   // col 9 = 7-8
-                    double incomeUhSal  = Math.Max(0, balance - s.StandardDeduction); // col 13 = 9-10-11-12 (ent.allow=0, prof.tax not in model)
-                    double totalTds     = s.TdsDeducted + s.PrevEmpTds;
+                    // Age code: S=60-79, O=>80, W=female, G=others
+                    // We use Gender from SD: W=female, others=G (age data not in ReturnSalaryDetail)
+                    string ageCode = s.Gender == "W" ? "W" : "G";
+
+                    // col 335: taxable salary from current employer
+                    // Per NSDL: col335 = Gross Salary − Exempt u/s 10 − Std Ded − Sec16(ii) − Sec16(iii)
+                    double col335 = Math.Max(0, s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3
+                                             - s.ExemptU10 - s.StandardDeduction);
+                    double col337 = col335 + s.PrevEmpSalary;          // Total salary
+                    double col338 = s.StandardDeduction;                // 16(ia) std ded (already in 335)
+                    double col340 = Math.Max(0, col337 - 0 - 0);       // Income u/h Salaries (16(ii)=0, 16(iii)=0)
+                    double col342 = col340;                             // GTI = col340 + other sources (0)
+
+                    t335 += col335; t337 += col337; t338 += col338; t340 += col340; t342 += col342;
+                    rows.Add((s, ageCode, col335, col337, col338, col340, col342));
+
                     sb.Append($@"<tr>
   <td class=""num"">{sSlNo++}</td>
-  <td style=""font-size:7pt"">{Esc(s.Pan)}<br/>{Esc(s.Name)}</td>
-  <td style=""white-space:nowrap"">{s.EmploymentFrom:dd-MM-yy}</td>
-  <td style=""white-space:nowrap"">{s.EmploymentTo:dd-MM-yy}</td>
-  <td class=""num"">{s.Salary17_1:N0}</td>
-  <td class=""num"">{s.Perquisites17_2:N0}</td>
-  <td class=""num"">{s.ProfitSalary17_3:N0}</td>
-  <td class=""num"">{s.ExemptU10:N0}</td>
-  <td class=""num"">{balance:N0}</td>
-  <td class=""num"">{s.StandardDeduction:N0}</td>
-  <td class=""num"">0</td>
-  <td class=""num"">0</td>
-  <td class=""num"">{incomeUhSal:N0}</td>
-  <td class=""num"">{s.Chapter6ATotal:N0}</td>
-  <td class=""num"">{s.GrossTotalIncome:N0}</td>
-  <td class=""num"">{s.TaxPayable:N0}</td>
-  <td class=""num"">{s.Rebate87A:N0}</td>
-  <td class=""num"">{s.Surcharge:N0}</td>
-  <td class=""num"">{s.Cess:N0}</td>
-  <td class=""num"">{s.TotalTaxPayable:N0}</td>
-  <td class=""num"">{s.TdsDeducted:N0}</td>
-  <td class=""num"">{s.PrevEmpTds:N0}</td>
-  <td class=""num"">{totalTds:N0}</td>
-  <td style=""text-align:center;font-size:7pt"">{regime}</td>
+  <td style=""font-family:monospace;font-size:7pt"">{Esc(s.Pan)}</td>
+  <td>{Esc(s.Name)}</td>
+  <td style=""text-align:center"">{ageCode}</td>
+  <td style=""white-space:nowrap"">{s.EmploymentFrom:dd/MM/yyyy}</td>
+  <td style=""white-space:nowrap"">{s.EmploymentTo:dd/MM/yyyy}</td>
+  <td class=""num"">{col335:N0}</td>
+  <td class=""num"">{(s.PrevEmpSalary>0?s.PrevEmpSalary.ToString("N0"):"")}</td>
+  <td class=""num"">{col337:N0}</td>
+  <td class=""num"">{col338:N0}</td>
+  <td class=""num""></td>
+  <td class=""num"">{col340:N0}</td>
+  <td class=""num""></td>
+  <td class=""num"">{col342:N0}</td>
 </tr>");
                 }
                 sb.Append($@"<tr class=""total-row"">
-  <td colspan=""4"">TOTAL</td>
-  <td class=""num"">{sTot17_1:N0}</td>
-  <td></td><td></td>
-  <td class=""num"">{sTotExempt:N0}</td>
-  <td></td>
-  <td class=""num"">{sTotStd:N0}</td>
-  <td></td><td></td><td></td>
-  <td class=""num"">{sTotCh6a:N0}</td>
-  <td class=""num"">{sTotGti:N0}</td>
-  <td class=""num"">{sTotTax:N0}</td>
-  <td class=""num"">{sTotRebate:N0}</td>
-  <td class=""num"">{sTotSur:N0}</td>
-  <td class=""num"">{sTotCess:N0}</td>
-  <td class=""num"">{sTotNet:N0}</td>
-  <td class=""num"">{sTotTds:N0}</td>
-  <td class=""num"">{sTotPrevTds:N0}</td>
-  <td class=""num"">{sTotTds+sTotPrevTds:N0}</td>
+  <td colspan=""6"">TOTAL</td>
+  <td class=""num"">{t335:N0}</td><td></td>
+  <td class=""num"">{t337:N0}</td>
+  <td class=""num"">{t338:N0}</td><td></td>
+  <td class=""num"">{t340:N0}</td><td></td>
+  <td class=""num"">{t342:N0}</td>
+</tr></tbody></table>");
+
+                // ── TABLE 2 ── cols 343-356
+                sb.Append(@"<table style=""font-size:7pt"">
+<thead><tr style=""background:#1565C0;color:#fff;font-size:6.5pt"">
+  <th>Sl<br/>330</th>
+  <th>Dedn 80C<br/>80CCC 80CCD<br/>343</th>
+  <th>Other Ch.VIA<br/>provisions<br/>344</th>
+  <th>Total Ch.VIA<br/>343+344<br/>345</th>
+  <th>Taxable Income<br/>342−345<br/>346</th>
+  <th>Income Tax<br/>on 346<br/>347</th>
+  <th>Surcharge<br/>348</th>
+  <th>Education<br/>Cess<br/>349</th>
+  <th>Relief<br/>u/s 89<br/>350</th>
+  <th>Net Tax<br/>Payable<br/>351</th>
+  <th>TDS Whole Year<br/>Cur. Emp. (₹)<br/>352</th>
+  <th>TDS Prev.<br/>Emp. (₹)<br/>353</th>
+  <th>Total TDS<br/>352+353<br/>354</th>
+  <th>Shortfall(+)<br/>Excess(−)<br/>355</th>
+  <th>Higher Rate<br/>PAN (Y/N)<br/>356</th>
+</tr></thead><tbody>");
+
+                sSlNo = 1;
+                foreach (var (s, ageCode, col335, col337, col338, col340, col342) in rows)
+                {
+                    double col343 = s.Chapter6ATotal;    // 80C+80CCC+80CCD portion
+                    double col344 = 0;                   // other Ch VIA (NPS employer etc. — not split in model)
+                    double col345 = col343 + col344;
+                    double col346 = Math.Max(0, col342 - col345);   // taxable income
+                    double col347 = s.TaxPayable;
+                    double col348 = s.Surcharge;
+                    double col349 = s.Cess;
+                    double col350 = 0;                   // relief u/s 89
+                    double col351 = Math.Max(0, s.TotalTaxPayable);
+                    double col352 = s.TdsDeducted;
+                    double col353 = s.PrevEmpTds;
+                    double col354 = col352 + col353;
+                    double col355 = col351 - col354;     // positive=shortfall, negative=excess
+
+                    t343+=col343; t345+=col345; t346+=col346; t347+=col347;
+                    t348+=col348; t349+=col349; t351+=col351;
+                    t352+=col352; t353+=col353; t354+=col354; t355+=col355;
+
+                    string shortfallStr = col355 == 0 ? "" : col355 > 0
+                        ? col355.ToString("N0") : $"({Math.Abs(col355):N0})";
+
+                    sb.Append($@"<tr>
+  <td class=""num"">{sSlNo++}</td>
+  <td class=""num"">{(col343>0?col343.ToString("N0"):"")}</td>
+  <td class=""num"">{(col344>0?col344.ToString("N0"):"")}</td>
+  <td class=""num"">{(col345>0?col345.ToString("N0"):"")}</td>
+  <td class=""num"">{col346:N0}</td>
+  <td class=""num"">{(col347>0?col347.ToString("N0"):"")}</td>
+  <td class=""num"">{(col348>0?col348.ToString("N0"):"")}</td>
+  <td class=""num"">{(col349>0?col349.ToString("N0"):"")}</td>
+  <td class=""num""></td>
+  <td class=""num"">{(col351>0?col351.ToString("N0"):"")}</td>
+  <td class=""num"">{(col352>0?col352.ToString("N0"):"")}</td>
+  <td class=""num"">{(col353>0?col353.ToString("N0"):"")}</td>
+  <td class=""num"">{(col354>0?col354.ToString("N0"):"")}</td>
+  <td class=""num"" style=""color:{(col355>0?"#dc2626":col355<0?"#16a34a":"inherit")}"">{shortfallStr}</td>
+  <td style=""text-align:center"">N</td>
+</tr>");
+                }
+                sb.Append($@"<tr class=""total-row"">
+  <td>TOTAL</td>
+  <td class=""num"">{t343:N0}</td><td></td>
+  <td class=""num"">{t345:N0}</td>
+  <td class=""num"">{t346:N0}</td>
+  <td class=""num"">{t347:N0}</td>
+  <td class=""num"">{t348:N0}</td>
+  <td class=""num"">{t349:N0}</td><td></td>
+  <td class=""num"">{t351:N0}</td>
+  <td class=""num"">{t352:N0}</td>
+  <td class=""num"">{t353:N0}</td>
+  <td class=""num"">{t354:N0}</td>
+  <td class=""num"" style=""color:{(t355>0?"#dc2626":t355<0?"#16a34a":"inherit")}"">{(t355>0?t355.ToString("N0"):t355<0?$"({Math.Abs(t355):N0})":"")}</td>
   <td></td>
 </tr></tbody></table>");
             }
