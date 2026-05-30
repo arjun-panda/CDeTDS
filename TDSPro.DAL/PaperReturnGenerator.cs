@@ -170,8 +170,60 @@ namespace TDSPro.DAL
   <td class=""num"">{d.Challans.Sum(c => c.NoOfDeductees)}</td>
 </tr></tbody></table>");
 
-            // ── Deductee table ─────────────────────────────────────────────────
-            sb.Append(@"<div class=""section-title"">PART B — DEDUCTEE DETAILS</div>
+            // ── Deductee / Salary table (Annexure I) ──────────────────────────
+            bool is24Q = h.FormType == "24Q";
+            string partBTitle = is24Q
+                ? "ANNEXURE I — SALARY DEDUCTEE DETAILS (u/s 192)"
+                : "PART B — DEDUCTEE DETAILS";
+
+            if (is24Q)
+            {
+                // 24Q Annexure I columns match DD record: Gross Salary, TDS, Surcharge, Cess, Total TDS, Payment Date, Challan
+                // Section column not shown (always 92B / 392 — not useful to display); Rate% not applicable for slab TDS
+                sb.Append($@"<div class=""section-title"">{partBTitle}</div>
+<table>
+<thead><tr>
+  <th>Sl.</th><th>PAN</th><th>Name</th><th>Payment Date</th>
+  <th style=""text-align:right"">Gross Salary (₹)</th>
+  <th style=""text-align:right"">TDS Deducted (₹)</th>
+  <th style=""text-align:right"">Surcharge (₹)</th>
+  <th style=""text-align:right"">Cess (₹)</th>
+  <th style=""text-align:right"">Total TDS (₹)</th>
+  <th>BSR / Challan No.</th>
+</tr></thead><tbody>");
+
+                double dAmt=0, dDed=0, dSur=0, dCess=0, dTotal=0;
+                foreach (var e in d.Deductees)
+                {
+                    double total = e.TdsDeducted + e.Surcharge + e.Cess;
+                    dAmt += e.AmountPaid; dDed += e.TdsDeducted;
+                    dSur += e.Surcharge;  dCess += e.Cess; dTotal += total;
+                    sb.Append($@"<tr>
+  <td class=""num"">{e.SlNo}</td>
+  <td>{Esc(e.Pan)}</td><td>{Esc(e.Name)}</td>
+  <td>{e.PaymentDate:dd-MM-yyyy}</td>
+  <td class=""num"">{e.AmountPaid:N2}</td>
+  <td class=""num"">{e.TdsDeducted:N2}</td>
+  <td class=""num"">{e.Surcharge:N2}</td>
+  <td class=""num"">{e.Cess:N2}</td>
+  <td class=""num"">{total:N2}</td>
+  <td>{Esc(e.BsrCode)}/{Esc(e.ChallanNo)}</td>
+</tr>");
+                }
+                sb.Append($@"<tr class=""total-row"">
+  <td colspan=""4"">TOTAL</td>
+  <td class=""num"">{dAmt:N2}</td>
+  <td class=""num"">{dDed:N2}</td>
+  <td class=""num"">{dSur:N2}</td>
+  <td class=""num"">{dCess:N2}</td>
+  <td class=""num"">{dTotal:N2}</td>
+  <td></td>
+</tr></tbody></table>");
+            }
+            else
+            {
+                // 26Q / 27EQ: generic deductee table with Section, Rate%, Amount Paid
+                sb.Append($@"<div class=""section-title"">{partBTitle}</div>
 <table>
 <thead><tr>
   <th>Sl.</th><th>PAN</th><th>Name</th><th>Section</th><th>Date</th>
@@ -182,11 +234,11 @@ namespace TDSPro.DAL
   <th>Challan</th>
 </tr></thead><tbody>");
 
-            double dAmt = 0, dDed = 0, dDep = 0;
-            foreach (var e in d.Deductees)
-            {
-                dAmt += e.AmountPaid; dDed += e.TdsDeducted; dDep += e.TdsDeposited;
-                sb.Append($@"<tr>
+                double dAmt = 0, dDed = 0, dDep = 0;
+                foreach (var e in d.Deductees)
+                {
+                    dAmt += e.AmountPaid; dDed += e.TdsDeducted; dDep += e.TdsDeposited;
+                    sb.Append($@"<tr>
   <td class=""num"">{e.SlNo}</td>
   <td>{Esc(e.Pan)}</td><td>{Esc(e.Name)}</td>
   <td>{Esc(e.Section)}</td><td>{e.PaymentDate:dd-MM-yyyy}</td>
@@ -196,14 +248,15 @@ namespace TDSPro.DAL
   <td class=""num"">{e.Rate:N2}</td>
   <td>{Esc(e.BsrCode)}/{Esc(e.ChallanNo)}</td>
 </tr>");
-            }
-            sb.Append($@"<tr class=""total-row"">
+                }
+                sb.Append($@"<tr class=""total-row"">
   <td colspan=""5"">TOTAL</td>
   <td class=""num"">{dAmt:N2}</td>
   <td class=""num"">{dDed:N2}</td>
   <td class=""num"">{dDep:N2}</td>
   <td colspan=""2""></td>
 </tr></tbody></table>");
+            }
 
             // ── Annexure II — Salary Details (24Q Q4 only) ────────────────────
             if (h.FormType == "24Q" && h.Quarter == "Q4" && d.SalaryDetails.Any())
