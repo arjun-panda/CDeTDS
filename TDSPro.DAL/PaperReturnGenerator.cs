@@ -121,7 +121,9 @@ namespace TDSPro.DAL
   <div class=""info-cell""><span class=""info-label"">Responsible Person</span><span class=""info-value"">{Esc(h.ResponsibleName)}</span></div>
   <div class=""info-cell""><span class=""info-label"">Designation / PAN</span><span class=""info-value"">{Esc(h.Designation)} / {Esc(h.ResponsiblePan)}</span></div>
   <div class=""info-cell""><span class=""info-label"">Filing Date</span><span class=""info-value"">{h.FilingDate:dd-MM-yyyy}</span></div>
-  <div class=""info-cell""><span class=""info-label"">Return Type</span><span class=""info-value"">{(h.IsCorrection ? "CORRECTION" : "ORIGINAL")}</span></div>
+  <div class=""info-cell""><span class=""info-label"">Return Type</span><span class=""info-value"" style=""color:{(h.IsCorrection?"#b45309":"#15803d")};font-weight:700"">{(h.IsCorrection ? $"CORRECTION ({h.CorrectionType})" : "ORIGINAL")}</span></div>
+  {(h.IsCorrection ? $@"<div class=""info-cell""><span class=""info-label"">Previous PRN</span><span class=""info-value"" style=""font-family:monospace;font-size:11px"">{Esc(h.PreviousPrn)}</span></div>
+  <div class=""info-cell""><span class=""info-label"">Original PRN</span><span class=""info-value"" style=""font-family:monospace;font-size:11px"">{Esc(string.IsNullOrEmpty(h.OriginalPrn) ? h.PreviousPrn : h.OriginalPrn)}</span></div>" : "")}
 </div>
 
 <div class=""summary-box"">
