@@ -398,200 +398,46 @@ namespace TDSPro.DAL.Repositories
             return data;
         }
 
+        /// <summary>
+        /// Collects employee list + employment periods for 24Q Q4 SD records.
+        /// Returns shell ReturnSalaryDetail rows — BLL (ReturnService) fills in
+        /// tax computation via SalaryService.ComputeAnnual after this returns.
+        /// </summary>
+        internal static List<(int EmpId, string Pan, string Name, string Gender, string DateJoin, string DateLeave, string ChallanNo)>
+            GetSalaryEmployees(int deductorId, string fy, string lastChallanNo)
+        {
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT DISTINCT m.employee_id, e.pan, e.name, e.sex, e.join_date, e.leaving_date
+                FROM monthly_salary_entries m
+                JOIN employees e ON m.employee_id = e.id
+                WHERE m.deductor_id=@did AND m.financial_year=@fy
+                ORDER BY e.name";
+            cmd.Parameters.AddWithValue("@did", deductorId);
+            cmd.Parameters.AddWithValue("@fy",  fy);
+            var list = new List<(int, string, string, string, string, string, string)>();
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                list.Add((
+                    Convert.ToInt32(r["employee_id"]),
+                    r["pan"]?.ToString() ?? "",
+                    r["name"]?.ToString() ?? "",
+                    r["sex"]?.ToString() ?? "Male",
+                    r["join_date"]?.ToString() ?? "",
+                    r["leaving_date"]?.ToString() ?? "",
+                    lastChallanNo
+                ));
+            return list;
+        }
+
         private static List<ReturnSalaryDetail> BuildSalaryDetails(
             Microsoft.Data.Sqlite.SqliteConnection conn, int deductorId, string fy,
             List<ReturnChallanDetail> challans, List<ReturnDeducteeDetail> deductees)
         {
-            // Get all distinct employees with EITHER payroll_runs OR monthly_salary_entries for this FY
-            using var empCmd = conn.CreateCommand();
-            empCmd.CommandText = @"
-                SELECT employee_id, pan, name, sex, tax_regime, join_date, leaving_date FROM (
-                    SELECT DISTINCT pr.employee_id, e.pan, e.name, e.sex, e.tax_regime,
-                           e.join_date, e.leaving_date
-                    FROM payroll_runs pr
-                    JOIN employees e ON pr.employee_id = e.id
-                    WHERE pr.deductor_id=@did AND pr.financial_year=@fy
-                    UNION
-                    SELECT DISTINCT m.employee_id, e.pan, e.name, e.sex, e.tax_regime,
-                           e.join_date, e.leaving_date
-                    FROM monthly_salary_entries m
-                    JOIN employees e ON m.employee_id = e.id
-                    WHERE m.deductor_id=@did AND m.financial_year=@fy
-                ) AS u
-                ORDER BY name";
-            empCmd.Parameters.AddWithValue("@did", deductorId);
-            empCmd.Parameters.AddWithValue("@fy",  fy);
-
-            var employees = new List<(int Id, string Pan, string Name, string Gender, string TaxRegime, string DateJoin, string DateLeave)>();
-            using (var r = empCmd.ExecuteReader())
-            {
-                while (r.Read())
-                    employees.Add((
-                        Convert.ToInt32(r["employee_id"]),
-                        r["pan"]?.ToString() ?? "",
-                        r["name"]?.ToString() ?? "",
-                        r["sex"]?.ToString() ?? "Male",
-                        r["tax_regime"]?.ToString() ?? "N",
-                        r["join_date"]?.ToString() ?? "",
-                        r["leaving_date"]?.ToString() ?? ""
-                    ));
-            }
-
-            var result = new List<ReturnSalaryDetail>();
-
-            foreach (var (empId, pan, name, gender, regime, joinStr, leaveStr) in employees)
-            {
-                // Aggregate annual payroll figures from all runs in this FY
-                using var agg = conn.CreateCommand();
-                agg.CommandText = @"
-                    SELECT COALESCE(SUM(gross_salary),0)        AS gross,
-                           COALESCE(SUM(hra_exemption),0)       AS hra,
-                           MAX(chapter6a_deduction)              AS ch6a,
-                           MAX(taxable_income)                   AS taxable,
-                           MAX(annual_tax)                       AS tax,
-                           MAX(surcharge)                        AS sur,
-                           MAX(cess)                             AS cess,
-                           MAX(total_annual_tax)                 AS total_tax,
-                           MAX(standard_deduction)               AS std_ded,
-                           MAX(rebate87a)                        AS rebate
-                    FROM payroll_runs
-                    WHERE employee_id=@eid AND deductor_id=@did AND financial_year=@fy";
-                agg.Parameters.AddWithValue("@eid", empId);
-                agg.Parameters.AddWithValue("@did", deductorId);
-                agg.Parameters.AddWithValue("@fy",  fy);
-
-                // New regime: ₹75,000 (Budget 2024); Old regime: ₹50,000
-                bool _isNew = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
-                double _fallbackStdDed = TDSPro.Common.TaxRules.GetRules(fy, _isNew).StandardDeduction;
-                double gross=0, hra=0, ch6a=0, taxable=0, tax=0, sur=0, cess=0, stdDed=_fallbackStdDed, rebate87A=0;
-                using (var r = agg.ExecuteReader())
-                {
-                    if (r.Read())
-                    {
-                        gross    = r.IsDBNull(r.GetOrdinal("gross"))   ? 0.0 : Convert.ToDouble(r["gross"]);
-                        hra      = r.IsDBNull(r.GetOrdinal("hra"))     ? 0.0 : Convert.ToDouble(r["hra"]);
-                        ch6a     = r.IsDBNull(r.GetOrdinal("ch6a"))    ? 0.0 : Convert.ToDouble(r["ch6a"]);
-                        taxable  = r.IsDBNull(r.GetOrdinal("taxable")) ? 0.0 : Convert.ToDouble(r["taxable"]);
-                        tax      = r.IsDBNull(r.GetOrdinal("tax"))     ? 0.0 : Convert.ToDouble(r["tax"]);
-                        sur      = r.IsDBNull(r.GetOrdinal("sur"))     ? 0.0 : Convert.ToDouble(r["sur"]);
-                        cess     = r.IsDBNull(r.GetOrdinal("cess"))    ? 0.0 : Convert.ToDouble(r["cess"]);
-                        var sd   = r["std_ded"];
-                        stdDed   = (sd == DBNull.Value || sd == null) ? _fallbackStdDed : Convert.ToDouble(sd);
-                        if (stdDed <= 0) stdDed = _fallbackStdDed;
-                        var rb   = r["rebate"];
-                        rebate87A = (rb == DBNull.Value || rb == null) ? 0 : Convert.ToDouble(rb);
-                    }
-                }
-
-                // If rebate87A not stored in payroll_runs, compute from TaxRules
-                if (rebate87A == 0 && tax > 0)
-                {
-                    bool isNewRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
-                    var rules = TDSPro.Common.TaxRules.GetRules(fy, isNewRegime);
-                    rebate87A = taxable <= rules.Rebate87AThreshold
-                        ? Math.Min(tax, rules.Rebate87AMaxAmount) : 0;
-                }
-
-                // ── Prefer monthly_salary_entries when populated (single source of truth) ──
-                // perq_exempted in MSE = all Sec 10 exemptions (HRA + LTA + bills reimbursements)
-                // gross_taxable in MSE = GrossPayment - perq_exempted - leave_enc_exempted
-                //   → perq exemptions already removed; PT and Ch6A still need to be deducted for taxable
-                using var mse = conn.CreateCommand();
-                mse.CommandText = @"
-                    SELECT COALESCE(SUM(gross_payment),0)    AS gross_pay,
-                           COALESCE(SUM(gross_taxable),0)    AS gross_taxable,
-                           COALESCE(SUM(perq_exempted),0)    AS exempted,
-                           COALESCE(SUM(professional_tax),0) AS pt_total,
-                           COALESCE(SUM(tds_deducted),0)     AS tds_total,
-                           COUNT(*)                           AS row_count
-                    FROM monthly_salary_entries
-                    WHERE employee_id=@eid AND deductor_id=@did AND financial_year=@fy";
-                mse.Parameters.AddWithValue("@eid", empId);
-                mse.Parameters.AddWithValue("@did", deductorId);
-                mse.Parameters.AddWithValue("@fy",  fy);
-                int mseCount = 0; double mseGross = 0, mseExempted = 0, mseTds = 0, mseTaxable = 0, msePt = 0;
-                using (var r = mse.ExecuteReader())
-                {
-                    if (r.Read())
-                    {
-                        mseCount    = Convert.ToInt32(r["row_count"]);
-                        mseGross    = Convert.ToDouble(r["gross_pay"]);
-                        mseExempted = Convert.ToDouble(r["exempted"]);
-                        mseTaxable  = Convert.ToDouble(r["gross_taxable"]);
-                        mseTds      = Convert.ToDouble(r["tds_total"]);
-                        msePt       = Convert.ToDouble(r["pt_total"]);
-                    }
-                }
-                if (mseCount > 0)
-                {
-                    gross = mseGross;
-                    hra   = mseExempted; // perq_exempted = all Sec 10 exemptions (HRA + LTA + bills)
-                    bool isNewRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase);
-                    var rules = TDSPro.Common.TaxRules.GetRules(fy, isNewRegime);
-                    stdDed = rules.StandardDeduction; // New regime: 75K; Old regime: 50K
-                    // gross_taxable already has perq exemptions removed; subtract PT and Ch6A for old regime
-                    taxable = isNewRegime
-                        ? Math.Max(0, mseTaxable - stdDed)
-                        : Math.Max(0, mseTaxable - stdDed - msePt - ch6a);
-                    tax     = TDSPro.Common.TaxRules.ComputeSlabTax(taxable, rules);
-                    var (afterRebate, reb) = TDSPro.Common.TaxRules.Apply87A(tax, taxable, rules);
-                    rebate87A = reb;
-                    tax = afterRebate;
-                    sur  = TDSPro.Common.TaxRules.CalcSurcharge(tax, taxable, rules);
-                    cess = Math.Round((tax + sur) * 0.04);
-                }
-
-                // TDS current employer = sum of DD TDS for this employee from Annexure I (section 192)
-                double tdsFromDD = deductees
-                    .Where(d => d.Pan.Equals(pan, StringComparison.OrdinalIgnoreCase))
-                    .Sum(d => d.TdsDeducted);
-                // Fallback: if no DD records yet, use monthly_salary_entries' TDS sum
-                if (tdsFromDD == 0 && mseTds > 0) tdsFromDD = mseTds;
-
-                // Employment period: FY Apr 1 to Mar 31, clamped by joining/leaving dates
-                var fyYear = int.Parse(fy.Split('-')[0]);
-                var from   = new DateTime(fyYear, 4, 1);
-                var to     = new DateTime(fyYear + 1, 3, 31);
-                if (!string.IsNullOrEmpty(joinStr)  && DateTime.TryParse(joinStr,  out var j) && j > from) from = j;
-                if (!string.IsNullOrEmpty(leaveStr) && DateTime.TryParse(leaveStr, out var l) && l < to)   to   = l;
-
-                // Map gender: M/F/T → G/W/G  (NSDL codes: G=male/unspecified W=female)
-                string nsdlGender = gender?.ToUpper() switch { "F" => "W", "FEMALE" => "W", "W" => "W", "S" => "S", _ => "G" };
-
-                // Map tax regime to NSDL code: Old=N, New=O (in FY<2025-26) / New=N (FY>=2025-26 new default)
-                string nsdlRegime = regime.Equals("New", StringComparison.OrdinalIgnoreCase) ? "O" : "N";
-
-                // Find the last challan this employee's TDS entries are linked to (for challanNo field)
-                string empChallanNo = challans.LastOrDefault()?.ChallanNo ?? "";
-
-                result.Add(new ReturnSalaryDetail
-                {
-                    Pan              = pan,
-                    Name             = name,
-                    Gender           = nsdlGender,
-                    EmployeeCategory = "A",
-                    TaxRegime        = nsdlRegime,
-                    EmploymentFrom   = from,
-                    EmploymentTo     = to,
-                    Salary17_1       = gross,
-                    ExemptU10        = hra,
-                    ExemptU10Count   = hra > 0 ? 1 : 0,
-                    StandardDeduction= stdDed,
-                    GrossTotalIncome = Math.Max(0, gross - hra),
-                    TaxableIncome    = taxable,
-                    TaxPayable       = tax,
-                    Surcharge        = sur,
-                    Cess             = cess,
-                    Rebate87A        = rebate87A,
-                    TotalTaxPayable  = Math.Max(0, tax + sur + cess),
-                    TdsDeducted      = tdsFromDD,  // sum of DD records for this employee
-                    Chapter6ATotal   = ch6a,
-                    Chapter6ACount   = ch6a > 0 ? 1 : 0,
-                    ChallanNo        = empChallanNo,
-                });
-            }
-
-            return result;
+            // This stub is replaced by ReturnService.BuildSalaryDetailsFromComputation in BLL.
+            // Returning empty here — BLL overrides SalaryDetails after BuildReturnData returns.
+            return new List<ReturnSalaryDetail>();
         }
 
         private static string TryGetString(Microsoft.Data.Sqlite.SqliteDataReader r, string col)
