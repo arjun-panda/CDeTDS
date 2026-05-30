@@ -274,19 +274,29 @@ namespace TDSPro.DAL
                             }
                         }
 
-                        // Upsert TDS entry — natural key: deductor_id + deductee_id + entry_date + section + amount + quarter
+                        // Check for existing entry to avoid duplicates — natural key: deductor+deductee+date+section+amount+quarter
+                        // (No UNIQUE index on these columns by design — two genuine separate payments can share same key)
+                        // On re-import: skip if identical entry already exists; insert if genuinely new.
+                        using var echk = conn.CreateCommand();
+                        echk.CommandText = @"SELECT COUNT(*) FROM tds_entries
+                            WHERE deductor_id=@did AND deductee_id=@deid AND entry_date=@dt
+                              AND section=@sec AND amount=@amt AND quarter=@qtr";
+                        echk.Parameters.AddWithValue("@did",  deductorId);
+                        echk.Parameters.AddWithValue("@deid", deeId);
+                        echk.Parameters.AddWithValue("@dt",   currentDate ?? DateTime.Today.ToString("yyyy-MM-dd"));
+                        echk.Parameters.AddWithValue("@sec",  section2);
+                        echk.Parameters.AddWithValue("@amt",  grossAmt);
+                        echk.Parameters.AddWithValue("@qtr",  result.Quarter);
+                        var existCount = (long)(echk.ExecuteScalar() ?? 0L);
+                        if (existCount > 0) { result.Warnings.Add($"Skipped duplicate entry: {name2} {section2} ₹{grossAmt:N0} on {currentDate}"); continue; }
+
                         string entryNo2 = $"TDS{entrySeq:D5}";
                         using var eins = conn.CreateCommand();
                         eins.CommandText = @"INSERT INTO tds_entries
                             (entry_no,deductor_id,deductee_id,entry_date,financial_year,quarter,
                              section,amount,rate,tds_amount,surcharge,cess,interest,late_fee,
                              total_tds,status,challan_id,remarks)
-                            VALUES(@en,@did,@deid,@dt,@fy,@qtr,@sec,@amt,@rate,@tds,0,@cess,0,0,@tot,@st,@cid,'Imported from TRACES conso file')
-                            ON CONFLICT(deductor_id,deductee_id,entry_date,section,amount,quarter) DO UPDATE SET
-                            rate=excluded.rate, tds_amount=excluded.tds_amount,
-                            cess=excluded.cess, total_tds=excluded.total_tds,
-                            status=excluded.status,
-                            challan_id=COALESCE(excluded.challan_id, tds_entries.challan_id)";
+                            VALUES(@en,@did,@deid,@dt,@fy,@qtr,@sec,@amt,@rate,@tds,0,@cess,0,0,@tot,@st,@cid,'Imported from TRACES conso file')";
                         eins.Parameters.AddWithValue("@en",   entryNo2);
                         eins.Parameters.AddWithValue("@did",  deductorId);
                         eins.Parameters.AddWithValue("@deid", deeId);

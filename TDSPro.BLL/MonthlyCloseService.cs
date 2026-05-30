@@ -213,7 +213,9 @@ namespace TDSPro.BLL
 
         /// <summary>
         /// Approve + Lock: persists, locks (blocks edits), auto-creates Sec 192 TDS Entry.
+        /// Not used by UI since Lock/Unlock was removed — use SaveAndSync instead.
         /// </summary>
+        [Obsolete("Lock/Unlock removed from UI. Use SaveAndSync instead.")]
         public (bool ok, string msg) Approve(MonthlyCloseRow row, int deductorId, string approvedBy = "user")
         {
             if (row.Status == "Skip")
@@ -300,9 +302,9 @@ namespace TDSPro.BLL
 
         /// <summary>
         /// Unlock a locked row + remove the auto-created Sec 192 TDS entry.
-        /// Returns (ok, message). If the TDS entry is already linked to a challan,
-        /// unlock is refused — caller must unlink the challan first.
+        /// Not used by UI since Lock/Unlock was removed from the Payroll page.
         /// </summary>
+        [Obsolete("Lock/Unlock removed from UI. No replacement needed.")]
         public (bool ok, string msg) Unlock(int employeeId, string fy, int month, int deductorId = 0)
         {
             var entry = _salRepo.Get(employeeId, fy, month);

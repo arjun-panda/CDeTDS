@@ -412,9 +412,8 @@ else
     void LinkNow(string quarter)
     {
         // Open the first challan for this quarter so the user can link entries
-        var challan = _items.FirstOrDefault(c => c.Quarter == quarter)
-                   ?? _items.FirstOrDefault();
-        if (challan == null) { Snackbar.Add("No challans found. Add a challan first.", Severity.Warning); return; }
+        var challan = _items.FirstOrDefault(c => c.Quarter == quarter);
+        if (challan == null) { Snackbar.Add($"No challan found for {quarter} — add one first, then link entries.", Severity.Warning); return; }
         OpenEdit(challan);
         // Override the entry list to show unlinked entries for this quarter (ignoring section filter)
         _linkableEntries = EntrySvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY)
@@ -624,9 +623,11 @@ else
             cmd.Parameters.AddWithValue("@d",  c.DeductorId);
             linkedCount = (int)(long)(cmd.ExecuteScalar() ?? 0L);
         }
-        catch { }
+        catch { linkedCount = -1; }
         var linkMsg = linkedCount > 0
             ? $"\n\n⚠ {linkedCount} TDS entr{(linkedCount == 1 ? "y" : "ies")} linked to this challan will be unlinked."
+            : linkedCount < 0
+            ? "\n\n⚠ Could not check linked entries — verify TDS Entries after deletion."
             : "";
         var confirmed = await DialogSvc.ShowMessageBox(
             "Delete Challan?",

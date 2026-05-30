@@ -760,46 +760,6 @@
         catch { }
     }
 
-    // ── Generate .txt only ──────────────────────────────────────────────────
-    async Task GenerateTxtOnly()
-    {
-        if (!ValidateInputs()) return;
-        WarnIfUnlinkedEntries();
-        _generating = true; _step = Step.GeneratingTxt;
-        _result = ""; _logLines.Clear(); _fvuErrors.Clear();
-        _lastTxtPath = ""; _lastFvuPath = "";
-        StateHasChanged();
-
-        try
-        {
-            var did = AppState.CurrentDeductorId;
-            var (ok, path, error) = await Task.Run(() =>
-            {
-                var data   = BuildReturnData();
-                var outDir = FolderManager.ReturnFolder(AppState.CurrentFY, _formType, _quarter);
-                Directory.CreateDirectory(outDir);
-                return Svc.GenerateFvu(data, outDir, did);
-            });
-
-            if (ok)
-            {
-                _lastTxtPath    = path;
-                LoadFilingHistory();
-                _result         = $"✅  Return file generated:\n{path}\n\n📂  CSI file folder: {TDSPro.DAL.FolderManager.CsiFolder}\n⚠️  Download the .csi (Challan Status Inquiry) file from OLTAS (IT Portal → e-Pay Tax → Payment History) and save it to the folder above. FVU picks it up automatically.\n\nNext: Click 'Generate & Validate (FVU)' to validate.";
-                _resultSeverity = Severity.Success;
-                _activeStep     = 4;
-            }
-            else
-            {
-                _result         = "❌  " + error;
-                _resultSeverity = Severity.Error;
-            }
-        }
-        catch (Exception ex) { _result = "❌  " + ex.Message; _resultSeverity = Severity.Error; }
-
-        _generating = false; _step = Step.Idle;
-    }
-
     // ── Generate .txt then run NSDL FVU jar ────────────────────────────────
     async Task GenerateAndValidate()
     {

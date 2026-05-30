@@ -11,7 +11,7 @@ namespace TDSPro.DAL
         public static string DbPath => _dbPath;
 
         // Current schema version — bump this when adding new migrations
-        private const int SchemaVersion = 16;
+        private const int SchemaVersion = 17;
 
         /// <summary>
         /// Fast path: creates tables + seeds. Returns immediately so the window can show.
@@ -1034,6 +1034,27 @@ namespace TDSPro.DAL
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_filing_hist_unique
                     ON tds_filing_history(deductor_id, form_type, financial_year, quarter, is_correction)";
                 idx6.ExecuteNonQuery();
+            } catch { }
+
+            // ── v17: fix filing history UNIQUE index to include correction_type ──
+            // Old index prevented C1/C2/C3 corrections being stored as separate history rows.
+            try
+            {
+                using var conn7 = GetConnection();
+                using var cmd7  = conn7.CreateCommand();
+                cmd7.CommandText = "DROP INDEX IF EXISTS idx_filing_hist_unique";
+                cmd7.ExecuteNonQuery();
+                cmd7.CommandText = @"
+                    DELETE FROM tds_filing_history
+                    WHERE id NOT IN (
+                        SELECT MAX(id) FROM tds_filing_history
+                        GROUP BY deductor_id, form_type, financial_year, quarter, is_correction, COALESCE(correction_type,'')
+                    )";
+                cmd7.ExecuteNonQuery();
+                cmd7.CommandText = @"
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_filing_hist_unique
+                    ON tds_filing_history(deductor_id, form_type, financial_year, quarter, is_correction, COALESCE(correction_type,''))";
+                cmd7.ExecuteNonQuery();
             } catch { }
         }
 

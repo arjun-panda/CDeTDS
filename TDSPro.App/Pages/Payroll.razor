@@ -3990,7 +3990,6 @@
     {
         if (_sdEmpId == 0 || _sdMonth == 0) { Snackbar.Add("Select an employee and month.", Severity.Warning); return; }
         var dbReset = SalarySvc.Get(_sdEmpId, AppState.CurrentFY, _sdMonth);
-        if (dbReset?.IsLocked == true) { Snackbar.Add("Month is locked. Unlock first.", Severity.Warning); return; }
         var confirmed = await DialogSvc.ShowMessageBox(
             "Reset month from Salary Structure?",
             $"This will discard the saved {new DateTime(1, _sdMonth, 1):MMMM} entry and re-seed all fields from the employee's current salary structure. Useful when an earlier accidental save left the month blank/zero.",
