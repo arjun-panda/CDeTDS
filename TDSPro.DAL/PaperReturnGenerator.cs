@@ -414,14 +414,23 @@ namespace TDSPro.DAL
                     // We use Gender from SD: W=female, others=G (age data not in ReturnSalaryDetail)
                     string ageCode = s.Gender == "W" ? "W" : "G";
 
-                    // col 335: taxable salary from current employer
-                    // Per NSDL: col335 = Gross Salary − Exempt u/s 10 − Std Ded − Sec16(ii) − Sec16(iii)
-                    double col335 = Math.Max(0, s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3
-                                             - s.ExemptU10 - s.StandardDeduction);
-                    double col337 = col335 + s.PrevEmpSalary;          // Total salary
-                    double col338 = s.StandardDeduction;                // 16(ia) std ded (already in 335)
-                    double col340 = Math.Max(0, col337 - 0 - 0);       // Income u/h Salaries (16(ii)=0, 16(iii)=0)
-                    double col342 = col340;                             // GTI = col340 + other sources (0)
+                    // NSDL col 335 = Gross − Sec 10 exemptions (HRA + bills reimbursements)
+                    // Professional Tax u/s 16(iii) is also deducted BEFORE col 335 per NSDL spec.
+                    // Standard Deduction u/s 16(ia) goes in col 338 SEPARATELY.
+                    // col 340 = col 337 − col 338 (Income u/h Salaries)
+                    // col 342 = col 340 (GTI, no other sources assumed)
+                    // col 346 = col 342 − col 345 (Ch VIA) = TaxableIncome from engine
+                    //
+                    // We use engine's TaxableIncome (s.TaxableIncome) as the anchor and
+                    // derive col 335 upward so all columns reconcile exactly.
+                    double col338 = s.StandardDeduction;               // 16(ia) std ded
+                    // col342 = GTI = TaxableIncome + Ch6A (reverse from engine output)
+                    double col342 = Math.Max(0, s.TaxableIncome + s.Chapter6ATotal);
+                    double col340 = col342;                             // no other income sources
+                    // col337 = Income u/h Salaries + std ded = col340 + col338
+                    double col337 = col340 + col338;
+                    // col335 = col337 − prev emp salary
+                    double col335 = Math.Max(0, col337 - s.PrevEmpSalary);
 
                     t335 += col335; t337 += col337; t338 += col338; t340 += col340; t342 += col342;
                     rows.Add((s, ageCode, col335, col337, col338, col340, col342));
