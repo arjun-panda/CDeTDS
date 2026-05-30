@@ -67,15 +67,36 @@ namespace TDSPro.DAL
     width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 8px;
   }}
   th {{
-    background: #e3f2fd; border: 1px solid #aaa; padding: 3px 4px;
-    text-align: center; font-weight: bold;
+    background: #1565C0; color: #fff; border: 1px solid #0d47a1; padding: 4px 4px;
+    text-align: center; font-weight: bold; font-size: 7pt; white-space: nowrap;
+    position: sticky; top: 0; z-index: 2;
   }}
   td {{
-    border: 1px solid #ccc; padding: 2px 4px; text-align: left;
+    border: 1px solid #ccc; padding: 2px 4px; text-align: left; white-space: nowrap;
   }}
   td.num {{ text-align: right; }}
-  tr:nth-child(even) td {{ background: #fafafa; }}
+  tr:nth-child(even) td {{ background: #f8fafc; }}
   .total-row td {{ background: #e8f5e9; font-weight: bold; border-top: 2px solid #000; }}
+
+  /* Annexure II scrollable wrapper */
+  .ann2-wrap {{
+    overflow-x: auto; width: 100%; margin-bottom: 8px;
+    border: 1px solid #0d47a1; border-radius: 4px;
+  }}
+  .ann2-wrap table {{ margin-bottom: 0; min-width: max-content; }}
+  .ann2-wrap th {{ background: #1565C0; color: #fff; font-size: 6.5pt; line-height: 1.3; white-space: normal; min-width: 60px; }}
+  .ann2-wrap td {{ font-size: 7pt; }}
+  .ann2-label {{
+    background: #e3f2fd; color: #1565C0; font-size: 8pt; font-weight: 700;
+    padding: 4px 8px; border-left: 4px solid #1565C0; margin: 8px 0 2px 0;
+  }}
+  @media print {{
+    .ann2-wrap {{ overflow: visible; }}
+    .ann2-wrap table {{ font-size: 5.5pt; }}
+    .ann2-wrap th {{ font-size: 5pt; padding: 2px 2px; }}
+    .ann2-wrap td {{ font-size: 5.5pt; padding: 1px 2px; }}
+    .page-break {{ page-break-before: always; }}
+  }}
 
   .summary-box {{
     border: 1px solid #000; padding: 6px 10px; margin-bottom: 8px;
@@ -265,7 +286,10 @@ namespace TDSPro.DAL
             // Table 1: cols 330-342  |  Table 2: cols 343-356
             if (h.FormType == "24Q" && h.Quarter == "Q4" && d.SalaryDetails.Any())
             {
-                sb.Append($@"<div class=""section-title"">ANNEXURE II — Detail of salary paid / credited during FY {h.FinancialYear} and net tax payable</div>");
+                sb.Append($@"<div class=""section-title"" style=""page-break-before:always"">ANNEXURE II — Detail of salary paid / credited during FY {h.FinancialYear} and net tax payable</div>
+<div style=""font-size:7.5pt;color:#374151;margin:4px 0 6px 0"">
+  (Please see separate Annexure I for each quarter. Annexure II is filed with Q4 only.)
+</div>");
 
                 // Pre-compute per-employee derived values
                 int sSlNo = 1;
@@ -275,22 +299,23 @@ namespace TDSPro.DAL
                 double t343=0, t345=0, t346=0, t347=0, t348=0, t349=0, t351=0, t352=0, t353=0, t354=0, t355=0;
 
                 // ── TABLE 1 ── cols 330-342
-                sb.Append(@"<table style=""font-size:7pt;margin-bottom:6px"">
-<thead><tr style=""background:#1565C0;color:#fff;font-size:6.5pt"">
-  <th>Sl<br/>330</th>
-  <th>PAN<br/>331</th>
-  <th>Name of Employee<br/>332</th>
-  <th>Age<br/>333</th>
-  <th>Date From<br/>334</th>
-  <th>Date To<br/>334</th>
-  <th>Taxable Salary<br/>Cur. Emp (₹)<br/>335</th>
-  <th>Taxable Salary<br/>Prev. Emp (₹)<br/>336</th>
-  <th>Total Salary<br/>335+336 (₹)<br/>337</th>
-  <th>Dedn u/s 16(ii)<br/>+16(ia) (₹)<br/>338</th>
-  <th>Dedn u/s<br/>16(iii) (₹)<br/>339</th>
-  <th>Income u/h<br/>Salaries (₹)<br/>340</th>
-  <th>Income Other<br/>Sources (₹)<br/>341</th>
-  <th>Gross Total<br/>Income (₹)<br/>342</th>
+                sb.Append(@"<div class=""ann2-label"">Part A — Salary &amp; Deductions (Columns 330–342)</div>
+<div class=""ann2-wrap""><table>
+<thead><tr>
+  <th>Sl<br/>(330)</th>
+  <th>PAN<br/>(331)</th>
+  <th style=""min-width:130px"">Name of Employee<br/>(332)</th>
+  <th>Age<br/>(333)</th>
+  <th>Date From<br/>(334)</th>
+  <th>Date To<br/>(334)</th>
+  <th>Taxable Salary<br/>Cur. Emp (₹)<br/>(335)</th>
+  <th>Taxable Salary<br/>Prev. Emp (₹)<br/>(336)</th>
+  <th>Total Salary<br/>335+336 (₹)<br/>(337)</th>
+  <th>Dedn u/s 16(ia)<br/>+16(ii) (₹)<br/>(338)</th>
+  <th>Dedn u/s<br/>16(iii) (₹)<br/>(339)</th>
+  <th>Income u/h<br/>Salaries (₹)<br/>(340)</th>
+  <th>Income Other<br/>Sources (₹)<br/>(341)</th>
+  <th>Gross Total<br/>Income (₹)<br/>(342)</th>
 </tr></thead><tbody>");
 
                 var rows = new List<(ReturnSalaryDetail s, string ageCode, double col335, double col337, double col338, double col340, double col342)>();
@@ -336,26 +361,27 @@ namespace TDSPro.DAL
   <td class=""num"">{t338:N0}</td><td></td>
   <td class=""num"">{t340:N0}</td><td></td>
   <td class=""num"">{t342:N0}</td>
-</tr></tbody></table>");
+</tr></tbody></table></div>");
 
                 // ── TABLE 2 ── cols 343-356
-                sb.Append(@"<table style=""font-size:7pt"">
-<thead><tr style=""background:#1565C0;color:#fff;font-size:6.5pt"">
-  <th>Sl<br/>330</th>
-  <th>Dedn 80C<br/>80CCC 80CCD<br/>343</th>
-  <th>Other Ch.VIA<br/>provisions<br/>344</th>
-  <th>Total Ch.VIA<br/>343+344<br/>345</th>
-  <th>Taxable Income<br/>342−345<br/>346</th>
-  <th>Income Tax<br/>on 346<br/>347</th>
-  <th>Surcharge<br/>348</th>
-  <th>Education<br/>Cess<br/>349</th>
-  <th>Relief<br/>u/s 89<br/>350</th>
-  <th>Net Tax<br/>Payable<br/>351</th>
-  <th>TDS Whole Year<br/>Cur. Emp. (₹)<br/>352</th>
-  <th>TDS Prev.<br/>Emp. (₹)<br/>353</th>
-  <th>Total TDS<br/>352+353<br/>354</th>
-  <th>Shortfall(+)<br/>Excess(−)<br/>355</th>
-  <th>Higher Rate<br/>PAN (Y/N)<br/>356</th>
+                sb.Append(@"<div class=""ann2-label"">Part B — Tax Computation &amp; TDS (Columns 343–356)</div>
+<div class=""ann2-wrap""><table>
+<thead><tr>
+  <th>Sl<br/>(330)</th>
+  <th>Dedn 80C<br/>80CCC 80CCD (₹)<br/>(343)</th>
+  <th>Other Ch.VIA<br/>provisions (₹)<br/>(344)</th>
+  <th>Total Ch.VIA<br/>343+344 (₹)<br/>(345)</th>
+  <th>Taxable Income<br/>342−345 (₹)<br/>(346)</th>
+  <th>Income Tax<br/>on 346 (₹)<br/>(347)</th>
+  <th>Surcharge<br/>(₹)<br/>(348)</th>
+  <th>Education<br/>Cess (₹)<br/>(349)</th>
+  <th>Relief<br/>u/s 89 (₹)<br/>(350)</th>
+  <th>Net Tax<br/>Payable (₹)<br/>(351)</th>
+  <th>TDS Whole Year<br/>Cur. Emp. (₹)<br/>(352)</th>
+  <th>TDS Prev.<br/>Emp. (₹)<br/>(353)</th>
+  <th>Total TDS<br/>352+353 (₹)<br/>(354)</th>
+  <th>Shortfall(+)<br/>Excess(−) (₹)<br/>(355)</th>
+  <th>Higher Rate<br/>PAN (Y/N)<br/>(356)</th>
 </tr></thead><tbody>");
 
                 sSlNo = 1;
@@ -414,7 +440,7 @@ namespace TDSPro.DAL
   <td class=""num"">{t354:N0}</td>
   <td class=""num"" style=""color:{(t355>0?"#dc2626":t355<0?"#16a34a":"inherit")}"">{(t355>0?t355.ToString("N0"):t355<0?$"({Math.Abs(t355):N0})":"")}</td>
   <td></td>
-</tr></tbody></table>");
+</tr></tbody></table></div>");
             }
 
             // ── Verification / signature block ─────────────────────────────────
