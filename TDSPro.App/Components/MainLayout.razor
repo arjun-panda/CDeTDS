@@ -310,7 +310,7 @@ else
         ("Returns & FVU", "How do I file a correction return (C1/C2/C3)?", "Check 'Correction Return', select the type (C1 = first correction, C2 = second, C3 = third), enter the Previous PRN from the IT Portal. For C2/C3 also enter the Original Return PRN. TDS Pro auto-fills these from the Filing History panel if you filed the original from TDS Pro."),
         ("Returns & FVU", "What does C1 correction fix?",               "C1 corrects deductee-level data only — wrong PAN, name, payment amount, TDS amount, section code, or payment date. It does NOT touch challan data. This is the most common correction. PRN needed: only the original filing PRN. Example: vendor PAN was entered incorrectly."),
         ("Returns & FVU", "What does C2 correction fix?",               "C2 corrects challan-level data — wrong BSR code, challan date, challan serial number, or challan amount. You can also fix deductee data in the same C2 filing. PRN needed: Original PRN + Previous PRN (both are the same PRN if this is the first correction). Example: BSR code was entered wrong."),
-        ("Returns & FVU", "What does C3 correction fix?",               "C3 adds or deletes an entire challan or deductee record — use it when a challan was completely missed or needs to be removed. This is the most impactful correction as it changes the structure of the return. PRN needed: Original PRN + Previous PRN. Example: one challan was not included in the original filing."),
+        ("Returns & FVU", "What does C3 correction fix?",               "C3 is used when a challan or entry was completely absent from the original return — either add a missed one or remove a wrongly included one. The correction FVU file contains ALL records (original + new), not just the additions. NSDL replaces the entire return. PRN needed: Original PRN + Previous PRN (same value if this is the first correction). Example: one challan and its entries were not included in the original filing."),
         ("Returns & FVU", "How does the PRN chain work across corrections?",
             "OrigPRN never changes — it is always the very first (original) filing PRN. PrevPRN always points to the immediately preceding accepted filing. Example chain: Original → PRN1. C1 on original → PRN2 (PrevPRN=PRN1, OrigPRN=PRN1). C2 on C1 → PRN3 (PrevPRN=PRN2, OrigPRN=PRN1). C3 on C2 → PRN4 (PrevPRN=PRN3, OrigPRN=PRN1). Always wait for each correction to be accepted on the portal before filing the next one."),
         ("Returns & FVU", "What is a PRN?",                       "PRN (Provisional Receipt Number) is a 15-digit token issued by the IT Portal after successful upload of a return. You must enter this in TDS Pro's Filing History (click the pencil icon) to enable future corrections."),
@@ -318,6 +318,24 @@ else
         ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
         ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
         ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates a printable HTML copy of exactly what was filed — Annexure I (deductee details) and, for 24Q Q4, Annexure II (annual salary breakup per employee). Click Paper Return → it opens in your browser → use Ctrl+P to save as PDF. Useful for internal records, CA review, or employee reference."),
+        ("Returns & FVU", "Original return filed with no default. Now I realise some entries and a challan were missed — how to correct?",
+            "This is a C3 correction — you are ADDING a challan and entries that were completely absent from the original return.\n\n" +
+            "STEP 1 — Import the original data from TRACES:\n" +
+            "• Excel Import/Export → Import Data → TRACES Conso File\n" +
+            "• This brings in what was actually filed, so TDS Pro has the full picture\n\n" +
+            "STEP 2 — Add the missing data:\n" +
+            "• Go to Challans → Add the missed challan (BSR code, challan no, date, amount)\n" +
+            "• Go to TDS Entries → Add the missed entries → link them to the new challan\n\n" +
+            "STEP 3 — Generate C3 correction:\n" +
+            "• Returns / FVU → tick Correction Return → select C3 (Add/delete challan or entry)\n" +
+            "• Previous PRN = PRN of the original filing (from IT Portal or Filing History)\n" +
+            "• Original PRN = same PRN (it is the first correction on the original)\n" +
+            "• Click Generate .txt → Validate FVU → Upload to TRACES\n\n" +
+            "IMPORTANT: The correction FVU file will contain ALL challans and entries (original ones + the new ones you added). " +
+            "This is correct — NSDL replaces the entire return when it processes a correction. Do NOT delete the original entries " +
+            "before generating. The full combined return is what NSDL expects.\n\n" +
+            "After TRACES accepts the correction and issues a new PRN, save it in Filing History (pencil icon) for future reference."),
+
         ("Returns & FVU", "Can I file a correction for a return originally filed using RPU or another software?",
             "Yes. TDS Pro can file corrections for returns filed with any tool — NSDL RPU, third-party software, or TDS Pro itself. " +
             "The key is to import the original return data from TRACES first so TDS Pro has the exact data that was filed.\n\n" +

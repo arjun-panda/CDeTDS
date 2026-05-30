@@ -71,14 +71,22 @@
                 {
                     <MudItem xs="4">
                         <MudSelect @bind-Value="_correctionType" Label="Correction Type" Variant="Variant.Outlined" Margin="Margin.Dense">
-                            <MudSelectItem Value="@("C1")">C1 — First correction</MudSelectItem>
-                            <MudSelectItem Value="@("C2")">C2 — Second correction</MudSelectItem>
-                            <MudSelectItem Value="@("C3")">C3 — Third correction</MudSelectItem>
+                            <MudSelectItem Value="@("C1")">C1 — Fix deductee/entry data</MudSelectItem>
+                            <MudSelectItem Value="@("C2")">C2 — Fix challan data</MudSelectItem>
+                            <MudSelectItem Value="@("C3")">C3 — Add/delete challan or entry</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="8">
                         <MudTextField @bind-Value="_prevPrn" Label="Previous PRN*" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      HelperText="PRN of the immediately preceding filing (original or last correction)" />
+                                      HelperText="PRN of the immediately preceding accepted filing (original or last correction)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;font-size:11px;color:#1e40af;line-height:1.8">
+                            <b>Which type to choose:</b><br/>
+                            <b>C1</b> — Wrong PAN, name, amount, TDS, section or payment date on an existing entry<br/>
+                            <b>C2</b> — Wrong BSR code, challan date or challan serial number<br/>
+                            <b>C3</b> — Missing challan or entry that was never included in the original return
+                        </div>
                     </MudItem>
                     @if (_correctionType != "C1")
                     {
