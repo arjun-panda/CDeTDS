@@ -318,6 +318,23 @@ else
         ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
         ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
         ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates a printable HTML copy of exactly what was filed — Annexure I (deductee details) and, for 24Q Q4, Annexure II (annual salary breakup per employee). Click Paper Return → it opens in your browser → use Ctrl+P to save as PDF. Useful for internal records, CA review, or employee reference."),
+        ("Returns & FVU", "How do I file correction returns for both 24Q and 26Q?",
+            "24Q and 26Q are separate returns — each has its own PRN and must be corrected independently. Step-by-step:\n\n" +
+            "FOR 24Q CORRECTION:\n" +
+            "1. Go to Returns / FVU → select Form Type = 24Q → select Quarter\n" +
+            "2. Tick 'Correction Return' → choose C1/C2/C3\n" +
+            "3. Enter the 24Q Previous PRN (from IT Portal or Filing History panel)\n" +
+            "4. Fix the data in TDS Entries / Payroll / Challans as needed\n" +
+            "5. Click Generate .txt → Generate & Validate (FVU) → upload to TRACES\n" +
+            "6. Save the new 24Q PRN in Filing History (pencil icon)\n\n" +
+            "FOR 26Q CORRECTION:\n" +
+            "1. Go to Returns / FVU → select Form Type = 26Q → same Quarter\n" +
+            "2. Tick 'Correction Return' → choose C1/C2/C3\n" +
+            "3. Enter the 26Q Previous PRN (different from 24Q — each form has its own PRN)\n" +
+            "4. Click Generate .txt → Generate & Validate (FVU) → upload to TRACES\n" +
+            "5. Save the new 26Q PRN in Filing History\n\n" +
+            "KEY POINT: 24Q and 26Q PRNs are completely separate. Never mix PRNs between the two forms. The correction type (C1/C2/C3) is also tracked separately per form type."),
+
         ("Returns & FVU", "Some entries are not linked to any challan — what do I do?", "Go to Challans page. An amber warning banner shows the count of unlinked entries per quarter with a 'Link N in Q1' button. Click it to open the challan dialog with unlinked entries pre-loaded — check the entries you want to link and click Save."),
 
         // Form 16
