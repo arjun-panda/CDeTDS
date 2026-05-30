@@ -64,29 +64,38 @@
                     </MudItem>
                 }
                 <MudItem xs="12">
-                    <MudCheckBox T="bool" Value="_isCorrection" Label="Correction Return (C1/C2/C3)" Dense="true"
-                                 ValueChanged="@((bool v) => { _isCorrection = v; OnFormOrQuarterChanged(); })" />
+                    <MudCheckBox T="bool" Value="_isCorrection" Label="Correction Return" Dense="true"
+                                 ValueChanged="@((bool v) => { _isCorrection = v; _corrChgChallan = false; _corrAddNew = false; DeriveCorrection(); OnFormOrQuarterChanged(); })" />
                 </MudItem>
                 @if (_isCorrection)
                 {
-                    <MudItem xs="4">
-                        <MudSelect @bind-Value="_correctionType" Label="Correction Type" Variant="Variant.Outlined" Margin="Margin.Dense">
-                            <MudSelectItem Value="@("C1")">C1 — Fix deductee/entry data</MudSelectItem>
-                            <MudSelectItem Value="@("C2")">C2 — Fix challan data</MudSelectItem>
-                            <MudSelectItem Value="@("C3")">C3 — Add/delete challan or entry</MudSelectItem>
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="8">
-                        <MudTextField @bind-Value="_prevPrn" Label="Previous PRN*" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      HelperText="PRN of the immediately preceding accepted filing (original or last correction)" />
+                    @* ── Correction type wizard — 2 questions auto-derive C1/C2/C3 ── *@
+                    <MudItem xs="12">
+                        <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px">
+                            <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">What did you change? (TDS Pro will select the right correction type)</div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#374151">
+                                    <input type="checkbox" checked="@_corrChgChallan"
+                                           @onchange="@(e => { _corrChgChallan = (bool)(e.Value ?? false); DeriveCorrection(); })" />
+                                    <span>I changed a <b>challan</b> — wrong BSR code, date or serial number</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#374151">
+                                    <input type="checkbox" checked="@_corrAddNew"
+                                           @onchange="@(e => { _corrAddNew = (bool)(e.Value ?? false); DeriveCorrection(); })" />
+                                    <span>I <b>added</b> a new challan or new entry that was <b>missing</b> from the original</span>
+                                </label>
+                            </div>
+                            <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+                                <div style="background:#1565C0;color:white;font-size:13px;font-weight:700;border-radius:6px;padding:4px 14px;white-space:nowrap">
+                                    @_correctionType — @CorrectionTypeDesc
+                                </div>
+                                <div style="font-size:11px;color:#78350f">@CorrectionTypeHint</div>
+                            </div>
+                        </div>
                     </MudItem>
                     <MudItem xs="12">
-                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;font-size:11px;color:#1e40af;line-height:1.8">
-                            <b>Which type to choose:</b><br/>
-                            <b>C1</b> — Wrong PAN, name, amount, TDS, section or payment date on an existing entry<br/>
-                            <b>C2</b> — Wrong BSR code, challan date or challan serial number<br/>
-                            <b>C3</b> — Missing challan or entry that was never included in the original return
-                        </div>
+                        <MudTextField @bind-Value="_prevPrn" Label="Previous PRN*" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      HelperText="PRN of the immediately preceding accepted filing (auto-filled from Filing History if available)" />
                     </MudItem>
                     @if (_correctionType != "C1")
                     {
@@ -512,10 +521,40 @@
 
     private string _formType        = "26Q";
     private string _quarter         = "Q1";
-    private bool   _isCorrection    = false;
+    private bool   _isCorrection     = false;
     private string _correctionType   = "C1";
+    private bool   _corrChgChallan   = false;   // wizard: user changed challan BSR/date/serial
+    private bool   _corrAddNew       = false;   // wizard: user added missing challan or entry
     private string _prevPrn          = "";
     private string _originalPrn      = "";
+
+    // Derive C1/C2/C3 from the two wizard checkboxes:
+    // Neither checked  → C1 (fixed entry/deductee data — most common)
+    // Challan changed  → C2 (fixed challan BSR/date/serial)
+    // New added        → C3 (added missing challan or entry)
+    // Both checked     → C3 (adding new + challan fix = most impactful = C3)
+    void DeriveCorrection()
+    {
+        if (_corrAddNew)         _correctionType = "C3";
+        else if (_corrChgChallan) _correctionType = "C2";
+        else                      _correctionType = "C1";
+    }
+
+    string CorrectionTypeDesc => _correctionType switch
+    {
+        "C1" => "Fix entry / deductee data",
+        "C2" => "Fix challan data",
+        "C3" => "Add or delete challan / entry",
+        _    => ""
+    };
+
+    string CorrectionTypeHint => _correctionType switch
+    {
+        "C1" => "Corrects wrong PAN, name, amount, TDS, section or payment date on existing entries",
+        "C2" => "Corrects wrong BSR code, challan date or challan serial number",
+        "C3" => "Adds a missing challan or entry that was not in the original return",
+        _    => ""
+    };
     private string _prevQuarterToken = "";
     private List<TDSPro.DAL.FilingHistoryRecord> _filingHistory = new();
     private bool   _generating;
