@@ -261,28 +261,40 @@ namespace TDSPro.DAL
             }
 
             // ── Annexure II — Salary Details (24Q Q4 only) ────────────────────
+            // Column layout matches official NSDL Form 24Q Annexure II exactly.
             if (h.FormType == "24Q" && h.Quarter == "Q4" && d.SalaryDetails.Any())
             {
-                sb.Append(@"<div class=""section-title"">ANNEXURE II — SALARY DETAILS (u/s 192)</div>
-<table>
-<thead><tr>
-  <th>Sl.</th><th>PAN</th><th>Name</th><th>Regime</th>
+                sb.Append(@"<div class=""section-title"">ANNEXURE II — DETAILS OF SALARY PAID AND TAX DEDUCTED THEREON FROM THE EMPLOYEES (u/s 192)</div>
+<table style=""font-size:7pt"">
+<thead>
+<tr style=""background:#1565C0;color:#fff"">
+  <th rowspan=""2"">Sl.</th>
+  <th rowspan=""2"">Name &amp; PAN</th>
+  <th colspan=""2"">Period of Employment</th>
+  <th colspan=""3"">Gross Salary (₹)</th>
+  <th rowspan=""2"">Allowances exempt u/s 10 (₹)</th>
+  <th rowspan=""2"">Balance (₹)</th>
+  <th rowspan=""2"">Std Ded u/s 16(ia) (₹)</th>
+  <th rowspan=""2"">Ent. Allow. u/s 16(ii) (₹)</th>
+  <th rowspan=""2"">Prof. Tax u/s 16(iii) (₹)</th>
+  <th rowspan=""2"">Income u/h Salary (₹)</th>
+  <th rowspan=""2"">Ch. VI-A Ded. (₹)</th>
+  <th rowspan=""2"">Gross Total Income (₹)</th>
+  <th rowspan=""2"">Tax on Income (₹)</th>
+  <th rowspan=""2"">Rebate 87A (₹)</th>
+  <th rowspan=""2"">Surcharge (₹)</th>
+  <th rowspan=""2"">Cess (₹)</th>
+  <th rowspan=""2"">Net Tax Payable (₹)</th>
+  <th rowspan=""2"">TDS Cur. Emp. (₹)</th>
+  <th rowspan=""2"">TDS Prev. Emp. (₹)</th>
+  <th rowspan=""2"">Total TDS (₹)</th>
+  <th rowspan=""2"">115BAC</th>
+</tr>
+<tr style=""background:#1565C0;color:#fff"">
   <th>From</th><th>To</th>
-  <th style=""text-align:right"">Salary 17(1) (₹)</th>
-  <th style=""text-align:right"">Perqs 17(2) (₹)</th>
-  <th style=""text-align:right"">Exempt u/s 10 (₹)</th>
-  <th style=""text-align:right"">Std Ded (₹)</th>
-  <th style=""text-align:right"">Ch VI-A (₹)</th>
-  <th style=""text-align:right"">GTI (₹)</th>
-  <th style=""text-align:right"">Taxable Income (₹)</th>
-  <th style=""text-align:right"">Tax (₹)</th>
-  <th style=""text-align:right"">87A Rebate (₹)</th>
-  <th style=""text-align:right"">Surcharge (₹)</th>
-  <th style=""text-align:right"">Cess (₹)</th>
-  <th style=""text-align:right"">Net Tax (₹)</th>
-  <th style=""text-align:right"">TDS (Cur Emp) (₹)</th>
-  <th style=""text-align:right"">TDS (Prev Emp) (₹)</th>
-</tr></thead><tbody>");
+  <th>Salary 17(1)</th><th>Perqs 17(2)</th><th>Profits 17(3)</th>
+</tr>
+</thead><tbody>");
 
                 int sSlNo = 1;
                 double sTot17_1=0, sTotExempt=0, sTotStd=0, sTotCh6a=0, sTotGti=0,
@@ -290,7 +302,7 @@ namespace TDSPro.DAL
                        sTotNet=0, sTotTds=0, sTotPrevTds=0;
                 foreach (var s in d.SalaryDetails)
                 {
-                    string regime = s.TaxRegime == "O" ? "New" : "Old";
+                    string regime = s.TaxRegime == "O" ? "New(115BAC)" : "Old";
                     sTot17_1    += s.Salary17_1;      sTotExempt  += s.ExemptU10;
                     sTotStd     += s.StandardDeduction; sTotCh6a  += s.Chapter6ATotal;
                     sTotGti     += s.GrossTotalIncome; sTotTaxable += s.TaxableIncome;
@@ -298,44 +310,57 @@ namespace TDSPro.DAL
                     sTotSur     += s.Surcharge;        sTotCess    += s.Cess;
                     sTotNet     += s.TotalTaxPayable;  sTotTds     += s.TdsDeducted;
                     sTotPrevTds += s.PrevEmpTds;
+                    // Derived fields matching NSDL Annexure II columns
+                    double grossTotal17 = s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3;
+                    double balance      = Math.Max(0, grossTotal17 - s.ExemptU10);   // col 9 = 7-8
+                    double incomeUhSal  = Math.Max(0, balance - s.StandardDeduction); // col 13 = 9-10-11-12 (ent.allow=0, prof.tax not in model)
+                    double totalTds     = s.TdsDeducted + s.PrevEmpTds;
                     sb.Append($@"<tr>
   <td class=""num"">{sSlNo++}</td>
-  <td>{Esc(s.Pan)}</td><td>{Esc(s.Name)}</td>
-  <td style=""text-align:center"">{regime}</td>
-  <td>{s.EmploymentFrom:dd-MM-yyyy}</td>
-  <td>{s.EmploymentTo:dd-MM-yyyy}</td>
-  <td class=""num"">{s.Salary17_1:N2}</td>
-  <td class=""num"">{s.Perquisites17_2:N2}</td>
-  <td class=""num"">{s.ExemptU10:N2}</td>
-  <td class=""num"">{s.StandardDeduction:N2}</td>
-  <td class=""num"">{s.Chapter6ATotal:N2}</td>
-  <td class=""num"">{s.GrossTotalIncome:N2}</td>
-  <td class=""num"">{s.TaxableIncome:N2}</td>
-  <td class=""num"">{s.TaxPayable:N2}</td>
-  <td class=""num"">{s.Rebate87A:N2}</td>
-  <td class=""num"">{s.Surcharge:N2}</td>
-  <td class=""num"">{s.Cess:N2}</td>
-  <td class=""num"">{s.TotalTaxPayable:N2}</td>
-  <td class=""num"">{s.TdsDeducted:N2}</td>
-  <td class=""num"">{s.PrevEmpTds:N2}</td>
+  <td style=""font-size:7pt"">{Esc(s.Pan)}<br/>{Esc(s.Name)}</td>
+  <td style=""white-space:nowrap"">{s.EmploymentFrom:dd-MM-yy}</td>
+  <td style=""white-space:nowrap"">{s.EmploymentTo:dd-MM-yy}</td>
+  <td class=""num"">{s.Salary17_1:N0}</td>
+  <td class=""num"">{s.Perquisites17_2:N0}</td>
+  <td class=""num"">{s.ProfitSalary17_3:N0}</td>
+  <td class=""num"">{s.ExemptU10:N0}</td>
+  <td class=""num"">{balance:N0}</td>
+  <td class=""num"">{s.StandardDeduction:N0}</td>
+  <td class=""num"">0</td>
+  <td class=""num"">0</td>
+  <td class=""num"">{incomeUhSal:N0}</td>
+  <td class=""num"">{s.Chapter6ATotal:N0}</td>
+  <td class=""num"">{s.GrossTotalIncome:N0}</td>
+  <td class=""num"">{s.TaxPayable:N0}</td>
+  <td class=""num"">{s.Rebate87A:N0}</td>
+  <td class=""num"">{s.Surcharge:N0}</td>
+  <td class=""num"">{s.Cess:N0}</td>
+  <td class=""num"">{s.TotalTaxPayable:N0}</td>
+  <td class=""num"">{s.TdsDeducted:N0}</td>
+  <td class=""num"">{s.PrevEmpTds:N0}</td>
+  <td class=""num"">{totalTds:N0}</td>
+  <td style=""text-align:center;font-size:7pt"">{regime}</td>
 </tr>");
                 }
                 sb.Append($@"<tr class=""total-row"">
-  <td colspan=""6"">TOTAL</td>
-  <td class=""num"">{sTot17_1:N2}</td>
+  <td colspan=""4"">TOTAL</td>
+  <td class=""num"">{sTot17_1:N0}</td>
+  <td></td><td></td>
+  <td class=""num"">{sTotExempt:N0}</td>
   <td></td>
-  <td class=""num"">{sTotExempt:N2}</td>
-  <td class=""num"">{sTotStd:N2}</td>
-  <td class=""num"">{sTotCh6a:N2}</td>
-  <td class=""num"">{sTotGti:N2}</td>
-  <td class=""num"">{sTotTaxable:N2}</td>
-  <td class=""num"">{sTotTax:N2}</td>
-  <td class=""num"">{sTotRebate:N2}</td>
-  <td class=""num"">{sTotSur:N2}</td>
-  <td class=""num"">{sTotCess:N2}</td>
-  <td class=""num"">{sTotNet:N2}</td>
-  <td class=""num"">{sTotTds:N2}</td>
-  <td class=""num"">{sTotPrevTds:N2}</td>
+  <td class=""num"">{sTotStd:N0}</td>
+  <td></td><td></td><td></td>
+  <td class=""num"">{sTotCh6a:N0}</td>
+  <td class=""num"">{sTotGti:N0}</td>
+  <td class=""num"">{sTotTax:N0}</td>
+  <td class=""num"">{sTotRebate:N0}</td>
+  <td class=""num"">{sTotSur:N0}</td>
+  <td class=""num"">{sTotCess:N0}</td>
+  <td class=""num"">{sTotNet:N0}</td>
+  <td class=""num"">{sTotTds:N0}</td>
+  <td class=""num"">{sTotPrevTds:N0}</td>
+  <td class=""num"">{sTotTds+sTotPrevTds:N0}</td>
+  <td></td>
 </tr></tbody></table>");
             }
 
