@@ -132,7 +132,14 @@
                         <span style="font-weight:600;font-size:14px">TRACES Conso File</span>
                     </div>
                     <div style="flex:1;min-width:260px;font-size:12px;color:#666;line-height:1.6">
-                        Import consolidated .tds/.txt file from TRACES portal. Auto-creates deductor, challans, deductees and TDS entries.
+                        Import consolidated .tds/.txt file from TRACES portal for correction filing. Auto-creates challans, deductees and TDS entries.
+                        <div style="margin-top:6px;background:#fff8e1;border:1px solid #f59e0b;border-radius:4px;padding:5px 8px;color:#78350f;font-size:11px;line-height:1.6">
+                            ⚠ <b>Before importing:</b> A backup is taken automatically.
+                            Existing challans are updated (not duplicated) using BSR+ChallanNo+Date as key.
+                            Existing TDS entries are matched by deductee+date+section+amount — if you already entered
+                            the same entry manually with a different amount, a duplicate may be created.
+                            Review TDS Entries after import and delete any duplicates.
+                        </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <FilePicker @bind-Value="_consoFilePath" Title="Select TRACES Conso File"
@@ -594,12 +601,15 @@
         _importing = true; _consoResult = null; StateHasChanged();
         try
         {
+            // Auto-backup before import so user can restore if import creates duplicates
+            await Task.Run(() => { try { TDSPro.DAL.FolderManager.BackupNow(TDSPro.DAL.Database.DbPath); } catch { } });
             var password = _consoFilePath.EndsWith(".tds", StringComparison.OrdinalIgnoreCase)
                 ? _consoPassword.Trim()
                 : null;
             var r = await Task.Run(() => ConsoImporter.Import(_consoFilePath, zipPassword: password));
             _consoResult = r;
             Snackbar.Add(r.Message, r.Success ? Severity.Success : Severity.Error);
+            if (r.Success) Snackbar.Add("Backup taken before import — restore from Settings → Backup & Restore if needed.", Severity.Info);
         }
         catch (Exception ex) { Snackbar.Add("Import failed: " + ex.Message, Severity.Error); }
         _importing = false;

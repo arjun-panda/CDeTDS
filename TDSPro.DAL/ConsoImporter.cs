@@ -406,9 +406,10 @@ namespace TDSPro.DAL
         private static string DetermineStatus(string s)
         {
             var lower = s.ToLower();
-            if (lower.Contains("paid") || lower.Contains("cleared") || lower.Contains("p")) return "Paid";
-            if (lower.Contains("over") || lower.Contains("default")) return "Overdue";
-            return "Pending";
+            // "default" in TRACES means the return was processed with a demand — challan itself is still Paid
+            if (lower.Contains("paid") || lower.Contains("cleared") || lower.Contains("default")) return "Paid";
+            if (lower.Contains("over")) return "Overdue";
+            return "Paid"; // Conso file entries are from accepted returns — default to Paid
         }
 
         private static string NormalizeDeducteeType(string t)
