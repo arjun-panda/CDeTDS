@@ -193,92 +193,181 @@ namespace TDSPro.DAL
   <td class=""num"">{d.Challans.Sum(c => c.NoOfDeductees)}</td>
 </tr></tbody></table>");
 
-            // ── Deductee / Salary table (Annexure I) ──────────────────────────
+            // ── Annexure I / Part B — per-challan deductee sections ──────────
             bool is24Q = h.FormType == "24Q";
-            string partBTitle = is24Q
-                ? "ANNEXURE I — SALARY DEDUCTEE DETAILS (u/s 192)"
-                : "PART B — DEDUCTEE DETAILS";
+
+            // Grand totals across all challans
+            double gAmt=0, gDed=0, gSur=0, gCess=0, gTotal=0, gDep=0;
 
             if (is24Q)
             {
-                // 24Q Annexure I columns match DD record: Gross Salary, TDS, Surcharge, Cess, Total TDS, Payment Date, Challan
-                // Section column not shown (always 92B / 392 — not useful to display); Rate% not applicable for slab TDS
-                sb.Append($@"<div class=""section-title"">{partBTitle}</div>
-<table>
+                sb.Append(@"<div class=""section-title"">ANNEXURE I — Deductee-wise Break-up of TDS (u/s 192)</div>");
+
+                // Group deductees by challan — one section per challan matching official NSDL format
+                int challSeq = 0;
+                foreach (var ch in d.Challans)
+                {
+                    challSeq++;
+                    var chDeductees = d.Deductees
+                        .Where(e => e.ChallanNo == ch.ChallanNo && e.BsrCode == ch.BsrCode)
+                        .ToList();
+                    // Unlinked entries go under first challan
+                    if (challSeq == 1)
+                        chDeductees = chDeductees
+                            .Concat(d.Deductees.Where(e => string.IsNullOrEmpty(e.ChallanNo)))
+                            .ToList();
+
+                    double chTdsSum = chDeductees.Sum(e => e.TdsDeducted);
+
+                    // Challan header box — matches NSDL official layout
+                    sb.Append($@"<div style=""border:1px solid #1565C0;border-radius:6px;padding:8px 14px;margin:10px 0 4px 0;
+                         background:#f0f7ff;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:8pt"">
+  <div><span style=""color:#555"">BSR Code:</span> <b style=""font-family:monospace"">{Esc(ch.BsrCode)}</b></div>
+  <div><span style=""color:#555"">Challan Date:</span> <b>{ch.ChallanDate:dd/MM/yyyy}</b></div>
+  <div><span style=""color:#555"">Challan Serial No.:</span> <b style=""font-family:monospace"">{Esc(ch.ChallanNo)}</b></div>
+  <div><span style=""color:#555"">Amount as per Challan:</span> <b>₹{ch.TdsDeposited:N0}</b></div>
+  <div><span style=""color:#555"">Total TDS col. 326:</span> <b>₹{chTdsSum:N0}</b></div>
+  <div><span style=""color:#555"">Interest:</span> <b>{(ch.Interest > 0 ? "₹" + ch.Interest.ToString("N0") : "—")}</b></div>
+</div>
+<table style=""margin-bottom:2px"">
 <thead><tr>
-  <th>Sl.</th><th>PAN</th><th>Name</th><th>Payment Date</th>
-  <th style=""text-align:right"">Gross Salary (₹)</th>
-  <th style=""text-align:right"">TDS Deducted (₹)</th>
+  <th>Sr.<br/>314</th><th>Emp Ref<br/>315</th><th>PAN<br/>316</th>
+  <th style=""min-width:140px"">Name of Employee<br/>317</th>
+  <th>Sec<br/>318</th>
+  <th>Date of Payment<br/>319</th>
+  <th>Date of Deduction<br/>320</th>
+  <th style=""text-align:right"">Amount Paid (₹)<br/>321</th>
+  <th style=""text-align:right"">Tax (₹)<br/>322</th>
+  <th style=""text-align:right"">Surcharge<br/>323</th>
+  <th style=""text-align:right"">Cess<br/>324</th>
+  <th style=""text-align:right"">Total TDS (₹)<br/>325</th>
+  <th style=""text-align:right"">Total TDS Dep. (₹)<br/>326</th>
+  <th>Date of Deposit<br/>327</th>
+</tr></thead><tbody>");
+
+                    int cSlNo = 1;
+                    double chAmt=0, chDed=0, chSur=0, chCess=0, chTot=0;
+                    foreach (var e in chDeductees)
+                    {
+                        double tot = e.TdsDeducted + e.Surcharge + e.Cess;
+                        chAmt += e.AmountPaid; chDed += e.TdsDeducted;
+                        chSur += e.Surcharge;  chCess += e.Cess; chTot += tot;
+                        gAmt += e.AmountPaid; gDed += e.TdsDeducted;
+                        gSur += e.Surcharge;  gCess += e.Cess; gTotal += tot;
+                        sb.Append($@"<tr>
+  <td class=""num"">{cSlNo++}</td>
+  <td class=""num""></td>
+  <td style=""font-family:monospace;font-size:7pt"">{Esc(e.Pan)}</td>
+  <td>{Esc(e.Name)}</td>
+  <td style=""text-align:center"">92B</td>
+  <td>{e.PaymentDate:dd/MM/yyyy}</td>
+  <td>{e.PaymentDate:dd/MM/yyyy}</td>
+  <td class=""num"">{e.AmountPaid:N0}</td>
+  <td class=""num"">{(e.TdsDeducted > 0 ? e.TdsDeducted.ToString("N0") : "")}</td>
+  <td class=""num"">{(e.Surcharge > 0 ? e.Surcharge.ToString("N0") : "")}</td>
+  <td class=""num"">{(e.Cess > 0 ? e.Cess.ToString("N0") : "")}</td>
+  <td class=""num"">{(tot > 0 ? tot.ToString("N0") : "")}</td>
+  <td class=""num"">{(tot > 0 ? tot.ToString("N0") : "")}</td>
+  <td>{ch.ChallanDate:dd/MM/yyyy}</td>
+</tr>");
+                    }
+                    sb.Append($@"<tr class=""total-row"">
+  <td colspan=""7""></td>
+  <td class=""num"">{chAmt:N0}</td>
+  <td class=""num"">{chDed:N0}</td>
+  <td></td><td></td>
+  <td class=""num"">{chTot:N0}</td>
+  <td class=""num"">{chTot:N0}</td>
+  <td></td>
+</tr></tbody></table>");
+                }
+
+                // Grand total across all challans
+                sb.Append($@"<div style=""background:#e8f5e9;border:2px solid #2e7d32;border-radius:4px;padding:6px 14px;
+                     font-size:8pt;font-weight:700;display:flex;gap:30px;margin-bottom:8px"">
+  <span>GRAND TOTAL</span>
+  <span>Amount Paid: ₹{gAmt:N0}</span>
+  <span>TDS Deducted: ₹{gDed:N0}</span>
+  <span>Total TDS: ₹{gTotal:N0}</span>
+</div>");
+            }
+            else
+            {
+                // 26Q / 27EQ — per-challan sections
+                sb.Append(@"<div class=""section-title"">PART B — DEDUCTEE DETAILS (per Challan)</div>");
+
+                int challSeq = 0;
+                foreach (var ch in d.Challans)
+                {
+                    challSeq++;
+                    var chDeductees = d.Deductees
+                        .Where(e => e.ChallanNo == ch.ChallanNo)
+                        .ToList();
+                    if (challSeq == 1)
+                        chDeductees = chDeductees
+                            .Concat(d.Deductees.Where(e => string.IsNullOrEmpty(e.ChallanNo)))
+                            .ToList();
+
+                    double chTdsSum = chDeductees.Sum(e => e.TdsDeducted);
+                    sb.Append($@"<div style=""border:1px solid #1565C0;border-radius:6px;padding:8px 14px;
+                         margin:10px 0 4px 0;background:#f0f7ff;font-size:8pt;
+                         display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"">
+  <div><span style=""color:#555"">BSR Code:</span> <b style=""font-family:monospace"">{Esc(ch.BsrCode)}</b></div>
+  <div><span style=""color:#555"">Challan Date:</span> <b>{ch.ChallanDate:dd/MM/yyyy}</b></div>
+  <div><span style=""color:#555"">Challan Serial:</span> <b style=""font-family:monospace"">{Esc(ch.ChallanNo)}</b></div>
+  <div><span style=""color:#555"">Amount as per Challan:</span> <b>₹{ch.TdsDeposited:N0}</b></div>
+  <div><span style=""color:#555"">Total TDS (col. 326):</span> <b>₹{chTdsSum:N0}</b></div>
+</div>
+<table style=""margin-bottom:2px"">
+<thead><tr>
+  <th>Sl.</th><th>PAN</th><th>Name</th><th>Section</th><th>Payment Date</th>
+  <th style=""text-align:right"">Amount Paid (₹)</th>
+  <th style=""text-align:right"">TDS (₹)</th>
   <th style=""text-align:right"">Surcharge (₹)</th>
   <th style=""text-align:right"">Cess (₹)</th>
   <th style=""text-align:right"">Total TDS (₹)</th>
-  <th>BSR / Challan No.</th>
+  <th style=""text-align:right"">TDS Dep. (₹)</th>
+  <th>Rate %</th>
 </tr></thead><tbody>");
 
-                double dAmt=0, dDed=0, dSur=0, dCess=0, dTotal=0;
-                foreach (var e in d.Deductees)
-                {
-                    double total = e.TdsDeducted + e.Surcharge + e.Cess;
-                    dAmt += e.AmountPaid; dDed += e.TdsDeducted;
-                    dSur += e.Surcharge;  dCess += e.Cess; dTotal += total;
-                    sb.Append($@"<tr>
-  <td class=""num"">{e.SlNo}</td>
-  <td>{Esc(e.Pan)}</td><td>{Esc(e.Name)}</td>
-  <td>{e.PaymentDate:dd-MM-yyyy}</td>
+                    int q6SlNo = 1;
+                    double q6Amt=0, q6Ded=0, q6Dep=0;
+                    foreach (var e in chDeductees)
+                    {
+                        q6Amt += e.AmountPaid; q6Ded += e.TdsDeducted; q6Dep += e.TdsDeposited;
+                        gAmt += e.AmountPaid; gDed += e.TdsDeducted; gDep += e.TdsDeposited;
+                        sb.Append($@"<tr>
+  <td class=""num"">{q6SlNo++}</td>
+  <td style=""font-family:monospace;font-size:7pt"">{Esc(e.Pan)}</td>
+  <td>{Esc(e.Name)}</td>
+  <td>{Esc(e.Section)}</td>
+  <td>{e.PaymentDate:dd/MM/yyyy}</td>
   <td class=""num"">{e.AmountPaid:N2}</td>
   <td class=""num"">{e.TdsDeducted:N2}</td>
   <td class=""num"">{e.Surcharge:N2}</td>
   <td class=""num"">{e.Cess:N2}</td>
-  <td class=""num"">{total:N2}</td>
-  <td>{Esc(e.BsrCode)}/{Esc(e.ChallanNo)}</td>
-</tr>");
-                }
-                sb.Append($@"<tr class=""total-row"">
-  <td colspan=""4"">TOTAL</td>
-  <td class=""num"">{dAmt:N2}</td>
-  <td class=""num"">{dDed:N2}</td>
-  <td class=""num"">{dSur:N2}</td>
-  <td class=""num"">{dCess:N2}</td>
-  <td class=""num"">{dTotal:N2}</td>
-  <td></td>
-</tr></tbody></table>");
-            }
-            else
-            {
-                // 26Q / 27EQ: generic deductee table with Section, Rate%, Amount Paid
-                sb.Append($@"<div class=""section-title"">{partBTitle}</div>
-<table>
-<thead><tr>
-  <th>Sl.</th><th>PAN</th><th>Name</th><th>Section</th><th>Date</th>
-  <th style=""text-align:right"">Amount Paid (₹)</th>
-  <th style=""text-align:right"">TDS Deducted (₹)</th>
-  <th style=""text-align:right"">TDS Deposited (₹)</th>
-  <th style=""text-align:right"">Rate %</th>
-  <th>Challan</th>
-</tr></thead><tbody>");
-
-                double dAmt = 0, dDed = 0, dDep = 0;
-                foreach (var e in d.Deductees)
-                {
-                    dAmt += e.AmountPaid; dDed += e.TdsDeducted; dDep += e.TdsDeposited;
-                    sb.Append($@"<tr>
-  <td class=""num"">{e.SlNo}</td>
-  <td>{Esc(e.Pan)}</td><td>{Esc(e.Name)}</td>
-  <td>{Esc(e.Section)}</td><td>{e.PaymentDate:dd-MM-yyyy}</td>
-  <td class=""num"">{e.AmountPaid:N2}</td>
-  <td class=""num"">{e.TdsDeducted:N2}</td>
+  <td class=""num"">{(e.TdsDeducted+e.Surcharge+e.Cess):N2}</td>
   <td class=""num"">{e.TdsDeposited:N2}</td>
   <td class=""num"">{e.Rate:N2}</td>
-  <td>{Esc(e.BsrCode)}/{Esc(e.ChallanNo)}</td>
 </tr>");
-                }
-                sb.Append($@"<tr class=""total-row"">
+                    }
+                    sb.Append($@"<tr class=""total-row"">
   <td colspan=""5"">TOTAL</td>
-  <td class=""num"">{dAmt:N2}</td>
-  <td class=""num"">{dDed:N2}</td>
-  <td class=""num"">{dDep:N2}</td>
-  <td colspan=""2""></td>
+  <td class=""num"">{q6Amt:N2}</td>
+  <td class=""num"">{q6Ded:N2}</td>
+  <td></td><td></td><td></td>
+  <td class=""num"">{q6Dep:N2}</td>
+  <td></td>
 </tr></tbody></table>");
+                }
+                // Grand total for 26Q
+                sb.Append($@"<div style=""background:#e8f5e9;border:2px solid #2e7d32;border-radius:4px;padding:6px 14px;
+                     font-size:8pt;font-weight:700;display:flex;gap:30px;margin-bottom:8px"">
+  <span>GRAND TOTAL</span>
+  <span>Amount Paid: ₹{gAmt:N2}</span>
+  <span>TDS Deducted: ₹{gDed:N2}</span>
+  <span>TDS Deposited: ₹{gDep:N2}</span>
+</div>");
             }
 
             // ── Annexure II — Salary Details (24Q Q4 only) ────────────────────
