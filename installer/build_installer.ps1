@@ -13,7 +13,7 @@ Write-Host "=== TDS Pro Installer Build ===" -ForegroundColor Cyan
 # 1. Publish
 Write-Host "Publishing Release build..." -ForegroundColor Yellow
 if (Test-Path $appDir) { Remove-Item $appDir -Recurse -Force }
-& dotnet publish "$root\TDSPro.App\TDSPro.App.csproj" -c Release --output $appDir
+& dotnet publish "$root\TDSPro.App\TDSPro.App.csproj" -c Release -r win-x64 --self-contained true --output $appDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 # 2. Remove nested publish subdir created by dotnet publish
