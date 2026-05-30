@@ -612,7 +612,9 @@ namespace TDSPro.DAL
             // T-FV-4020: FVU validates [18] = [16] - [17] exactly.
             // HRA/perq exemptions are NOT placed in [17] or [18] — they do not appear in FVU SD fields.
             double gtiBeforeChap6A = balanceAfterSec16;                                // [18] = [16] - [17]
-            double gti = Math.Max(0, gtiBeforeChap6A - sd.Chapter6ATotal);             // [22]: after Chapter VI-A
+            // [22]: GTI after Ch6A — old regime: Ch6A not in SD fields [20][21], so [22]=[18]
+            // New regime: [22] = [18] - Ch6ATotal (Ch6A reported in SD[20][21])
+            double gti = Math.Max(0, gtiBeforeChap6A - (isNewRegime ? sd.Chapter6ATotal : 0)); // [22]
             double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
             double grossTax = tax + sd.Surcharge + sd.Cess;
             double relief89 = 0;
@@ -639,8 +641,10 @@ namespace TDSPro.DAL
                 "0.00",                                     // [17]: Entertainment allowance (Govt only)
                 F(gtiBeforeChap6A),                         // [18]: Income before Chapter VI-A deductions
                 "",                                         // [19]: blank
-                sd.Chapter6ACount.ToString(),               // [20]: Chapter VI-A count
-                F(sd.Chapter6ATotal),                       // [21]: Chapter VI-A total
+                // [20][21]: Ch6A count/total — T_FV_6354: must be blank for old regime (115BAC=N)
+                // Old regime Ch6A goes via C6A sub-records; SD fields [20][21] only for new regime
+                isNewRegime ? sd.Chapter6ACount.ToString() : "0", // [20]: Chapter VI-A count
+                isNewRegime ? F(sd.Chapter6ATotal) : "0.00",       // [21]: Chapter VI-A total
                 F(gti),                                     // [22]: Gross Total Income (after Chapter VI-A)
                 F(tax),                                     // [23]: Income Tax on total income
                 F(sd.Surcharge),                            // [24]: Surcharge
