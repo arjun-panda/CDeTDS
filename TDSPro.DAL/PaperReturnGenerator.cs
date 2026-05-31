@@ -71,6 +71,15 @@ namespace TDSPro.DAL
     text-align: center; font-weight: bold; font-size: 7pt; white-space: nowrap;
     position: sticky; top: 0; z-index: 2;
   }}
+  @media print {{
+    th {{
+      position: static !important;
+      background: #1565C0 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }}
+  }}
   td {{
     border: 1px solid #ccc; padding: 2px 4px; text-align: left; white-space: nowrap;
   }}
