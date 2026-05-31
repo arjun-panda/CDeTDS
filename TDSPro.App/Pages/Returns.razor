@@ -798,6 +798,38 @@
         }
         catch (Exception ex) { _result = "❌  " + ex.Message; _resultSeverity = Severity.Error; _generating = false; _step = Step.Idle; return; }
 
+        // Step 1b: Auto-download CSI if missing and credentials are available
+        var tan2    = Database.GetSetting($"ItPortalUserId_{did2}", Database.GetSetting("ItPortalUserId", ""));
+        var csiPath = Path.Combine(FolderManager.CsiFolder, $"{AppState.CurrentDeductorTan}.csi");
+        if (!File.Exists(csiPath) && !string.IsNullOrEmpty(tan2))
+        {
+            var csiPwd = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{did2}",
+                         TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", ""));
+            if (!string.IsNullOrEmpty(csiPwd))
+            {
+                _logLines.Add($"[{Now()}] 🔄 CSI not found — auto-downloading from IT Portal...");
+                StateHasChanged();
+                var fyParts = AppState.CurrentFY.Split('-');
+                var csiFrom = $"{fyParts[0]}-04-01";
+                var csiTo   = $"{2000 + int.Parse(fyParts[1])}-03-31";
+                if (DateTime.TryParse(csiTo, out var csiToDate) && csiToDate > DateTime.Today)
+                    csiTo = DateTime.Today.ToString("yyyy-MM-dd");
+                FolderManager.EnsureStructure(AppState.CurrentFY);
+                var csiProgress = new Progress<string>(msg =>
+                {
+                    _logLines.Add($"[{Now()}] {msg}");
+                    if (_logLines.Count > 50) _logLines.RemoveAt(0);
+                    InvokeAsync(StateHasChanged);
+                });
+                var csiResult = await CsiSvc.DownloadAsync(tan2, csiPwd, csiFrom, csiTo, csiPath, csiProgress);
+                if (csiResult.Success)
+                    _logLines.Add($"[{Now()}] ✅ CSI downloaded: {Path.GetFileName(csiResult.FilePath!)}");
+                else
+                    _logLines.Add($"[{Now()}] ⚠ CSI auto-download failed: {csiResult.Error} — continuing without CSI");
+                StateHasChanged();
+            }
+        }
+
         // Step 2: Run FVU jar
         _step = Step.RunningFvu;
         _logLines.Add($"[{Now()}] 🔄 Launching NSDL FVU utility...");
