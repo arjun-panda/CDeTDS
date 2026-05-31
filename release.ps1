@@ -25,15 +25,9 @@ gh auth status 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "Not logged in to GitHub. Run: gh auth login" }
 Ok "Prerequisites OK"
 
-# ── 1. Bump AppConstants.cs ──────────────────────────────────────────────────
-Step "Bumping AppConstants.cs"
-$constantsPath = Join-Path $root "TDSPro.Common\AppConstants.cs"
-$constants = Get-Content $constantsPath -Raw
-if ($constants -notmatch 'AppVersion\s*=\s*"[\d.]+"') { Fail "AppVersion not found in AppConstants.cs" }
-$oldVersion = [regex]::Match($constants, 'AppVersion\s*=\s*"([\d.]+)"').Groups[1].Value
-$constants = $constants -replace "AppVersion\s*=\s*""[\d.]+""", "AppVersion = ""$Version"""
-Set-Content $constantsPath $constants -Encoding utf8
-Ok "AppConstants.cs: $oldVersion -> $Version"
+# ── 1. AppConstants.cs — version now read from assembly at runtime, no patch needed ──
+Step "AppConstants.cs version check (dynamic — no patch required)"
+Ok "AppVersion is read from assembly at runtime — only csproj needs bumping"
 
 # ── 2. Bump TDSPro.App.csproj ────────────────────────────────────────────────
 Step "Bumping TDSPro.App.csproj"
