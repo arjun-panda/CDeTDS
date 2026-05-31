@@ -418,6 +418,7 @@ namespace TDSPro.DAL
                             Cess            = 0,
                             Surcharge       = 0,
                             Chapter6ATotal  = 0,
+                            StandardDeduction = nsdlForm == "24Q" ? 75000 : 0,
                         }).ToList();
 
                 int sdSeq = 1;

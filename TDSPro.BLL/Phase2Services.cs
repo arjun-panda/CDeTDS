@@ -118,7 +118,7 @@ namespace TDSPro.BLL
                     StandardDeduction= chosen.StandardDeduction,
                     GrossTotalIncome = gti,
                     TaxableIncome    = chosen.TotalIncome,
-                    TaxPayable       = chosen.TaxOnIncome,
+                    TaxPayable       = chosen.TaxAfterRebate,
                     Rebate87A        = chosen.Rebate87A,
                     Surcharge        = chosen.Surcharge,
                     Cess             = chosen.Cess,

@@ -75,8 +75,15 @@ namespace TDSPro.DAL.Repositories
                 cmd.Parameters.AddWithValue("@des",  d.Designation);
                 cmd.Parameters.AddWithValue("@gstin",d.Gstin.Trim().ToUpper());
                 cmd.Parameters.AddWithValue("@dt",   string.IsNullOrEmpty(d.DeductorType) ? "Company" : d.DeductorType);
+                bool isInsert = d.Id == 0;
                 cmd.ExecuteNonQuery();
-                return (true, d.Id == 0 ? "Deductor saved." : "Deductor updated.");
+                if (isInsert)
+                {
+                    using var idCmd = conn.CreateCommand();
+                    idCmd.CommandText = "SELECT last_insert_rowid()";
+                    d.Id = Convert.ToInt32(idCmd.ExecuteScalar());
+                }
+                return (true, isInsert ? "Deductor saved." : "Deductor updated.");
             }
             catch (SqliteException ex) when (ex.Message.Contains("UNIQUE"))
             {
