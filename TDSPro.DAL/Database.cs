@@ -11,7 +11,7 @@ namespace TDSPro.DAL
         public static string DbPath => _dbPath;
 
         // Current schema version — bump this when adding new migrations
-        private const int SchemaVersion = 18;
+        private const int SchemaVersion = 19;
 
         /// <summary>
         /// Fast path: creates tables + seeds. Returns immediately so the window can show.
@@ -1089,6 +1089,44 @@ namespace TDSPro.DAL
                 del18.ExecuteNonQuery();
             } catch { }
 
+            // ── v19: finalise Finance Act 2025 TDS rule corrections ──────────────
+            // Corrects v18 errors and adds two fixes:
+            //   194H  threshold: Rs.15,000 → Rs.20,000 (FA 2025 also raised threshold)
+            //   194I  stored as monthly Rs.50,000 (not annual Rs.6,00,000 — law specifies per month)
+            //   194Q  RESTORE — FA 2025 did NOT remove 194Q; only 206C(1H) cross-reference removed
+            try
+            {
+                using var c19 = GetConnection();
+                var v19 = new[]
+                {
+                    // 194H: threshold raised Rs.15,000→Rs.20,000 by FA 2025; rate 2% (already set by v18)
+                    "UPDATE tds_rules SET threshold_limit=20000, notes='FA 2025: threshold raised Rs.15,000->Rs.20,000; rate 2% (reduced from 5% by FA 2025) w.e.f. 1-Apr-2025' WHERE section_code='194H'",
+                    // 194I: change to monthly threshold Rs.50,000 (law specifies per month or part thereof)
+                    "UPDATE tds_rules SET threshold_limit=50000, notes='FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025; 2% P&M, 10% Land/Building' WHERE section_code='194I' AND tds_rate=2",
+                    "UPDATE tds_rules SET threshold_limit=50000, notes='FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025; 10% Land/Building/Furniture' WHERE section_code='194I' AND tds_rate=10",
+                    // 194Q: RESTORE — FA 2025 did NOT remove 194Q; only 206C(1H) cross-reference removed
+                    // Re-insert if deleted by v18, using INSERT OR IGNORE
+                    @"INSERT OR IGNORE INTO tds_rules
+                      (section_code,nature_of_payment,deductee_type,is_resident,
+                       threshold_limit,tds_rate,surcharge_rate,cess_rate,
+                       effective_from,reference_act,notes,is_active)
+                      VALUES('194Q','Purchase of Goods','All',1,5000000,0.1,0,0,
+                             '2025-04-01','IT Act 2025 s.194Q',
+                             'Buyer turnover >Rs.10Cr; 206C(1H) cross-ref removed by FA 2025 but 194Q itself continues',
+                             1)",
+                    // Ensure 194Q is active (v18 may have deleted it)
+                    "UPDATE tds_rules SET is_active=1, notes='Buyer turnover >Rs.10Cr; 206C(1H) cross-ref removed by FA 2025 but 194Q itself continues' WHERE section_code='194Q'",
+                    // 206AB: confirm omitted/inactive
+                    "UPDATE tds_rules SET is_active=0, notes='Omitted by Finance Act 2025 w.e.f. 1-Apr-2025 — higher TDS for ITR non-filers no longer applicable' WHERE section_code='206AB'",
+                };
+                foreach (var sql in v19)
+                {
+                    using var cmd19 = c19.CreateCommand();
+                    cmd19.CommandText = sql;
+                    cmd19.ExecuteNonQuery();
+                }
+            } catch { }
+
             // ── v17: fix filing history UNIQUE index to include correction_type ──
             // Old index prevented C1/C2/C3 corrections being stored as separate history rows.
             try
@@ -1156,11 +1194,11 @@ namespace TDSPro.DAL
                 ("194D",  "Insurance Commission",              "Company",    1,  15000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194D",  ""),
                 ("194DA", "Life Insurance Maturity",           "All",        1, 100000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194DA", "On income portion only"),
                 ("194G",  "Commission on Lottery",             "All",        1,  15000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194G",  ""),
-                ("194H",  "Commission / Brokerage",            "All",        1,  15000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194H",  "FA 2025: rate reduced 5%->2% w.e.f. 1-Apr-2025; excludes insurance commission and securities brokerage"),
-                ("194I",  "Rent - Plant & Machinery",          "All",        1, 600000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: threshold raised to Rs.6L/year (Rs.50,000/month) w.e.f. 1-Apr-2025"),
-                ("194I",  "Rent - Land/Building/Furniture",    "All",        1, 600000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: threshold raised to Rs.6L/year (Rs.50,000/month) w.e.f. 1-Apr-2025"),
+                ("194H",  "Commission / Brokerage",            "All",        1,  20000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194H",  "FA 2025: rate 2% (reduced from 5%); threshold Rs.20,000 (raised from Rs.15,000) w.e.f. 1-Apr-2025"),
+                ("194I",  "Rent - Plant & Machinery",          "All",        1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025"),
+                ("194I",  "Rent - Land/Building/Furniture",    "All",        1,  50000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025"),
                 ("194IA", "Transfer of Immovable Property",   "All",        1,5000000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194IA", "Buyer deducts; agri land exempt"),
-                ("194IB", "Rent by Individual/HUF",            "Individual", 1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194IB", "FA 2023: rate reduced 5%->2% w.e.f. 1-Oct-2023; Rs.50,000/month; Ind/HUF not liable for audit"),
+                ("194IB", "Rent by Individual/HUF",            "Individual", 1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194IB", "FA 2023: rate 2% (reduced from 5% w.e.f. 1-Oct-2023); Rs.50,000/month threshold; Ind/HUF not subject to tax audit"),
                 ("194IC", "Joint Dev Agreement",               "All",        1,      0, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194IC", "No threshold"),
 
                 // ── Professional Fees ─────────────────────────────────────────
@@ -1178,7 +1216,7 @@ namespace TDSPro.DAL
                 ("194N",  "Cash Withdrawal (non-filer >1Cr)",  "All",        1,10000000, 5,    0, 0, "2025-04-01", "IT Act 2025 s.194N",  ">₹1Cr: 5% for non-filers"),
                 ("194O",  "E-commerce Operator",               "All",        1,      0,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194O",  "w.e.f. Oct 2020"),
                 ("194P",  "Senior Citizen (75+) Bank",         "Individual", 1,      0,  0,    0, 4, "2025-04-01", "IT Act 2025 s.194P",  "Bank computes full tax incl. cess; like s.192"),
-                // 194Q removed w.e.f. 1-Apr-2025 by Finance Act 2025 — not seeded
+                ("194Q",  "Purchase of Goods",                 "All",        1,5000000,0.1,    0, 0, "2025-04-01", "IT Act 2025 s.194Q",  "Buyer turnover >Rs.10Cr; FA 2025 removed 206C(1H) cross-ref but 194Q itself continues"),
                 ("194R",  "Benefit/Perquisite in Business",    "All",        1,  20000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194R",  "Cash/non-cash; FMV for non-cash"),
                 ("194S",  "VDA / Crypto Transfer",             "All",        1,  10000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194S",  "₹10K specified persons; ₹50K others"),
 
