@@ -179,7 +179,7 @@ namespace TDSPro.DAL.Models
                 bool isNewReg = s.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
                 double legalStdDed = isNewReg ? 75000 : 50000;
                 double stdDed   = s.StandardDeduction > 0 ? Math.Min(s.StandardDeduction, legalStdDed) : legalStdDed;
-                double bal      = Math.Max(0, totalSal - stdDed - s.ExemptU10);
+                double bal      = Math.Max(0, totalSal - stdDed);
                 return Math.Max(0, bal - (isNewReg ? s.Chapter6ATotal : 0));
             })
             : TotalAmountPaid;

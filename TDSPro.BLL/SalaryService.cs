@@ -408,9 +408,7 @@ namespace TDSPro.BLL
             // ltaExemption u/s 10(5) applies in BOTH regimes
             double taxableNew = Math.Max(0, trueAnnualGross - annualOtherExempts - ltaExemption - stdDedNew - nps80CCD2New + decl.IncomeOtherSources);
 
-            // reimbExemption for new regime = annualOtherExempts + ltaExemption (both exempt u/s 10).
-            // This flows into RegimeResult.ReimbExemption → Phase2Services exemptU10 → SD[16] in FVU.
-            var newR = BuildRegime("New Regime", taxableNew, trueAnnualGross, stdDedNew, 0, 0, 0, nps80CCD2New, decl.IncomeOtherSources, true, fy, TDSPro.Common.AgeCategory.Below60, annualOtherExempts + ltaExemption, sec10Items);
+            var newR = BuildRegime("New Regime", taxableNew, trueAnnualGross, stdDedNew, 0, 0, 0, nps80CCD2New, decl.IncomeOtherSources, true, fy, TDSPro.Common.AgeCategory.Below60, 0, sec10Items);
 
             // YTD TDS
             int fromYear = CalendarYear(fy, forMonth);
