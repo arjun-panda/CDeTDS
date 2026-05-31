@@ -247,7 +247,7 @@
                         <tbody>
                             <tr>
                                 <td style="width:160px"><b>Compiled Rules</b></td>
-                                <td style="font-family:monospace">v@RulesUpdateService.AppVersion</td>
+                                <td style="font-family:monospace">v@(RulesUpdateService.AppVersion)</td>
                             </tr>
                             <tr>
                                 <td><b>Applied to DB</b></td>
@@ -272,7 +272,7 @@
                             </tr>
                             <tr>
                                 <td><b>Act Reference</b></td>
-                                <td>Income Tax Act 2025 · Finance Act 2026 · CBDT Circulars</td>
+                                <td>Income Tax Act 2025 · Finance Act @(AppState.CurrentFY.Length >= 4 && int.TryParse(AppState.CurrentFY[..4], out var faYear) ? (faYear + 1).ToString() : "2026") · CBDT Circulars</td>
                             </tr>
                         </tbody>
                     </MudSimpleTable>
