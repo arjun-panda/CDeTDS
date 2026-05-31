@@ -201,11 +201,35 @@ namespace TDSPro.BLL
             var entry = row.ToEntry(deductorId);
             entry.Status   = row.Status == "Skip" ? "Skip" : "Draft";
             entry.IsLocked = false;
-            // Preserve existing line items (perqs/reimbursements entered in Salary Data tab)
+            // Preserve existing line items (perqs/reimbursements entered in Salary Data tab).
+            // For a brand-new entry, seed from salary structure components so recurring
+            // reimbursements (conveyance, telephone etc.) are not silently dropped.
             if (entry.LineItems.Count == 0)
             {
                 var existing = _salRepo.Get(row.EmployeeId, row.FinancialYear, row.Month);
-                if (existing != null) entry.LineItems = existing.LineItems;
+                if (existing != null)
+                {
+                    entry.LineItems = existing.LineItems;
+                }
+                else
+                {
+                    var ss = _empRepo.GetAllEmployees(deductorId)
+                                     .FirstOrDefault(e => e.Id == row.EmployeeId)?.Salary;
+                    if (ss != null)
+                    {
+                        foreach (var c in ss.Components)
+                        {
+                            if (c.Received <= 0 || c.Category == "variable") continue;
+                            var cat = c.Category == "perquisite" ? "perq" : "other";
+                            entry.LineItems.Add(new SalaryLineItem
+                            {
+                                Category = cat, Name = c.Name,
+                                Taxable  = Math.Max(0, c.Received - c.Paid),
+                                Exempt   = c.Paid, RuleRef = c.RuleRef,
+                            });
+                        }
+                    }
+                }
             }
             _salRepo.Save(entry);
             row.EntryId = entry.Id;
