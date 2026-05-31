@@ -394,7 +394,7 @@ namespace TDSPro.DAL
                 // Table 1 totals
                 double t335=0, t337=0, t338=0, t340=0, t342=0;
                 // Table 2 totals
-                double t343=0, t345=0, t346=0, t347=0, t348=0, t349=0, t351=0, t352=0, t353=0, t354=0, t355=0;
+                double t343=0, t345=0, t346=0, t347=0, t348=0, t349=0, t350=0, t351=0, t352=0, t353=0, t354=0, t355=0;
 
                 // ── TABLE 1 ── cols 330-342
                 sb.Append(@"<div class=""ann2-label"">Part A — Salary &amp; Deductions (Columns 330–342)</div>
@@ -498,18 +498,18 @@ namespace TDSPro.DAL
                     double col344 = 0;                   // other Ch VIA (NPS employer etc. — not split in model)
                     double col345 = col343 + col344;
                     double col346 = Math.Max(0, col342 - col345);   // taxable income
-                    double col347 = s.TaxPayable;
+                    double col347 = s.TaxPayable + s.Rebate87A; // pre-rebate tax (matches SD[23])
                     double col348 = s.Surcharge;
                     double col349 = s.Cess;
-                    double col350 = 0;                   // relief u/s 89 (not applicable for salary)
-                    double col351 = Math.Max(0, s.TotalTaxPayable - col350);
+                    double col350 = s.Rebate87A;         // rebate u/s 87A shown in col 350
+                    double col351 = Math.Max(0, s.TotalTaxPayable); // net tax = col347+348+349-350
                     double col352 = s.TdsDeducted;
                     double col353 = s.PrevEmpTds;
                     double col354 = col352 + col353;
                     double col355 = col351 - col354;     // positive=shortfall, negative=excess
 
                     t343+=col343; t345+=col345; t346+=col346; t347+=col347;
-                    t348+=col348; t349+=col349; t351+=col351;
+                    t348+=col348; t349+=col349; t350+=col350; t351+=col351;
                     t352+=col352; t353+=col353; t354+=col354; t355+=col355;
 
                     string shortfallStr = col355 == 0 ? "" : col355 > 0
@@ -524,7 +524,7 @@ namespace TDSPro.DAL
   <td class=""num"">{(col347>0?col347.ToString("N0"):"")}</td>
   <td class=""num"">{(col348>0?col348.ToString("N0"):"")}</td>
   <td class=""num"">{(col349>0?col349.ToString("N0"):"")}</td>
-  <td class=""num""></td>
+  <td class=""num"">{(col350>0?col350.ToString("N0"):"")}</td>
   <td class=""num"">{(col351>0?col351.ToString("N0"):"")}</td>
   <td class=""num"">{(col352>0?col352.ToString("N0"):"")}</td>
   <td class=""num"">{(col353>0?col353.ToString("N0"):"")}</td>
@@ -540,7 +540,8 @@ namespace TDSPro.DAL
   <td class=""num"">{t346:N0}</td>
   <td class=""num"">{t347:N0}</td>
   <td class=""num"">{t348:N0}</td>
-  <td class=""num"">{t349:N0}</td><td></td>
+  <td class=""num"">{t349:N0}</td>
+  <td class=""num"">{(t350>0?t350.ToString("N0"):"")}</td>
   <td class=""num"">{t351:N0}</td>
   <td class=""num"">{t352:N0}</td>
   <td class=""num"">{t353:N0}</td>
