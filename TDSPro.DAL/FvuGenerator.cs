@@ -609,9 +609,11 @@ namespace TDSPro.DAL
             double stdDed16 = Math.Min(
                 sd.StandardDeduction > 0 ? sd.StandardDeduction : legalStdDed,
                 legalStdDed);
-            double balanceAfterSec16 = Math.Max(0, totalSal - stdDed16);               // [16]: salary - stdDed
-            // T-FV-4020: FVU validates [18] = [16] - [17] exactly.
-            // HRA/perq exemptions are NOT placed in [17] or [18] — they do not appear in FVU SD fields.
+            // [16]: gross − Sec10 exemptions (bills reimb / "other" category) − std deduction
+            // ExemptU10 here is the "other"-category line-item exempts (conveyance, telephone etc.)
+            // exempt u/s 10(14)(i) in both regimes. HRA (10(13A)) is in sd fields [69]/[73] separately.
+            double balanceAfterSec16 = Math.Max(0, totalSal - sd.ExemptU10 - stdDed16);
+            // T-FV-4020: FVU validates [18] = [16] - [17] exactly. [17] = entertainment allowance (govt only).
             double gtiBeforeChap6A = balanceAfterSec16;                                // [18] = [16] - [17]
             // [22]: GTI after Ch6A — old regime: Ch6A not in SD fields [20][21], so [22]=[18]
             // New regime: [22] = [18] - Ch6ATotal (Ch6A reported in SD[20][21])

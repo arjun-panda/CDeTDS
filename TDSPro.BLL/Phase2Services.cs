@@ -124,8 +124,8 @@ namespace TDSPro.BLL
                     Cess             = chosen.Cess,
                     TotalTaxPayable  = Math.Max(0, chosen.TotalTax),
                     TdsDeducted      = annualTds,
-                    Chapter6ATotal   = chosen.Chapter6A + chosen.NpsEmployer80CCD2,
-                    Chapter6ACount   = (chosen.Chapter6A + chosen.NpsEmployer80CCD2) > 0 ? 1 : 0,
+                    Chapter6ATotal   = chosen.Chapter6A,
+                    Chapter6ACount   = chosen.Chapter6A > 0 ? 1 : 0,
                     ChallanNo        = challanNo,
                 });
             }
