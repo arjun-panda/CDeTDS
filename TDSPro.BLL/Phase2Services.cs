@@ -124,6 +124,8 @@ namespace TDSPro.BLL
                     Cess             = chosen.Cess,
                     TotalTaxPayable  = Math.Max(0, chosen.TotalTax),
                     TdsDeducted      = annualTds,
+                    PrevEmpSalary    = emp.PrevEmployerIncome,
+                    PrevEmpTds       = emp.PrevEmployerTds,
                     // 80CCD(2) employer NPS is a Ch6A deduction under new regime — must appear in
                     // SD[20]/[21] so SD[22] (GTI after Ch6A) matches the income tax was computed on.
                     Chapter6ATotal   = chosen.Chapter6A + (isNew ? chosen.NpsEmployer80CCD2 : 0),

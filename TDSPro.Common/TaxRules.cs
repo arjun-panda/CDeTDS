@@ -256,15 +256,18 @@ namespace TDSPro.Common
         /// <summary>Pure slab tax — no surcharge, no cess, no rebate.</summary>
         public static double ComputeSlabTax(double income, RegimeRules rules)
         {
-            double tax = 0, rem = income;
+            // Use decimal arithmetic inside each bracket to avoid floating-point drift
+            // at exact threshold boundaries (e.g. ₹50L, ₹1Cr). Convert back to double at end.
+            decimal tax = 0m, inc = (decimal)income;
             foreach (var s in rules.Slabs)
             {
-                if (rem <= s.From) break;
-                double upper = s.To == double.MaxValue ? rem : Math.Min(rem, s.To);
-                tax += (upper - s.From) * s.Rate;
-                if (rem <= s.To) break;
+                decimal from = (decimal)s.From;
+                if (inc <= from) break;
+                decimal upper = s.To == double.MaxValue ? inc : Math.Min(inc, (decimal)s.To);
+                tax += (upper - from) * (decimal)s.Rate;
+                if (inc <= (decimal)s.To) break;
             }
-            return Math.Round(tax);
+            return (double)Math.Round(tax, 0, MidpointRounding.AwayFromZero);
         }
 
         /// <summary>
@@ -317,11 +320,13 @@ namespace TDSPro.Common
         /// </summary>
         public static double CalcSurcharge(double taxAfterRebate, double income, RegimeRules rules)
         {
-            if (income <= 5_000_000)  return 0;
-            if (income <= 10_000_000) return Math.Round(taxAfterRebate * 0.10);  // >₹50L to ₹1Cr
-            if (income <= 20_000_000) return Math.Round(taxAfterRebate * 0.15);  // >₹1Cr to ₹2Cr
-            // >₹2Cr: capped at 25% for new regime; 25% for old up to ₹5Cr, then 37%
-            if (income <= 50_000_000 || rules.MaxSurchargeRate <= 0.25)
+            // Round income to nearest rupee before bracket test to eliminate floating-point
+            // drift from DB round-trips or accumulated monthly summation.
+            long inc = (long)Math.Round(income);
+            if (inc <=  5_000_000) return 0;
+            if (inc <= 10_000_000) return Math.Round(taxAfterRebate * 0.10);  // >₹50L to ₹1Cr
+            if (inc <= 20_000_000) return Math.Round(taxAfterRebate * 0.15);  // >₹1Cr to ₹2Cr
+            if (inc <= 50_000_000 || rules.MaxSurchargeRate <= 0.25)
                 return Math.Round(taxAfterRebate * 0.25);   // >₹2Cr (both) or >₹5Cr new regime
             return Math.Round(taxAfterRebate * 0.37);       // >₹5Cr old regime only
         }
