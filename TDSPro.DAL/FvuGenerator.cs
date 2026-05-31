@@ -1042,6 +1042,7 @@ namespace TDSPro.DAL
         // K=Company, M=Branch/Division of Company, Q=Individual/HUF, F=Firm
         // A=Central Govt, S=State Govt, D/E=Statutory body, G/H=Autonomous body
         // L/N=Local Authority, P=AOP, T=Trust, J=Artificial Juridical Person, B=BOI
+        public  static string GetDeductorCategoryPublic(string type) => DeductorCategory(type);
         private static string DeductorCategory(string type) => (type ?? "K").ToUpper() switch
         {
             "A" or "CENTRAL GOVT" or "CENTRAL GOVERNMENT" => "A",
