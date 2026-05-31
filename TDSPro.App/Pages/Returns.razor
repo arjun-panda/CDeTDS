@@ -999,6 +999,14 @@
     bool ValidateInputs()
     {
         if (AppState.CurrentDeductorId == 0) { Snackbar.Add("Select a deductor first.", Severity.Warning); return false; }
+        if (string.IsNullOrWhiteSpace(AppState.CurrentDeductorTan))
+            { Snackbar.Add("Deductor TAN is missing — update company details before filing.", Severity.Error); return false; }
+        if (string.IsNullOrWhiteSpace(AppState.CurrentFY))
+            { Snackbar.Add("Financial year is not set.", Severity.Error); return false; }
+        if (string.IsNullOrWhiteSpace(_quarter))
+            { Snackbar.Add("Select a quarter before generating.", Severity.Warning); return false; }
+        if (AppState.CurrentLicense.IsExpired)
+            { Snackbar.Add("Your TDS Pro license has expired. Renew to generate and file returns.", Severity.Error); return false; }
         if (_isCorrection && string.IsNullOrWhiteSpace(_prevPrn))
             { Snackbar.Add("Previous PRN is required for a correction return.", Severity.Warning); return false; }
         return true;

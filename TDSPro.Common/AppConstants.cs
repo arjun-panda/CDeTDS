@@ -8,7 +8,12 @@ namespace TDSPro.Common
     public static class AppConstants
     {
         public const string AppName    = "TDS Pro";
-        public const string AppVersion = "1.0.0";
+        // Read from assembly so bumping <Version> in TDSPro.App.csproj is the only required change.
+        public static string AppVersion =>
+            System.Reflection.Assembly.GetEntryAssembly()
+                  ?.GetName().Version
+                  ?.ToString(3)   // major.minor.patch only
+            ?? "1.0.0";
         public const string VersionCheckUrl = "https://raw.githubusercontent.com/arjun-panda/tdspro-releases/main/version.json";
         public const string DbFileName = "tds_pro.db";
 
