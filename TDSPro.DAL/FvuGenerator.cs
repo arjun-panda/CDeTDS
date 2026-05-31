@@ -619,10 +619,14 @@ namespace TDSPro.DAL
             double gtiBeforeChap6A = balanceAfterSec16;                                // [18] = [16] - [17]
             // [22]: GTI = [16] minus Ch6A (new regime only; old regime Ch6A via C6A sub-records).
             double gti = Math.Max(0, gtiBeforeChap6A - (isNewRegime ? sd.Chapter6ATotal : 0)); // [22]
-            double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
+            // SD[23] = rawTax (pre-rebate income tax on total income).
+            // SD[77] = Rebate87A (informational).
+            // FVU T-FV-4202: SD[27] = SD[23]+SD[24]+SD[25]-SD[26]-SD[77]
+            // So netTax (SD[27]) = rawTax + sc + cess - rebate = TotalTax (post-rebate).
+            double tax = (sd.TaxPayable + sd.Rebate87A) > 0 ? (sd.TaxPayable + sd.Rebate87A) : 0;
             double grossTax = tax + sd.Surcharge + sd.Cess;
             double relief89 = 0;
-            double netTax = grossTax - relief89;            // [27]: FVU validates [23]+[24]+[25]-[26]
+            double netTax = Math.Max(0, grossTax - relief89 - sd.Rebate87A); // [27] = rawTax+sc+cess-rebate
             double tdsDeducted = sd.TdsDeducted + sd.PrevEmpTds;
             double shortfall = netTax - tdsDeducted;        // [29]: FVU validates [27]-[28]
 
@@ -679,20 +683,23 @@ namespace TDSPro.DAL
                 sd.ProfitSalary17_3 == 0 ? "0.00" : F(sd.ProfitSalary17_3), // [68]: Profits in lieu u/s 17(3)
                 // FVU 9.4 Sec10 sub-fields (model2 cols 62-68 = our [69]-[75])
                 // T_FV_6130: [75] must equal sum of [69]+[70]+[71]+[72]+[73]+[74]+[79]
-                F(sd.LtaExemption),                         // [69]: LTA u/s 10(5)
+                // Sec10 sub-fields: T_FV_6354 = LTA[69] and HRA[73] must be blank for old regime (N)
+                //                  T_FV_6104-6109,6351,6110 = all other Sec10 fields mandatory (0.00) for both regimes
+                isNewRegime ? F(sd.LtaExemption) : "",      // [69]: LTA u/s 10(5) — blank for old regime
                 "0.00",                                     // [70]: Gratuity u/s 10(10)
                 "0.00",                                     // [71]: Commuted pension u/s 10(10A)
                 "0.00",                                     // [72]: Leave encashment u/s 10(10AA)
-                F(sd.HraExemption),                         // [73]: HRA u/s 10(13A)
-                F(sd.ExemptU10),                            // [74]: Other exemption u/s 10 (conveyance, telephone etc.)
-                // [75]: Total Sec10 = [69]+[70]+[71]+[72]+[73]+[74]+[79] (T_FV_6130)
-                F(sd.LtaExemption + sd.HraExemption + sd.ExemptU10), // [75]: Total Sec10
+                isNewRegime ? F(sd.HraExemption) : "",      // [73]: HRA u/s 10(13A) — blank for old regime
+                F(sd.ExemptU10),                            // [74]: Other exemption u/s 10 (conveyance, telephone)
+                // [75]: Total Sec10 = sum of only the fields that are actually reported (T_FV_6130)
+                // LTA[69] and HRA[73] are blank for old regime — exclude them from total
+                F((isNewRegime ? sd.LtaExemption + sd.HraExemption : 0) + sd.ExemptU10), // [75]: Total Sec10
                 "0.00",                                     // [76]: Income under other sources 192(2B)
-                F(sd.Rebate87A),                            // [77]: Rebate u/s 87A (T_FV_6111/6112)
-                // [78]: 115BAC opt-in flag (Y=new regime, N=old regime)
+                F(sd.Rebate87A),                            // [77]: Rebate u/s 87A
+                // [78]: 115BAC opt-in flag
                 isNewRegime ? "Y" : "N",
                 "0.00",                                     // [79]: Other special allowances u/s 10(14)
-                "0.00",                                     // [80]: Income chargeable under Salaries (FY2018-19+ repeat)
+                "0.00",                                     // [80]: Income chargeable under Salaries (repeat)
                 "", "", "", "", "", ""                      // [81-86]: blank (6)
             );
         }
