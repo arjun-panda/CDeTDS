@@ -101,7 +101,7 @@ namespace TDSPro.BLL
                 // HRA and LTA go in their own SD fields ([73] and [69]) separately.
                 double exemptU10 = chosen.ReimbExemption;  // conveyance, telephone etc.
                 double lta       = decl.LtaExemption;      // u/s 10(5) — declared LTA
-                double hra       = isNew ? 0 : chosen.HraExemption; // HRA only for old regime (new regime HRA=0)
+                double hra       = chosen.HraExemption;    // u/s 10(13A) — 0 for new regime by design
 
                 // GTI per NSDL SD[18]: Gross − Std Deduction (Sec10 exempts do not reduce [16]/[18])
                 double gti = Math.Max(0, chosen.GrossSalary - chosen.StandardDeduction);
