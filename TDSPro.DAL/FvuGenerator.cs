@@ -610,15 +610,14 @@ namespace TDSPro.DAL
             double stdDed16 = Math.Min(
                 sd.StandardDeduction > 0 ? sd.StandardDeduction : legalStdDed,
                 legalStdDed);
-            // [16]: gross − Sec10 exemptions (bills reimb / "other" category) − std deduction
-            // ExemptU10 here is the "other"-category line-item exempts (conveyance, telephone etc.)
-            // exempt u/s 10(14)(i) in both regimes. HRA (10(13A)) is in sd fields [69]/[73] separately.
-            double balanceAfterSec16 = Math.Max(0, totalSal - sd.ExemptU10 - stdDed16);
+            // [16]: FVU T-FV-4023 validates [16] = [12] - [15] exactly (salary minus Sec16 std ded only).
+            // Sec10 exemptions (conveyance, telephone etc.) do NOT reduce [16] — they go in [72].
+            double balanceAfterSec16 = Math.Max(0, totalSal - stdDed16);
             // T-FV-4020: FVU validates [18] = [16] - [17] exactly. [17] = entertainment allowance (govt only).
             double gtiBeforeChap6A = balanceAfterSec16;                                // [18] = [16] - [17]
-            // [22]: GTI after Ch6A — old regime: Ch6A not in SD fields [20][21], so [22]=[18]
-            // New regime: [22] = [18] - Ch6ATotal (Ch6A reported in SD[20][21])
-            double gti = Math.Max(0, gtiBeforeChap6A - (isNewRegime ? sd.Chapter6ATotal : 0)); // [22]
+            // [22]: GTI = [16] minus Sec10 exempts minus Ch6A.
+            // Sec10 exempts (field [72]) reduce GTI but NOT [16]; Ch6A only in SD[20][21] for new regime.
+            double gti = Math.Max(0, gtiBeforeChap6A - sd.ExemptU10 - (isNewRegime ? sd.Chapter6ATotal : 0)); // [22]
             double tax = sd.TaxPayable > 0 ? sd.TaxPayable : 0;
             double grossTax = tax + sd.Surcharge + sd.Cess;
             double relief89 = 0;
@@ -680,7 +679,7 @@ namespace TDSPro.DAL
                 sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "0.00" : "",
                 "0.00",                                     // [70]: 0.00
                 "0.00",                                     // [71]: 0.00
-                "0.00",                                     // [72]: 0.00
+                sd.ExemptU10 > 0 ? F(sd.ExemptU10) : "0.00", // [72]: Sec10(14) allowances (conveyance, telephone etc.)
                 // [73] HRA [10(13A)]: mandatory (non-blank) for 115BAC=Y; must be blank for N
                 sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "0.00" : "",
                 "0.00",                                     // [74]: 0.00

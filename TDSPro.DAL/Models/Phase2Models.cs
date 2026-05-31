@@ -172,14 +172,14 @@ namespace TDSPro.DAL.Models
         public double TotalGrossSalary  => SalaryDetails.Any()
             ? SalaryDetails.Sum(s => {
                 // Must match BuildSD [22] exactly:
-                // GTI = Max(0, (salary - stdDed) - Ch6ATotal)  ← new regime only
-                // GTI = Max(0, salary - stdDed)                ← old regime (Ch6A not in SD[20][21])
+                // GTI = Max(0, (salary - stdDed) - ExemptU10 - Ch6ATotal)  ← new regime
+                // GTI = Max(0, (salary - stdDed) - ExemptU10)               ← old regime
                 // NSDL TaxRegime: "O"=new regime, "N"=old regime
                 double totalSal = s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3;
                 bool isNewReg = s.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true;
                 double legalStdDed = isNewReg ? 75000 : 50000;
                 double stdDed   = s.StandardDeduction > 0 ? Math.Min(s.StandardDeduction, legalStdDed) : legalStdDed;
-                double bal      = Math.Max(0, totalSal - stdDed);
+                double bal      = Math.Max(0, totalSal - stdDed - s.ExemptU10);
                 return Math.Max(0, bal - (isNewReg ? s.Chapter6ATotal : 0));
             })
             : TotalAmountPaid;
