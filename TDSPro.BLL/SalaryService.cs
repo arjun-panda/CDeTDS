@@ -253,10 +253,11 @@ namespace TDSPro.BLL
             // Variable pay (annual bonus + incentive) — added to projection so TDS spreads
             // across all months. If the bonus has already been entered as a Salary Data row,
             // it's already in annualGrossActual; we add it only if NOT yet present.
+            // Use average actual monthly gross (not current-month structure) as the fixed baseline
+            // so mid-year salary revisions don't cause false double-count.
             double annualVariable = (emp.Salary?.AnnualBonus ?? 0) + (emp.Salary?.AnnualIncentive ?? 0);
-            // Heuristic: assume bonus not yet paid in YTD if projectedMonths > 0 and YTD gross
-            // doesn't exceed expected monthly fixed × actual months by more than half the bonus
-            double expectedFixedYtd = ((cur?.Basic ?? 0) + (cur?.HRA ?? 0) + (cur?.DaAmount ?? 0) + (cur?.SpecialAllowance ?? 0) + (cur?.MedicalAllowance ?? 0) + (cur?.Lta ?? 0) + (cur?.OtherAllowances ?? 0)) * (currentFyIndex + 1);
+            double avgActualMonthly = actualCount > 0 ? annualGrossActual / actualCount : 0;
+            double expectedFixedYtd = avgActualMonthly * (currentFyIndex + 1);
             if (annualGrossActual < expectedFixedYtd + annualVariable * 0.5)
                 annualGross += annualVariable;
 

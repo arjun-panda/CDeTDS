@@ -501,8 +501,8 @@ namespace TDSPro.DAL
                     double col347 = s.TaxPayable;
                     double col348 = s.Surcharge;
                     double col349 = s.Cess;
-                    double col350 = 0;                   // relief u/s 89
-                    double col351 = Math.Max(0, s.TotalTaxPayable);
+                    double col350 = 0;                   // relief u/s 89 (not applicable for salary)
+                    double col351 = Math.Max(0, s.TotalTaxPayable - col350);
                     double col352 = s.TdsDeducted;
                     double col353 = s.PrevEmpTds;
                     double col354 = col352 + col353;

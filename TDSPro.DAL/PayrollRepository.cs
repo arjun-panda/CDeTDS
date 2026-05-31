@@ -56,7 +56,7 @@ namespace TDSPro.DAL
                     Department   = r.GetString(6),
                     JoinDate     = r.IsDBNull(7)  ? "" : r.GetString(7),
                     LeavingDate  = r.IsDBNull(8)  ? "" : r.GetString(8),
-                    TaxRegime    = r.IsDBNull(9)  ? "New" : r.GetString(9),
+                    TaxRegime    = r.IsDBNull(9) || string.IsNullOrEmpty(r.GetString(9)) ? "" : r.GetString(9),
                     IsActive     = r.GetInt32(10) == 1,
                     Email        = r.IsDBNull(11) ? "" : r.GetString(11),
                     Phone        = r.IsDBNull(12) ? "" : r.GetString(12),

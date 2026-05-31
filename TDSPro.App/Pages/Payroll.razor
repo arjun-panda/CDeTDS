@@ -3745,12 +3745,15 @@
             .Where(r => _sdBulkSel.TryGetValue(r.EmployeeId, out var v) && v)
             .ToList();
         await Task.Run(() => {
+            // Pre-load once to avoid N+1 queries inside the loop.
+            var empCache = PayrollSvc.GetEmployees(AppState.CurrentDeductorId)
+                               as IReadOnlyList<TDSPro.DAL.Models.Employee>;
             foreach (var r in toProcess)
             {
                 try
                 {
                     if (r.Status != "Skip" && !r.TdsManualOverride) McSvc.Compute(r, AppState.CurrentDeductorId);
-                    McSvc.SaveAndSync(r, AppState.CurrentDeductorId);
+                    McSvc.SaveAndSync(r, AppState.CurrentDeductorId, empCache);
                     ok++;
                 }
                 catch (Exception ex) { failed++; failures.Add($"{r.EmployeeName}: {ex.Message}"); }

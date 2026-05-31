@@ -196,7 +196,8 @@ namespace TDSPro.BLL
         }
 
         /// <summary>Save row as Draft (editable). Re-saving overwrites until Locked.</summary>
-        public void SaveDraft(MonthlyCloseRow row, int deductorId)
+        public void SaveDraft(MonthlyCloseRow row, int deductorId,
+            IReadOnlyList<Employee>? employeeCache = null)
         {
             var entry = row.ToEntry(deductorId);
             entry.Status   = row.Status == "Skip" ? "Skip" : "Draft";
@@ -213,8 +214,10 @@ namespace TDSPro.BLL
                 }
                 else
                 {
-                    var ss = _empRepo.GetAllEmployees(deductorId)
-                                     .FirstOrDefault(e => e.Id == row.EmployeeId)?.Salary;
+                    // Use caller-supplied cache to avoid N+1 queries in bulk-save loops.
+                    var employees = employeeCache
+                        ?? (_empRepo.GetAllEmployees(deductorId) as IReadOnlyList<Employee>);
+                    var ss = employees?.FirstOrDefault(e => e.Id == row.EmployeeId)?.Salary;
                     if (ss != null)
                     {
                         foreach (var c in ss.Components)
@@ -312,10 +315,12 @@ namespace TDSPro.BLL
         /// Save MonthlyCloseRow as Draft and auto-create/update Sec 192 TDS entry.
         /// Used by Monthly Close bulk save.
         /// </summary>
-        public (bool ok, string msg) SaveAndSync(MonthlyCloseRow row, int deductorId)
+        public (bool ok, string msg) SaveAndSync(MonthlyCloseRow row, int deductorId,
+            IReadOnlyList<Employee>? employeeCache = null)
         {
-            SaveDraft(row, deductorId);
-            var emp = _empRepo.GetAllEmployees(deductorId).FirstOrDefault(e => e.Id == row.EmployeeId);
+            SaveDraft(row, deductorId, employeeCache);
+            var emp = (employeeCache ?? _empRepo.GetAllEmployees(deductorId) as IReadOnlyList<Employee>)
+                          ?.FirstOrDefault(e => e.Id == row.EmployeeId);
             if (emp == null) return (false, "Employee not found.");
             var entry = _salRepo.Get(row.EmployeeId, row.FinancialYear, row.Month);
             if (entry == null) return (false, "Entry not saved.");
