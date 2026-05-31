@@ -109,32 +109,48 @@
                 else { <div style="color:#9e9e9e;font-size:12px">No data for @AppState.CurrentFY</div> }
             </div>
 
-            @* Filing Status *@
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;min-height:0">
-                @{
-                    int tot  = _stats.TotalEntries > 0 ? _stats.TotalEntries : 1;
-                    int paid = tot - _stats.PendingEntries;
-                    int pend = _stats.PendingEntries;
-                    double paidPct = (double)paid / tot * 100;
-                }
-                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">Filing Status</div>
-                <div style="display:flex;flex-direction:column;gap:10px">
-                    <div>
-                        <div style="display:flex;justify-content:space-between;font-size:12px"><span>Paid</span><b style="color:#4CAF50">@paid</b></div>
-                        <div style="background:#e0e0e0;border-radius:4px;height:10px;margin-top:3px">
-                            <div style="background:#4CAF50;width:@(paidPct.ToString("F0"))%;height:10px;border-radius:4px"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="display:flex;justify-content:space-between;font-size:12px"><span>Pending</span><b style="color:#FF9800">@pend</b></div>
-                        <div style="background:#e0e0e0;border-radius:4px;height:10px;margin-top:3px">
-                            <div style="background:#FF9800;width:@(((double)pend/tot*100).ToString("F0"))%;height:10px;border-radius:4px"></div>
-                        </div>
-                    </div>
+            @* ── Filing Readiness ── *@
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;min-height:0;gap:6px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+                    <div style="font-size:12px;font-weight:700;color:#374151">Filing Readiness</div>
+                    <div style="font-size:10px;color:#94a3b8">FY @AppState.CurrentFY</div>
                 </div>
-                <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column">
-                    <div style="font-size:32px;font-weight:800;color:#1565C0">@paidPct.ToString("F0")%</div>
-                    <div style="font-size:11px;color:#888">Compliance Rate</div>
+
+                @* Quarter status rows — 24Q and 26Q *@
+                @foreach (var form in new[]{"24Q","26Q"})
+                {
+                    <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-top:4px;margin-bottom:1px">@form</div>
+                    @foreach (var q in new[]{"Q1","Q2","Q3","Q4"})
+                    {
+                        var rec = _filingStatus.FirstOrDefault(r => r.FormType == form && r.Quarter == q);
+                        bool filed   = rec != null && !string.IsNullOrEmpty(rec.FvuFilePath);
+                        bool hasPrn  = rec != null && !string.IsNullOrEmpty(rec.Prn);
+                        string dot   = filed ? "#16a34a" : "#e5e7eb";
+                        string label = filed ? (hasPrn ? $"Filed · PRN {rec!.Prn[..Math.Min(10,rec.Prn.Length)]}" : "Generated") : "Pending";
+                        string lc    = filed ? "#16a34a" : "#9ca3af";
+                        <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f1f5f9">
+                            <div style="width:8px;height:8px;border-radius:50%;background:@dot;flex-shrink:0"></div>
+                            <div style="font-size:11px;font-weight:600;color:#374151;width:22px">@q</div>
+                            <div style="font-size:10px;color:@lc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@label</div>
+                            @if (!filed)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small"
+                                               Style="padding:2px;width:20px;height:20px;color:#1565C0"
+                                               OnClick='() => Nav.NavigateTo("/returns")' />
+                            }
+                        </div>
+                    }
+                }
+
+                @* Pre-flight checklist *@
+                <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:8px;display:flex;flex-direction:column;gap:4px">
+                    @foreach (var (icon, label, ok) in _preflight)
+                    {
+                        <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+                            <span style="color:@(ok?"#16a34a":"#dc2626");font-size:13px">@(ok?"✅":"❌")</span>
+                            <span style="color:@(ok?"#374151":"#dc2626")">@label</span>
+                        </div>
+                    }
                 </div>
             </div>
 
@@ -203,6 +219,8 @@
     private PayrollDashStats? _payrollStats;
     private string _payrollMonthLabel = "";
     private bool   _showWizard;
+    private List<TDSPro.DAL.FilingHistoryRecord> _filingStatus = new();
+    private List<(string Icon, string Label, bool Ok)> _preflight = new();
 
     record PayrollDashStats(int Processed, double TotalGross, double MonthTds, double YtdTds);
 
@@ -283,6 +301,44 @@
                       .ToList());
         }
         catch { _alerts = new(); }
+
+        // Filing readiness — latest record per form+quarter
+        try
+        {
+            var filingDid = AppState.CurrentDeductorId;
+            var filingFy  = AppState.CurrentFY;
+            _filingStatus = await Task.Run(() =>
+            {
+                var latest = new List<TDSPro.DAL.FilingHistoryRecord>();
+                foreach (var form in new[]{"24Q","26Q"})
+                    foreach (var q in new[]{"Q1","Q2","Q3","Q4"})
+                    {
+                        var recs = TDSPro.DAL.Database.GetFilingHistory(filingDid, filingFy, form, q);
+                        var best = recs.OrderByDescending(r => r.Id).FirstOrDefault();
+                        if (best != null) latest.Add(best);
+                    }
+                return latest;
+            });
+        }
+        catch { _filingStatus = new(); }
+
+        // Pre-flight checklist
+        try
+        {
+            var runner = new TDSPro.DAL.FvuUtilityRunner();
+            var pf     = await Task.Run(() => runner.CheckPreflight());
+            var csiPath = System.IO.Path.Combine(
+                TDSPro.DAL.FolderManager.CsiFolder,
+                $"{AppState.CurrentDeductorTan}.csi");
+            bool csiOk = System.IO.File.Exists(csiPath);
+            _preflight = new()
+            {
+                ("", "Java runtime",     pf.Issues.All(i => !i.Contains("Java"))),
+                ("", "FVU 9.4 JAR",      pf.Issues.All(i => !i.Contains("FVU"))),
+                ("", $"CSI file ({AppState.CurrentDeductorTan})", csiOk),
+            };
+        }
+        catch { _preflight = new(); }
 
         await InvokeAsync(StateHasChanged);
     }
