@@ -97,11 +97,14 @@ namespace TDSPro.BLL
                 string nsdlGender = gender?.ToUpper() switch { "F" => "W", "FEMALE" => "W", "W" => "W", "S" => "S", _ => "G" };
                 string nsdlRegime = isNew ? "O" : "N";
 
-                // Exempt u/s 10 = HRA + bills reimbursements (from line items)
-                double exemptU10 = chosen.HraExemption + chosen.ReimbExemption;
+                // ExemptU10 = "other" bills reimbursement exempts u/s 10(14)(i) only.
+                // HRA and LTA go in their own SD fields ([73] and [69]) separately.
+                double exemptU10 = chosen.ReimbExemption;  // conveyance, telephone etc.
+                double lta       = decl.LtaExemption;      // u/s 10(5) — declared LTA
+                double hra       = isNew ? 0 : chosen.HraExemption; // HRA only for old regime (new regime HRA=0)
 
-                // GTI per NSDL SD[18]: Gross − Exempt u/s 10 − Std Deduction
-                double gti = Math.Max(0, chosen.GrossSalary - exemptU10 - chosen.StandardDeduction);
+                // GTI per NSDL SD[18]: Gross − Std Deduction (Sec10 exempts do not reduce [16]/[18])
+                double gti = Math.Max(0, chosen.GrossSalary - chosen.StandardDeduction);
 
                 result.Add(new ReturnSalaryDetail
                 {
@@ -114,7 +117,9 @@ namespace TDSPro.BLL
                     EmploymentTo     = to,
                     Salary17_1       = chosen.GrossSalary,
                     ExemptU10        = exemptU10,
-                    ExemptU10Count   = exemptU10 > 0 ? 1 : 0,
+                    LtaExemption     = lta,
+                    HraExemption     = hra,
+                    ExemptU10Count   = (exemptU10 + lta + hra) > 0 ? 1 : 0,
                     StandardDeduction= chosen.StandardDeduction,
                     GrossTotalIncome = gti,
                     TaxableIncome    = chosen.TotalIncome,

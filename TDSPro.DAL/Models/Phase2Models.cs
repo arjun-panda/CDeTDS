@@ -141,7 +141,9 @@ namespace TDSPro.DAL.Models
         public double Salary17_1        { get; set; }   // Salary u/s 17(1)
         public double Perquisites17_2   { get; set; }   // Perquisites u/s 17(2)
         public double ProfitSalary17_3  { get; set; }   // Profits in lieu of salary u/s 17(3)
-        public double ExemptU10         { get; set; }   // Total exempt u/s 10
+        public double ExemptU10         { get; set; }   // Other exemption u/s 10 (conveyance, telephone etc.)
+        public double LtaExemption     { get; set; }   // LTA u/s 10(5)
+        public double HraExemption     { get; set; }   // HRA u/s 10(13A)
         public int    ExemptU10Count    { get; set; } = 0;   // Count of allowances exempt u/s 10
         public double GrossTotalIncome  { get; set; }   // Gross Total Income (after std deduction, before Ch VIA)
         public double Chapter6ATotal    { get; set; }   // Total Chapter VI-A deductions

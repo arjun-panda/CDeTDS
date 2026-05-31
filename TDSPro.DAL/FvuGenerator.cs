@@ -673,25 +673,26 @@ namespace TDSPro.DAL
                 "", "", "", "", "", "", "", "",             // [50-57]: blank (8)
                 "N",                                        // [58]: Whether superannuation contributions (Y/N)
                 "", "", "", "", "", "", "",                 // [59-65]: blank (7) — superannuation cert/fund slots (filled when [58]=Y)
-                F(totalSal),                                // [66]: Total salary
-                F(sd.PrevEmpSalary),                        // [67]: Previous employer salary (repeat)
-                "0.00",                                     // [68]: 0.00
-                // [69] Travel concession [10(5)]: mandatory (non-blank) for 115BAC=Y; must be blank for N
-                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "0.00" : "",
-                "0.00",                                     // [70]: 0.00
-                "0.00",                                     // [71]: 0.00
-                "0.00",                                     // [72]: 0.00
-                // [73] HRA [10(13A)]: mandatory (non-blank) for 115BAC=Y; must be blank for N
-                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "0.00" : "",
-                "0.00",                                     // [74]: 0.00
-                "0.00",                                     // [75]: 0.00
-                "0.00",                                     // [76]: 0.00
-                // [77]: grossTax when netTax==0 (rebate/exempt cases); 0.00 when netTax>0 (FVU validated pattern from reference)
-                netTax == 0 ? F(grossTax) : "0.00",
+                // FVU 9.4 Sec17 sub-fields (agent fields 67-69 = our [66]-[68])
+                F(sd.Salary17_1),                           // [66]: Gross Salary u/s 17(1)
+                sd.Perquisites17_2 == 0 ? "0.00" : F(sd.Perquisites17_2), // [67]: Perquisites u/s 17(2)
+                sd.ProfitSalary17_3 == 0 ? "0.00" : F(sd.ProfitSalary17_3), // [68]: Profits in lieu u/s 17(3)
+                // FVU 9.4 Sec10 sub-fields (agent fields 70-76 = our [69]-[75])
+                // Mandatory non-blank for 115BAC=Y; must be blank for N (FVU T_FV_6103-6108)
+                F(isNewRegime ? sd.LtaExemption : 0),       // [69]: LTA u/s 10(5)
+                "0.00",                                     // [70]: Gratuity u/s 10(10)
+                "0.00",                                     // [71]: Commuted pension u/s 10(10A)
+                "0.00",                                     // [72]: Leave encashment u/s 10(10AA)
+                F(isNewRegime ? sd.HraExemption : 0),       // [73]: HRA u/s 10(13A)
+                F(sd.ExemptU10),                            // [74]: Other exemption u/s 10 (conveyance, telephone etc.)
+                // [75]: Total Sec10 = sum of [69]+[70]+[71]+[72]+[73]+[74]+[79] (T_FV_6130)
+                F(sd.LtaExemption + sd.HraExemption + sd.ExemptU10), // [75]: Total Sec10
+                "0.00",                                     // [76]: Income under other sources 192(2B)
+                F(sd.Rebate87A),                            // [77]: Rebate u/s 87A (T_FV_6111/6112)
                 // [78]: 115BAC opt-in flag (Y=new regime, N=old regime)
-                sd.TaxRegime?.Equals("O", StringComparison.OrdinalIgnoreCase) == true ? "Y" : "N",
-                "0.00",                                     // [79]: 0.00
-                "0.00",                                     // [80]: 0.00
+                isNewRegime ? "Y" : "N",
+                "0.00",                                     // [79]: Other special allowances u/s 10(14)
+                "0.00",                                     // [80]: Income chargeable under Salaries (FY2018-19+ repeat)
                 "", "", "", "", "", ""                      // [81-86]: blank (6)
             );
         }
