@@ -296,17 +296,24 @@
 
             <MudItem xs="12" md="5">
                 <MudPaper Class="pa-5" Elevation="1" Style="border-radius:12px;background:#f0fdf4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-3"><b>April 1 Update Checklist</b></MudText>
-                    <ol style="font-size:13px;line-height:2;color:#1e293b;padding-left:18px">
-                        <li>Download new Finance Act notification from incometax.gov.in</li>
-                        <li>Update <code>BuiltInTdsRules.CurrentVersion</code> to new FY string</li>
-                        <li>Update rates in <code>BuiltInTdsRules.Rules</code> list</li>
-                        <li>Update tax slabs in <code>TaxRules.cs</code> (New + Old regime)</li>
-                        <li>Update <code>AppConstants.AppVersion</code> and <code>version.json</code></li>
-                        <li>Run all tests: <code>dotnet test TDSPro.Tests</code></li>
-                        <li>Publish new installer — <code>build_installer.bat</code></li>
-                        <li>Upload <code>version.json</code> to capitaldesk.co.in — all users get update notification</li>
-                    </ol>
+                    <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Finance Act 2025 — Key Changes (FY 2025-26)</b></MudText>
+                    <MudSimpleTable Dense="true" Style="font-size:12px">
+                        <thead>
+                            <tr><th>Section</th><th>Change</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><b>194</b></td><td>Dividend threshold raised ₹5,000 → ₹10,000</td></tr>
+                            <tr><td><b>194H</b></td><td>Rate reduced 5% → 2%; threshold ₹15,000 → ₹20,000</td></tr>
+                            <tr><td><b>194I</b></td><td>Threshold changed to ₹50,000 per month or part thereof</td></tr>
+                            <tr><td><b>194J</b></td><td>Threshold raised ₹30,000 → ₹50,000</td></tr>
+                            <tr><td><b>194A</b></td><td>Senior citizen bank interest threshold ₹50,000 → ₹1,00,000</td></tr>
+                            <tr><td><b>206AB</b></td><td>Omitted — higher TDS for ITR non-filers no longer applies</td></tr>
+                            <tr><td><b>194Q</b></td><td>Continues — only 206C(1H) cross-reference removed</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3 d-block">
+                        TDS Pro is updated every year after the Finance Act. Use <b>Re-apply Built-in Rules</b> to ensure your database reflects the latest rates.
+                    </MudText>
                 </MudPaper>
             </MudItem>
         </MudGrid>
