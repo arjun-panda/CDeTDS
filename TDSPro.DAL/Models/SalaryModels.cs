@@ -2,7 +2,7 @@ namespace TDSPro.DAL.Models
 {
     /// <summary>
     /// Complete per-month salary entry for one employee.
-    /// Stores every component shown in the IITRET-style data entry form.
+    /// Stores every component shown in the TDSPro data entry form.
     /// </summary>
     public class MonthlySalaryEntry
     {

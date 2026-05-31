@@ -474,7 +474,7 @@ namespace TDSPro.DAL
             AddColumnIfMissing("deductees", "pan_verified_name",        "TEXT DEFAULT ''");
             AddColumnIfMissing("deductees", "pan_verified_at",          "TEXT DEFAULT ''");
 
-            // ── Employees — new columns for IITRET-complete employee record ────
+            // ── Employees — new columns for complete employee record ────────────
             AddColumnIfMissing("employees", "fathers_name",              "TEXT DEFAULT ''");
             AddColumnIfMissing("employees", "date_of_birth",             "TEXT DEFAULT ''");
             AddColumnIfMissing("employees", "sex",                       "TEXT DEFAULT 'Male'");
