@@ -2,6 +2,10 @@
 ===================
 
 
+v1.0.1 (May 2026) - Fix SD record Sec10/Rebate fields using RPU 5.9 spec
+---------------------------------------------------------------------------
+Fix SD record Sec10/Rebate fields using RPU 5.9 spec
+
 v1.0.0 (May 2026) - Initial release
 --------------------------------------
 Initial release
