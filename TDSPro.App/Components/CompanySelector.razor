@@ -99,6 +99,19 @@
                                   ValueChanged="@((string v) => _new.Gstin = (v ?? "").ToUpper())" />
                 </MudItem>
                 <MudItem xs="4">
+                    <MudSelect @bind-Value="_new.DeductorType" Label="Deductor Type" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@("Company")">Company (K)</MudSelectItem>
+                        <MudSelectItem Value="@("Branch")">Branch / Division of Company (M)</MudSelectItem>
+                        <MudSelectItem Value="@("Individual")">Individual / HUF (Q)</MudSelectItem>
+                        <MudSelectItem Value="@("Firm")">Firm / LLP (F)</MudSelectItem>
+                        <MudSelectItem Value="@("AOP")">AOP / BOI (P/B)</MudSelectItem>
+                        <MudSelectItem Value="@("Trust")">Trust (T)</MudSelectItem>
+                        <MudSelectItem Value="@("Central Govt")">Central Government (A)</MudSelectItem>
+                        <MudSelectItem Value="@("State Govt")">State Government (S)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="4">
                     <MudTextField @bind-Value="_new.ContactPerson" Label="Contact Person" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="4">
@@ -283,7 +296,8 @@
             FinancialYear = d.FinancialYear, IsActive = d.IsActive,
             CpcPassword = d.CpcPassword, ItPassword = d.ItPassword,
             DefaultBsrCode = d.DefaultBsrCode, DefaultBankName = d.DefaultBankName,
-            ResponsibleName = d.ResponsibleName, ResponsiblePan = d.ResponsiblePan, Designation = d.Designation
+            ResponsibleName = d.ResponsibleName, ResponsiblePan = d.ResponsiblePan, Designation = d.Designation,
+            DeductorType = d.DeductorType
         };
         _saveError = "";
         _addingNew = true;

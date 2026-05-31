@@ -40,8 +40,8 @@ namespace TDSPro.DAL.Repositories
                     cmd.CommandText = @"INSERT INTO deductors
                         (company_name,tan,pan,address,city,state,pincode,
                          contact_person,phone,email,financial_year,cpc_password,it_password,
-                         default_bsr_code,default_bank_name,responsible_name,responsible_pan,designation,gstin)
-                        VALUES(@cn,@t,@p,@ad,@ci,@st,@pi,@cp,@ph,@em,@fy,@cpwd,@ipwd,@bsr,@bank,@rn,@rp,@des,@gstin)";
+                         default_bsr_code,default_bank_name,responsible_name,responsible_pan,designation,gstin,deductor_type)
+                        VALUES(@cn,@t,@p,@ad,@ci,@st,@pi,@cp,@ph,@em,@fy,@cpwd,@ipwd,@bsr,@bank,@rn,@rp,@des,@gstin,@dt)";
                 }
                 else
                 {
@@ -51,7 +51,8 @@ namespace TDSPro.DAL.Repositories
                         email=@em,financial_year=@fy,
                         cpc_password=@cpwd,it_password=@ipwd,
                         default_bsr_code=@bsr,default_bank_name=@bank,
-                        responsible_name=@rn,responsible_pan=@rp,designation=@des,gstin=@gstin WHERE id=@id";
+                        responsible_name=@rn,responsible_pan=@rp,designation=@des,gstin=@gstin,
+                        deductor_type=@dt WHERE id=@id";
                     cmd.Parameters.AddWithValue("@id", d.Id);
                 }
                 cmd.Parameters.AddWithValue("@cn", d.CompanyName);
@@ -73,6 +74,7 @@ namespace TDSPro.DAL.Repositories
                 cmd.Parameters.AddWithValue("@rp",   d.ResponsiblePan.ToUpper());
                 cmd.Parameters.AddWithValue("@des",  d.Designation);
                 cmd.Parameters.AddWithValue("@gstin",d.Gstin.Trim().ToUpper());
+                cmd.Parameters.AddWithValue("@dt",   string.IsNullOrEmpty(d.DeductorType) ? "Company" : d.DeductorType);
                 cmd.ExecuteNonQuery();
                 return (true, d.Id == 0 ? "Deductor saved." : "Deductor updated.");
             }
@@ -119,6 +121,7 @@ namespace TDSPro.DAL.Repositories
             ResponsiblePan   = r.IsDBNull(r.GetOrdinal("responsible_pan"))   ? "" : r.GetString(r.GetOrdinal("responsible_pan")),
             Designation      = r.IsDBNull(r.GetOrdinal("designation"))       ? "" : r.GetString(r.GetOrdinal("designation")),
             Gstin            = r.IsDBNull(r.GetOrdinal("gstin"))             ? "" : r.GetString(r.GetOrdinal("gstin")),
+            DeductorType     = r.IsDBNull(r.GetOrdinal("deductor_type"))    ? "Company" : r.GetString(r.GetOrdinal("deductor_type")),
         };
 
         private static string SafeDecrypt(string enc)

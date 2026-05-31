@@ -1033,8 +1033,8 @@ namespace TDSPro.DAL
         // L/N=Local Authority, P=AOP, T=Trust, J=Artificial Juridical Person, B=BOI
         private static string DeductorCategory(string type) => (type ?? "K").ToUpper() switch
         {
-            "A" or "CENTRAL GOVT"            => "A",
-            "S" or "STATE GOVT"              => "S",
+            "A" or "CENTRAL GOVT" or "CENTRAL GOVERNMENT" => "A",
+            "S" or "STATE GOVT"   or "STATE GOVERNMENT"  => "S",
             "D"                              => "D",
             "E"                              => "E",
             "G"                              => "G",

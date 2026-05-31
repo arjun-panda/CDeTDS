@@ -246,6 +246,7 @@ namespace TDSPro.DAL.Repositories
                 ResponsibleName = string.IsNullOrEmpty(dr.ResponsibleName) ? dr.ContactPerson : dr.ResponsibleName,
                 Designation     = string.IsNullOrEmpty(dr.Designation)     ? "Director"       : dr.Designation,
                 Gstin           = dr.Gstin,
+                DeductorType    = dr.DeductorType,
             };
 
             // Challans for quarter — filtered by form type
