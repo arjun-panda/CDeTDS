@@ -158,6 +158,21 @@
                 }
             </MudGrid>
 
+            @* ── Step status chip ── *@
+            @if (_generating)
+            {
+                var (stepIcon, stepLabel, stepColor) = _step switch {
+                    Step.GeneratingTxt  => ("📄", "Generating .txt file...",           "color:#2563eb"),
+                    Step.DownloadingCsi => ("🔐", "Downloading CSI from IT Portal...", "color:#d97706"),
+                    Step.RunningFvu     => ("⚙",  "Running NSDL FVU validator...",     "color:#7c3aed"),
+                    _                  => ("⏳", "Working...",                          "color:#6b7280"),
+                };
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;@stepColor;font-weight:600">
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:14px;height:14px" />
+                    @stepIcon &nbsp;@stepLabel
+                </div>
+            }
+
             @* ── Progress log ── *@
             @if (_logLines.Count > 0)
             {
@@ -518,7 +533,7 @@
 </MudDialog>
 
 @code {
-    private enum Step { Idle, GeneratingTxt, RunningFvu, PaperReturn }
+    private enum Step { Idle, GeneratingTxt, DownloadingCsi, RunningFvu, PaperReturn }
 
     private string _formType        = "26Q";
     private string _quarter         = "Q1";
@@ -807,6 +822,7 @@
                          TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", ""));
             if (!string.IsNullOrEmpty(csiPwd))
             {
+                _step = Step.DownloadingCsi;
                 _logLines.Add($"[{Now()}] 🔄 CSI not found — auto-downloading from IT Portal...");
                 StateHasChanged();
                 var fyParts = AppState.CurrentFY.Split('-');
