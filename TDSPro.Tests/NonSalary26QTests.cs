@@ -162,16 +162,16 @@ public class NonSalary26QTests
         Assert.Contains("CERT12345", dd);
     }
 
-    // ── Salary sections rerouted to 194J inside 26Q (192/192A invalid in 26Q) ─
+    // ── Salary sections (192/192A) are rejected in 26Q — must throw ────────────
     [Theory]
     [InlineData("192")]
     [InlineData("192A")]
     public void Generate_26Q_RerouteSalarySectionTo194J(string salarySection)
     {
         var data = Minimal26Q(salarySection, 100000, 1000);
-        var output = FvuGenerator.Generate(data);
-        var dd = output.Split('\n').First(l => l.StartsWith("4^DD^")).Split('^');
-        Assert.Equal("4JB", dd[32]);
+        // Salary sections are invalid in 26Q — FvuGenerator throws InvalidOperationException.
+        // These entries must be moved to 24Q before generating.
+        Assert.Throws<InvalidOperationException>(() => FvuGenerator.Generate(data));
     }
 
     // ── PAN is uppercased and trimmed in DD ────────────────────────────────
@@ -248,16 +248,17 @@ public class NonSalary26QTests
     public void Generate_26Q_FiltersZeroTdsDeductees()
     {
         var data = Minimal26Q("194C", 100000, 1000);
-        // Add a deductee with no TDS — should be silently dropped
+        // Add a completely blank deductee (zero amount AND zero TDS) — should be silently dropped.
+        // Note: AmountPaid>0 with TdsDeducted=0 is a valid nil-deduction entry and is kept.
         data.Deductees.Add(new ReturnDeducteeDetail
         {
             Pan = "BBBPB2345B", Name = "ZERO TDS", Section = "194C",
             PaymentDate = new DateTime(2026, 1, 31),
-            AmountPaid = 1000, TdsDeducted = 0, TdsDeposited = 0,
+            AmountPaid = 0, TdsDeducted = 0, TdsDeposited = 0,
             ChallanNo = "00078", BsrCode = "0000985", Rate = 0,
         });
         var output = FvuGenerator.Generate(data);
         var ddLines = output.Split('\n').Where(l => l.Contains("^DD^")).ToList();
-        Assert.Single(ddLines);  // only the original deductee survives
+        Assert.Single(ddLines);  // only the original deductee survives; zero-amount row dropped
     }
 }

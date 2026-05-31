@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -25,7 +25,7 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <Product>TDS Pro</Product>
     <Company>TDS Pro</Company>
-    <Description>TDS Compliance Software — Income-tax Act 2025</Description>
+    <Description>TDS Compliance Software â€” Income-tax Act 2025</Description>
     <Copyright>Copyright 2026 TDS Pro</Copyright>
   </PropertyGroup>
 
@@ -63,6 +63,8 @@
       <Output TaskParameter="ExitCode" PropertyName="ChangelogCheckExit" />
     </Exec>
     <Error Condition="'$(ChangelogCheckExit)' != '0'"
-           Text="VERSION MISMATCH — CHANGELOG.txt and TDSPro.App.csproj versions must match. Update both together." />
+           Text="VERSION MISMATCH â€” CHANGELOG.txt and TDSPro.App.csproj versions must match. Update both together." />
   </Target>
 </Project>
+
+

@@ -263,9 +263,11 @@ namespace TDSPro.Common
             {
                 decimal from = (decimal)s.From;
                 if (inc <= from) break;
-                decimal upper = s.To == double.MaxValue ? inc : Math.Min(inc, (decimal)s.To);
+                // s.To == double.MaxValue marks the top (open-ended) slab — use income as upper bound
+                bool isTopSlab = s.To >= double.MaxValue / 2;
+                decimal upper = isTopSlab ? inc : Math.Min(inc, (decimal)s.To);
                 tax += (upper - from) * (decimal)s.Rate;
-                if (inc <= (decimal)s.To) break;
+                if (isTopSlab || inc <= (decimal)s.To) break;
             }
             return (double)Math.Round(tax, 0, MidpointRounding.AwayFromZero);
         }

@@ -1,26 +1,34 @@
-TDS Pro — Changelog
+﻿TDS Pro â€” Changelog
 ===================
 
-v1.0.0 (May 2026) — Initial Release (Blazor Edition)
-─────────────────────────────────────────────────────
+
+v1.0.0 (May 2026) - Initial release
+--------------------------------------
+Initial release
+
+v1.0.0 (May 2026) - Initial release
+--------------------------------------
+Initial release
+v1.0.0 (May 2026) â€” Initial Release (Blazor Edition)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CORE TDS WORKFLOW
-  + 26Q non-salary TDS return — entries, challans, deductees, FVU 9.4
-  + 24Q salary TDS return — payroll, monthly close, Form 16
+  + 26Q non-salary TDS return â€” entries, challans, deductees, FVU 9.4
+  + 24Q salary TDS return â€” payroll, monthly close, Form 16
   + NIL return filing (CBDT mandatory quarterly filing)
   + Correction returns C1 / C2 / C3 with PRN chain
   + NSDL FVU 9.4 integration with bundled JRE (no Java setup required)
-  + FVU T_FV_6138 fix — new-regime 115BAC employees (₹75,000 standard deduction)
-  + TRACES Conso file import (.tds / .txt) — auto-creates deductor, challans, entries
+  + FVU T_FV_6138 fix â€” new-regime 115BAC employees (â‚¹75,000 standard deduction)
+  + TRACES Conso file import (.tds / .txt) â€” auto-creates deductor, challans, entries
   + CSI file integration for challan status verification
 
 PAYROLL (24Q)
   + Employee master with salary structure, designation, department, PAN
-  + Monthly salary entry — earnings, deductions, reimbursements, perquisites
-  + TDS computation — old regime vs new regime (115BAC) with optimiser
+  + Monthly salary entry â€” earnings, deductions, reimbursements, perquisites
+  + TDS computation â€” old regime vs new regime (115BAC) with optimiser
   + Form 16 HTML + PDF generator (Sec 203 compliant)
   + Annual computation of income PDF (CA-style)
   + Salary slip HTML + PDF + Excel export
-  + FY rollover — carries forward employees, salary structures, HRA declarations
+  + FY rollover â€” carries forward employees, salary structures, HRA declarations
   + Excel bulk import for employee master with auto-code generation
 
 MULTI-COMPANY
@@ -30,8 +38,8 @@ MULTI-COMPANY
   + AES-256 encrypted credential storage (machine-specific key)
 
 COMPLIANCE
-  + Dynamic TDS Rules Engine — all sections 192 to 206AB (FY 2025-26 rates)
-  + Section 206AA (no PAN → 20%) and 206AB (no ITR → higher rate)
+  + Dynamic TDS Rules Engine â€” all sections 192 to 206AB (FY 2025-26 rates)
+  + Section 206AA (no PAN â†’ 20%) and 206AB (no ITR â†’ higher rate)
   + Section 197 lower-deduction certificate support
   + Cess: auto-zeroed for non-salary resident sections (Finance Act + CBDT Cir 3/2025)
   + TDS rounding: whole rupees per Section 288B
@@ -59,16 +67,16 @@ INSTALLER & UPDATES
   + EULA screen on first launch with acceptance recording
 
 UX
-  + Blazor/MudBlazor UI — sidebar navigation, dark header, responsive layout
-  + Dashboard — KPI cards, filing status, due-date alerts
-  + First-run wizard — company setup to first FVU in 5 steps
+  + Blazor/MudBlazor UI â€” sidebar navigation, dark header, responsive layout
+  + Dashboard â€” KPI cards, filing status, due-date alerts
+  + First-run wizard â€” company setup to first FVU in 5 steps
   + PAN autocomplete with entity-type detection
   + FVU error display with error code and description
   + Empty-state pages with contextual CTAs
-  + Audit log — all user actions recorded with timestamp
-  + Global crash handler — crash log saved to %AppData%\TDSPro\Logs\
+  + Audit log â€” all user actions recorded with timestamp
+  + Global crash handler â€” crash log saved to %AppData%\TDSPro\Logs\
 
 LICENSING
-  + ECDSA P-256 signed license keys — Trial (30 days) and Pro
+  + ECDSA P-256 signed license keys â€” Trial (30 days) and Pro
   + Machine-locked and floating license support
   + Trial limits: 1 deductor, 100 entries, 1 user
