@@ -1036,26 +1036,40 @@ namespace TDSPro.DAL
                 idx6.ExecuteNonQuery();
             } catch { }
 
-            // ── v18: fix TDS rules — deduplicate + correct wrong rates/thresholds ──
-            // Fixes: 194H rate 2%→5%, 194I thresh 6L→2.4L, 194IB rate 2%→5%,
-            //        194J thresh 50K→30K, duplicate entries for 194K/LA/M/O/Q/R/S/195/206AB,
-            //        193 Company thresh 5K→10K, 194 duplicate (keep 5K Individual only)
+            // ── v18: fix TDS rules — deduplicate + apply Finance Act 2025 changes ──
+            // Finance Act 2025 (Budget 2025-26) effective 1-Apr-2025:
+            //   194   threshold: Rs.5,000 → Rs.10,000 (raised)
+            //   194H  rate: 5% → 2% (reduced)
+            //   194I  threshold: Rs.2,40,000 → Rs.6,00,000/year (raised to Rs.50,000/month)
+            //   194IB rate: 5% → 2% (Finance Act 2023 had reduced this; seed had wrong 5%)
+            //   194J  threshold: Rs.30,000 → Rs.50,000 (raised)
+            //   193   Company threshold: Rs.5,000 → Rs.10,000 (unified per FA 2023)
+            //   194Q  REMOVED w.e.f. 1-Apr-2025
+            //   206AB REMOVED w.e.f. 1-Apr-2025 (mark inactive)
             try
             {
                 using var c18 = GetConnection();
-                // 1. Fix wrong rates and thresholds
                 var fixes = new[]
                 {
-                    // 194H: rate should be 5% (Finance Act 2024 kept 5%; was wrongly seeded as 2%)
-                    "UPDATE tds_rules SET tds_rate=5, notes='Threshold Rs.15,000 p.a.; Finance Act 2024' WHERE section_code='194H' AND tds_rate=2",
-                    // 194I: threshold should be Rs.2,40,000/year (Rs.20,000/month), not Rs.6,00,000
-                    "UPDATE tds_rules SET threshold_limit=240000, notes='Annual Rs.2.4L (Rs.20K/month); FA 2024' WHERE section_code='194I' AND threshold_limit=600000",
-                    // 194IB: rate should be 5% (was never reduced to 2%; seed note was wrong)
-                    "UPDATE tds_rules SET tds_rate=5, notes='Rs.50,000/month threshold; rate 5%' WHERE section_code='194IB' AND tds_rate=2",
-                    // 194J: threshold should be Rs.30,000 (IT Act 2025 s.394J)
-                    "UPDATE tds_rules SET threshold_limit=30000 WHERE section_code='194J' AND threshold_limit=50000",
-                    // 193: fix Company threshold to 10,000 (same as Individual per IT Act 2025)
-                    "UPDATE tds_rules SET threshold_limit=10000 WHERE section_code='193' AND deductee_type='Company' AND threshold_limit=5000",
+                    // 194: FA 2025 raised threshold to Rs.10,000 — update 'Individual' row and remove old 'All' duplicate
+                    "UPDATE tds_rules SET threshold_limit=10000, deductee_type='All', notes='FA 2025: threshold raised Rs.5,000->Rs.10,000 w.e.f. 1-Apr-2025' WHERE section_code='194' AND deductee_type='Individual' AND threshold_limit=5000",
+                    "DELETE FROM tds_rules WHERE section_code='194' AND deductee_type='All' AND threshold_limit=10000 AND id NOT IN (SELECT MIN(id) FROM tds_rules WHERE section_code='194')",
+                    // 194H: FA 2025 reduced rate 5%→2%
+                    "UPDATE tds_rules SET tds_rate=2, notes='FA 2025: rate reduced 5%->2% w.e.f. 1-Apr-2025; excludes insurance commission and securities brokerage' WHERE section_code='194H'",
+                    // 194I: FA 2025 raised threshold to Rs.6,00,000 (Rs.50,000/month)
+                    "UPDATE tds_rules SET threshold_limit=600000, notes='FA 2025: threshold raised to Rs.6L/year (Rs.50K/month) w.e.f. 1-Apr-2025' WHERE section_code='194I'",
+                    // 194IB: FA 2023 reduced rate 5%→2% (this was already in DB correctly; seed was wrong)
+                    "UPDATE tds_rules SET tds_rate=2, notes='FA 2023: rate reduced 5%->2% w.e.f. 1-Oct-2023; Rs.50,000/month threshold' WHERE section_code='194IB'",
+                    // 194J: FA 2025 raised threshold to Rs.50,000
+                    "UPDATE tds_rules SET threshold_limit=50000, notes='FA 2025: threshold raised Rs.30,000->Rs.50,000; directors no threshold; technical services 2%' WHERE section_code='194J'",
+                    // 193: FA 2023 unified threshold to Rs.10,000 for all
+                    "UPDATE tds_rules SET threshold_limit=10000, deductee_type='All', notes='FA 2023: uniform Rs.10,000 threshold for all deductees' WHERE section_code='193' AND deductee_type='Company' AND threshold_limit=5000",
+                    // 193: merge to single 'All' entry — delete old 'Individual' if 'All' now exists
+                    "DELETE FROM tds_rules WHERE section_code='193' AND deductee_type='Individual' AND EXISTS (SELECT 1 FROM tds_rules WHERE section_code='193' AND deductee_type='All')",
+                    // 194Q: REMOVED by FA 2025
+                    "DELETE FROM tds_rules WHERE section_code='194Q'",
+                    // 206AB: REMOVED by FA 2025 — mark inactive
+                    "UPDATE tds_rules SET is_active=0, notes='REMOVED by Finance Act 2025 w.e.f. 1-Apr-2025 — no longer applicable' WHERE section_code='206AB'",
                 };
                 foreach (var sql in fixes)
                 {
@@ -1064,7 +1078,7 @@ namespace TDSPro.DAL
                     cmd18.ExecuteNonQuery();
                 }
 
-                // 2. Remove true duplicates (same section+deductee+threshold+rate, keep lowest id)
+                // Remove true duplicates (same section+deductee+threshold+rate, keep lowest id)
                 using var del18 = c18.CreateCommand();
                 del18.CommandText = @"
                     DELETE FROM tds_rules
@@ -1073,16 +1087,6 @@ namespace TDSPro.DAL
                         GROUP BY section_code, deductee_type, threshold_limit, tds_rate
                     )";
                 del18.ExecuteNonQuery();
-
-                // 3. Remove 194Q (removed w.e.f. 1-Apr-2025 per Finance Act 2025)
-                using var delQ = c18.CreateCommand();
-                delQ.CommandText = "DELETE FROM tds_rules WHERE section_code='194Q'";
-                delQ.ExecuteNonQuery();
-
-                // 4. Remove duplicate 194 entry (keep Individual Rs.5,000 only; Rs.10,000 'All' is wrong)
-                using var del194 = c18.CreateCommand();
-                del194.CommandText = "DELETE FROM tds_rules WHERE section_code='194' AND deductee_type='All'";
-                del194.ExecuteNonQuery();
             } catch { }
 
             // ── v17: fix filing history UNIQUE index to include correction_type ──
@@ -1132,8 +1136,8 @@ namespace TDSPro.DAL
                 ("192A",  "PF Withdrawal",                     "Individual", 1,  50000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.192A",  "PAN mandatory; deductee pays cess in ITR"),
 
                 // ── Interest / Securities ──────────────────────────────────────
-                ("193",   "Interest on Securities",            "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.193",   "Rs.10,000 threshold for all deductees per IT Act 2025"),
-                ("194",   "Dividends",                         "Individual", 1,   5000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194",   "Rs.5,000 per FY"),
+                ("193",   "Interest on Securities",            "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.193",   "FA 2023: unified Rs.10,000 threshold for all deductees"),
+                ("194",   "Dividends",                         "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194",   "FA 2025: threshold raised Rs.5,000->Rs.10,000 w.e.f. 1-Apr-2025"),
                 ("194A",  "Interest other than securities",    "Individual", 1,  40000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194A",  "₹50K for bank/co-op/post; ₹50K senior citizen"),
                 ("194A",  "Interest other than securities",    "Company",    1,  40000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194A",  ""),
 
@@ -1152,16 +1156,16 @@ namespace TDSPro.DAL
                 ("194D",  "Insurance Commission",              "Company",    1,  15000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194D",  ""),
                 ("194DA", "Life Insurance Maturity",           "All",        1, 100000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194DA", "On income portion only"),
                 ("194G",  "Commission on Lottery",             "All",        1,  15000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194G",  ""),
-                ("194H",  "Commission / Brokerage",            "All",        1,  15000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194H",  "Rs.15,000 p.a.; rate 5% (Finance Act 2024)"),
-                ("194I",  "Rent - Plant & Machinery",          "All",        1, 240000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "Rs.2,40,000/year (Rs.20,000/month)"),
-                ("194I",  "Rent - Land/Building/Furniture",    "All",        1, 240000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "Rs.2,40,000/year (Rs.20,000/month)"),
+                ("194H",  "Commission / Brokerage",            "All",        1,  15000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194H",  "FA 2025: rate reduced 5%->2% w.e.f. 1-Apr-2025; excludes insurance commission and securities brokerage"),
+                ("194I",  "Rent - Plant & Machinery",          "All",        1, 600000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: threshold raised to Rs.6L/year (Rs.50,000/month) w.e.f. 1-Apr-2025"),
+                ("194I",  "Rent - Land/Building/Furniture",    "All",        1, 600000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: threshold raised to Rs.6L/year (Rs.50,000/month) w.e.f. 1-Apr-2025"),
                 ("194IA", "Transfer of Immovable Property",   "All",        1,5000000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194IA", "Buyer deducts; agri land exempt"),
-                ("194IB", "Rent by Individual/HUF",            "Individual", 1,  50000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194IB", "Rs.50,000/month; rate 5%; Ind/HUF not liable for audit"),
+                ("194IB", "Rent by Individual/HUF",            "Individual", 1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194IB", "FA 2023: rate reduced 5%->2% w.e.f. 1-Oct-2023; Rs.50,000/month; Ind/HUF not liable for audit"),
                 ("194IC", "Joint Dev Agreement",               "All",        1,      0, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194IC", "No threshold"),
 
                 // ── Professional Fees ─────────────────────────────────────────
-                ("194J",  "Professional Fees",                 "All",        1,  30000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.394J",  "Directors: no threshold; Rs.30,000 others"),
-                ("194J",  "Technical Services / Royalty",      "All",        1,  30000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.394J",  "Technical services/call centre/royalty: 2%"),
+                ("194J",  "Professional Fees",                 "All",        1,  50000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194J",  "FA 2025: threshold raised Rs.30,000->Rs.50,000 w.e.f. 1-Apr-2025; directors no threshold"),
+                ("194J",  "Technical Services / Royalty",      "All",        1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194J",  "FA 2025: threshold Rs.50,000; technical services/call centre/royalty: 2%"),
 
                 // ── Mutual Fund / Securities ──────────────────────────────────
                 ("194K",  "Income from MF Units",              "All",        1,   5000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194K",  "Dividend; cap gains exempt from TDS"),
