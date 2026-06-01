@@ -114,9 +114,10 @@ namespace CDeTDS.App
                 var state = Services.GetRequiredService<AppStateService>();
                 state.AppDataPath = appDataPath;
 
-                // Fast DB init — CreateTables + seeds only (no migrations)
-                TryLog("DB fast init...");
+                // DB init: CreateTables + seeds + migrations (synchronous — must finish before any page loads)
+                TryLog("DB init...");
                 Database.Initialize(appDataPath);
+                Database.RunMigrationsAndBackup(appDataPath);
                 TryLog("DB OK");
 
                 state.CurrentFY = FolderManager.DetectFY(DateTime.Today);
@@ -146,10 +147,7 @@ namespace CDeTDS.App
                 // Everything below runs after the window is visible ─────────────
                 Task.Run(() =>
                 {
-                    // 1. Schema migrations + daily backup (skipped if schema is current)
-                    try { Database.RunMigrationsAndBackup(appDataPath); } catch (Exception ex) { TryLog("Migrations: " + ex.Message); }
-
-                    // 2. WebView2 check — only reads registry once per process
+                    // 1. WebView2 check — only reads registry once per process
                     if (_webView2Installed == null)
                         _webView2Installed = IsWebView2Installed();
                     if (_webView2Installed == false)

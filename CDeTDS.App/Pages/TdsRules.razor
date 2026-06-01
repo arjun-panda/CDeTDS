@@ -188,6 +188,7 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
             Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
         </MudAlert>
+        <div style="height:calc(100vh - 310px);overflow-y:auto">
         <MudSimpleTable Dense="true" Striped="true" Hover="true">
             <thead>
                 <tr>
@@ -229,6 +230,7 @@
                 <tr><td><b>206CCA</b></td><td>Higher rate TCS — ITR non-filer (collectee)</td><td>TCS &gt; ₹50,000 in each of 2 preceding years</td><td>Higher of 5% or twice the normal TCS rate</td><td>Mirror provision of 206AB for Tax Collected at Source</td></tr>
             </tbody>
         </MudSimpleTable>
+        </div>
     </MudTabPanel>
 
     @* ── Tab 4: Finance Act / Rules Status ── *@
