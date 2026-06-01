@@ -6,7 +6,8 @@
 @inject AppStateService AppState
 @using CDeTDS.BLL
 
-<div class="d-flex align-center gap-3 mb-4">
+<div style="display:flex;flex-direction:column;height:100%">
+<div class="d-flex align-center gap-3 mb-4" style="flex-shrink:0">
     <MudText Typo="Typo.h5">TDS Rules</MudText>
     <MudSpacer />
     <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -14,7 +15,7 @@
     </MudText>
 </div>
 
-<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" Style="flex:1;min-height:0;display:flex;flex-direction:column">
 
     @* ── Tab 1: Live Calculator ── *@
     <MudTabPanel Text="Live Calculator" Icon="@Icons.Material.Filled.Calculate">
@@ -133,9 +134,9 @@
             </MudButton>
         </div>
 
-        <div style="height:calc(100vh - 310px);overflow:hidden">
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="calc(100vh - 310px)">
+                     FixedHeader="true" Height="100%">
             <Columns>
                 <PropertyColumn Property="x => x.SectionCode"     Title="Section" />
                 <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
@@ -188,7 +189,7 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
             Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
         </MudAlert>
-        <div style="height:calc(100vh - 310px);overflow-y:auto">
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
         <MudSimpleTable Dense="true" Striped="true" Hover="true">
             <thead>
                 <tr>
@@ -322,6 +323,7 @@
     </MudTabPanel>
 
 </MudTabs>
+</div>
 
 @* ── Add/Edit Rule Dialog ── *@
 <MudDialog @bind-Visible="_ruleDialogOpen" Options='new DialogOptions { MaxWidth=MaxWidth.Medium, FullWidth=true, CloseOnEscapeKey=true }'>
