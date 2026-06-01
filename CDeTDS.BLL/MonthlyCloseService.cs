@@ -239,64 +239,6 @@ namespace CDeTDS.BLL
         }
 
         /// <summary>
-        /// Approve + Lock: persists, locks (blocks edits), auto-creates Sec 192 TDS Entry.
-        /// Not used by UI since Lock/Unlock was removed — use SaveAndSync instead.
-        /// </summary>
-        [Obsolete("Lock/Unlock removed from UI. Use SaveAndSync instead.")]
-        public (bool ok, string msg) Approve(MonthlyCloseRow row, int deductorId, string approvedBy = "user")
-        {
-            if (row.Status == "Skip")
-            {
-                row.Status   = "Skip";
-                var skipEntry = row.ToEntry(deductorId);
-                skipEntry.Status = "Skip"; skipEntry.IsLocked = true;
-                skipEntry.ApprovedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                skipEntry.ApprovedBy = approvedBy;
-                var existingSkip = _salRepo.Get(row.EmployeeId, row.FinancialYear, row.Month);
-                if (existingSkip != null) skipEntry.LineItems = existingSkip.LineItems;
-                _salRepo.Save(skipEntry);
-                return (true, "Skipped.");
-            }
-
-            var entry = row.ToEntry(deductorId);
-            entry.Status     = "Locked";
-            entry.IsLocked   = true;
-            entry.ApprovedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            entry.ApprovedBy = approvedBy;
-            if (entry.LineItems.Count == 0)
-            {
-                var existing = _salRepo.Get(row.EmployeeId, row.FinancialYear, row.Month);
-                if (existing != null) entry.LineItems = existing.LineItems;
-            }
-            _salRepo.Save(entry);
-            row.EntryId = entry.Id;
-
-            // Auto-create Sec 192 TDS entry — always, even for nil-TDS employees.
-            // 24Q returns require every salary payment to appear as a deductee row
-            // regardless of whether TDS was deducted.
-            {
-                var emp = _empRepo.GetAllEmployees(deductorId).FirstOrDefault(e => e.Id == row.EmployeeId);
-                if (emp != null)
-                {
-                    var r = _salSvc.UpsertSec192Entry(entry, emp, deductorId);
-                    if (!r.ok)
-                    {
-                        // Undo the lock — restore to Draft so the user can retry
-                        entry.Status   = "Draft";
-                        entry.IsLocked = false;
-                        entry.ApprovedAt = ""; entry.ApprovedBy = "";
-                        _salRepo.Save(entry);
-                        return (false, $"Approve failed — Sec 192 entry could not be created: {r.msg}. Row has been unlocked.");
-                    }
-                }
-            }
-            // Post deduction schedule installments — decrements balance for loan/advance recovery
-            _dedSvc.PostInstallments(row.EmployeeId, deductorId, row.FinancialYear, row.Month);
-
-            return (true, "Locked & Sec 192 entry created.");
-        }
-
-        /// <summary>
         /// Save entry as Draft and auto-create/update Sec 192 TDS entry (no lock).
         /// Used by the Salary Data tab "Save" button.
         /// </summary>
@@ -329,27 +271,6 @@ namespace CDeTDS.BLL
             return r;
         }
 
-        /// <summary>
-        /// Unlock a locked row + remove the auto-created Sec 192 TDS entry.
-        /// Not used by UI since Lock/Unlock was removed from the Payroll page.
-        /// </summary>
-        [Obsolete("Lock/Unlock removed from UI. No replacement needed.")]
-        public (bool ok, string msg) Unlock(int employeeId, string fy, int month, int deductorId = 0)
-        {
-            var entry = _salRepo.Get(employeeId, fy, month);
-            if (entry == null) return (false, "Entry not found.");
-            // Try to remove the linked Sec 192 entry first — if it's challan-linked, refuse the unlock
-            if (deductorId > 0)
-            {
-                var r = _salSvc.RemoveSec192Entry(employeeId, fy, month, deductorId);
-                if (!r.ok) return (false, $"Cannot unlock: {r.msg}");
-            }
-            entry.IsLocked = false;
-            entry.Status   = "Draft";
-            entry.ApprovedAt = ""; entry.ApprovedBy = "";
-            _salRepo.Save(entry);
-            return (true, "Unlocked. Sec 192 entry removed.");
-        }
     }
 
     /// <summary>One row in the Monthly Close grid — flat editable view of MonthlySalaryEntry.</summary>

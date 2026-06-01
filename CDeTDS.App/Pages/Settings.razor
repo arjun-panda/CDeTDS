@@ -737,7 +737,6 @@
 
     // Backup
     private string             _dbPath        = "";
-    private List<string>       _backupFiles   = new();   // legacy — still referenced by LoadBackupFiles caller code
     private List<BackupInfo>   _backupInfos   = new();
     private string             _restorePath   = "";
     private bool               _restoreConfirmOpen;
@@ -780,8 +779,6 @@
     {
         // Use new BackupInfo-rich list (sorted newest-first by FolderManager)
         _backupInfos = FolderManager.ListBackups();
-        // Keep legacy _backupFiles populated for any older code paths that reference it
-        _backupFiles = _backupInfos.Select(b => b.Path).ToList();
     }
 
     // ── IT Portal ──
