@@ -152,14 +152,20 @@ namespace CDeTDS.DAL
             string prn     = h.IsCorrection ? (h.PreviousPrn ?? "").Trim() : "";
             string origPrn = h.IsCorrection ? (string.IsNullOrEmpty(h.OriginalPrn) ? prn : h.OriginalPrn.Trim()) : "";
             string corrType = h.IsCorrection ? (h.CorrectionType ?? "C1").Trim().ToUpper() : "";
-            // BH batch TDS: must equal sum of CD[27] (TotalDepositPerChallan) across all challans.
-            // CD[27] uses Max(challan.TdsDeposited, sum-of-DD-TDS) so BH must do the same.
+            // BH[47] must equal sum of CD[27] (TotalDepositPerChallan) exactly — T-FV-3070.
+            // Mirror the CD calculation: Max(challan, DD) for TDS/surcharge/cess; raw for interest/latefee.
+            bool isSal = nsdlForm == "24Q" || nsdlForm == "138";
             double challanTotal = data.Challans.Sum(c => {
-                double ddTdsForChallan = data.Deductees
+                var ddsForChallan = data.Deductees
                     .Where(d => d.ChallanNo == c.ChallanNo && d.BsrCode == c.BsrCode)
-                    .Sum(d => Math.Round(d.TdsDeducted, MidpointRounding.AwayFromZero));
-                double oltasTds = Math.Max(c.TdsDeposited, ddTdsForChallan);
-                return oltasTds + Math.Max(c.Surcharge, 0) + Math.Max(c.Cess, 0) + Math.Max(c.Interest, 0) + Math.Max(c.LateFee, 0);
+                    .ToList();
+                double ddTdsC  = ddsForChallan.Sum(d => Math.Round(d.TdsDeducted,  MidpointRounding.AwayFromZero));
+                double ddScC   = ddsForChallan.Sum(d => Math.Round(d.Surcharge,    MidpointRounding.AwayFromZero));
+                double ddCessC = isSal ? ddsForChallan.Sum(d => Math.Round(d.Cess, MidpointRounding.AwayFromZero)) : 0;
+                double oltasTdsC  = Math.Max(c.TdsDeposited, ddTdsC);
+                double oltasScC   = Math.Max(c.Surcharge,    ddScC);
+                double oltasCessC = Math.Max(isSal ? c.Cess : 0, ddCessC);
+                return oltasTdsC + oltasScC + oltasCessC + c.Interest + c.LateFee;
             });
             double batchTds = challanTotal;
             string batchTdsStr = batchTds.ToString("F2"); // rupees with .00, e.g. "500000.00"
