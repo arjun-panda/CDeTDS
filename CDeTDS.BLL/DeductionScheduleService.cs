@@ -42,7 +42,7 @@ namespace CDeTDS.BLL
                 if (!s.IsDue(fy, month)) continue;
                 double amount = s.ThisInstallment;
                 if (amount <= 0) continue;
-                _repo.UpdateRecovered(s.Id, amount);
+                _repo.UpdateRecovered(s.Id, amount, fy, month);
                 posted.Add((s, amount));
             }
             return posted;

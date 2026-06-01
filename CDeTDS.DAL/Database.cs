@@ -110,8 +110,10 @@ namespace CDeTDS.DAL
                 Add("deduction_schedules", "start_fy",           "TEXT NOT NULL DEFAULT ''");
                 Add("deduction_schedules", "start_month",        "INTEGER NOT NULL DEFAULT 4");
                 Add("deduction_schedules", "is_active",          "INTEGER NOT NULL DEFAULT 1");
-                Add("deduction_schedules", "created_at",         "TEXT NOT NULL DEFAULT ''");
-                Add("deduction_schedules", "notes",              "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "created_at",          "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "notes",               "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "last_posted_fy",      "TEXT NOT NULL DEFAULT ''");
+                Add("deduction_schedules", "last_posted_month",   "INTEGER NOT NULL DEFAULT 0");
             }
             catch { }
         }
@@ -682,6 +684,8 @@ namespace CDeTDS.DAL
                         is_active           INTEGER NOT NULL DEFAULT 1,
                         created_at          TEXT NOT NULL DEFAULT '',
                         notes               TEXT NOT NULL DEFAULT '',
+                        last_posted_fy      TEXT NOT NULL DEFAULT '',
+                        last_posted_month   INTEGER NOT NULL DEFAULT 0,
                         FOREIGN KEY(employee_id) REFERENCES employees(id)
                     )";
                 cmdDs.ExecuteNonQuery();

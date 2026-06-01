@@ -4,18 +4,19 @@ namespace CDeTDS.DAL
 {
     public class DeductionScheduleRepository
     {
+        private const string SelectCols = @"id,employee_id,deductor_id,type,description,
+                                       total_amount,installment_amt,total_installments,
+                                       recovered_amt,start_fy,start_month,is_active,
+                                       created_at,notes,
+                                       COALESCE(last_posted_fy,'') AS last_posted_fy,
+                                       COALESCE(last_posted_month,0) AS last_posted_month";
+
         public List<DeductionSchedule> GetActive(int employeeId)
         {
             var list = new List<DeductionSchedule>();
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = @"SELECT id,employee_id,deductor_id,type,description,
-                                       total_amount,installment_amt,total_installments,
-                                       recovered_amt,start_fy,start_month,is_active,
-                                       created_at,notes
-                                FROM deduction_schedules
-                                WHERE employee_id=@eid AND is_active=1
-                                ORDER BY id";
+            cmd.CommandText = $"SELECT {SelectCols} FROM deduction_schedules WHERE employee_id=@eid AND is_active=1 ORDER BY id";
             cmd.Parameters.AddWithValue("@eid", employeeId);
             using var r = cmd.ExecuteReader();
             while (r.Read()) list.Add(Read(r));
@@ -27,13 +28,7 @@ namespace CDeTDS.DAL
             var list = new List<DeductionSchedule>();
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = @"SELECT id,employee_id,deductor_id,type,description,
-                                       total_amount,installment_amt,total_installments,
-                                       recovered_amt,start_fy,start_month,is_active,
-                                       created_at,notes
-                                FROM deduction_schedules
-                                WHERE deductor_id=@did
-                                ORDER BY is_active DESC, id DESC";
+            cmd.CommandText = $"SELECT {SelectCols} FROM deduction_schedules WHERE deductor_id=@did ORDER BY is_active DESC, id DESC";
             cmd.Parameters.AddWithValue("@did", deductorId);
             using var r = cmd.ExecuteReader();
             while (r.Read()) list.Add(Read(r));
@@ -85,18 +80,21 @@ namespace CDeTDS.DAL
             }
         }
 
-        // Add recovered amount; auto-close when fully recovered
-        public void UpdateRecovered(int id, double amount)
+        // Add recovered amount; auto-close when fully recovered; stamp last-posted month
+        public void UpdateRecovered(int id, double amount, string fy = "", int month = 0)
         {
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
-            // Use a subquery so is_active sees the already-updated recovered_amt value
             cmd.CommandText = @"UPDATE deduction_schedules
-                SET recovered_amt = MIN(total_amount, recovered_amt + @amt),
-                    is_active = CASE WHEN MIN(total_amount, recovered_amt + @amt) >= total_amount THEN 0 ELSE is_active END
+                SET recovered_amt     = MIN(total_amount, recovered_amt + @amt),
+                    is_active         = CASE WHEN MIN(total_amount, recovered_amt + @amt) >= total_amount THEN 0 ELSE is_active END,
+                    last_posted_fy    = @fy,
+                    last_posted_month = @month
                 WHERE id=@id";
-            cmd.Parameters.AddWithValue("@amt", amount);
-            cmd.Parameters.AddWithValue("@id",  id);
+            cmd.Parameters.AddWithValue("@amt",   amount);
+            cmd.Parameters.AddWithValue("@fy",    fy);
+            cmd.Parameters.AddWithValue("@month", month);
+            cmd.Parameters.AddWithValue("@id",    id);
             cmd.ExecuteNonQuery();
         }
 
@@ -125,6 +123,8 @@ namespace CDeTDS.DAL
             IsActive          = r.GetInt32(11) == 1,
             CreatedAt         = r.GetString(12),
             Notes             = r.GetString(13),
+            LastPostedFy      = r.GetString(14),
+            LastPostedMonth   = r.GetInt32(15),
         };
     }
 }
