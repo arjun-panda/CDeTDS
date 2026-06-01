@@ -140,7 +140,9 @@
                 <TemplateColumn Title="Section"  SortBy="x => x.SectionCode"    HeaderStyle="width:70px"  CellStyle="width:70px">
                     <CellTemplate>@context.Item.SectionCode</CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
+                <TemplateColumn Title="Nature of Payment" SortBy="x => x.NatureOfPayment" HeaderStyle="width:180px" CellStyle="width:180px;white-space:normal;line-height:1.3">
+                    <CellTemplate>@context.Item.NatureOfPayment</CellTemplate>
+                </TemplateColumn>
                 <TemplateColumn Title="Type"     SortBy="x => x.DeducteeType"   HeaderStyle="width:85px"  CellStyle="width:85px">
                     <CellTemplate>@context.Item.DeducteeType</CellTemplate>
                 </TemplateColumn>
