@@ -298,18 +298,40 @@ namespace CDeTDS.App
         {
             try
             {
+                // 1. Registry (installed app) — highest priority
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\CDeTDS");
-                if (key == null) return;
+                if (key != null)
+                {
+                    var regFvu  = key.GetValue("FvuPath")  as string ?? "";
+                    var regJava = key.GetValue("JavaPath") as string ?? "";
+                    if (!string.IsNullOrEmpty(regFvu)  && File.Exists(regFvu))
+                        CDeTDS.DAL.Database.SetSetting("FvuPath",  regFvu);
+                    if (!string.IsNullOrEmpty(regJava) && File.Exists(regJava))
+                        CDeTDS.DAL.Database.SetSetting("JavaPath", regJava);
+                }
+            }
+            catch { }
 
-                var regFvu  = key.GetValue("FvuPath")  as string ?? "";
-                var regJava = key.GetValue("JavaPath") as string ?? "";
-
-                // Always prefer the registry path from the current installer over a migrated/stale DB value
-                if (!string.IsNullOrEmpty(regFvu) && File.Exists(regFvu))
-                    Database.SetSetting("FvuPath", regFvu);
-
-                if (!string.IsNullOrEmpty(regJava) && File.Exists(regJava))
-                    Database.SetSetting("JavaPath", regJava);
+            try
+            {
+                // 2. Auto-upgrade: if stored FvuPath points to an old JAR, replace it with 9.4
+                var currentFvu = CDeTDS.DAL.Database.GetSetting("FvuPath", "");
+                if (!string.IsNullOrEmpty(currentFvu) && !currentFvu.Contains("9.4"))
+                {
+                    // Search for 9.4 JAR next to the old one, in Program Files, or beside the exe
+                    var exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                    var candidates = new[]
+                    {
+                        Path.Combine(Path.GetDirectoryName(currentFvu) ?? "", "TDS_STANDALONE_FVU_9.4.jar"),
+                        Path.Combine(exeDir, "FVU", "TDS_STANDALONE_FVU_9.4.jar"),
+                        Path.Combine(exeDir, "TDS_STANDALONE_FVU_9.4", "TDS_STANDALONE_FVU_9.4.jar"),
+                        @"C:\Program Files\CDeTDS\FVU\TDS_STANDALONE_FVU_9.4.jar",
+                        @"C:\Program Files (x86)\CDeTDS\FVU\TDS_STANDALONE_FVU_9.4.jar",
+                    };
+                    var found = candidates.FirstOrDefault(File.Exists);
+                    if (found != null)
+                        CDeTDS.DAL.Database.SetSetting("FvuPath", found);
+                }
             }
             catch { }
         }
