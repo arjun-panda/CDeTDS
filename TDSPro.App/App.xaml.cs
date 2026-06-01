@@ -3,13 +3,13 @@ using Microsoft.Win32;
 using MudBlazor.Services;
 using System.IO;
 using System.Windows;
-using TDSPro.App.Services;
-using TDSPro.BLL;
-using TDSPro.DAL;
+using CDeTDS.App.Services;
+using CDeTDS.BLL;
+using CDeTDS.DAL;
 using Velopack;
 using Velopack.Sources;
 
-namespace TDSPro.App
+namespace CDeTDS.App
 {
     public partial class App : Application
     {
@@ -104,10 +104,12 @@ namespace TDSPro.App
             {
                 var appDataPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "TDSPro");
+                    "CDeTDS");
+                // One-time migration: move data from old TDSPro AppData folder
+                MigrateAppDataIfNeeded(appDataPath);
                 Directory.CreateDirectory(appDataPath);
                 _logPath = Path.Combine(appDataPath, "blazor_startup.log");
-                TryLog("=== TDSPro.App STARTUP ===");
+                TryLog("=== CDeTDS.App STARTUP ===");
 
                 var state = Services.GetRequiredService<AppStateService>();
                 state.AppDataPath = appDataPath;
@@ -125,7 +127,7 @@ namespace TDSPro.App
                     var lastId = int.Parse(Database.GetSetting("LAST_DEDUCTOR_ID", "0"));
                     if (lastId > 0)
                     {
-                        var ded = new TDSPro.BLL.DeductorService().GetById(lastId);
+                        var ded = new CDeTDS.BLL.DeductorService().GetById(lastId);
                         if (ded != null) state.SetDeductor(ded.Id, ded.CompanyName, ded.Tan);
                     }
                 }
@@ -229,19 +231,19 @@ namespace TDSPro.App
             {
                 var appDataPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "TDSPro");
-                var dbPath     = Path.Combine(appDataPath, TDSPro.Common.AppConstants.DbFileName);
+                    "CDeTDS");
+                var dbPath     = Path.Combine(appDataPath, CDeTDS.Common.AppConstants.DbFileName);
                 var backupDir  = Path.Combine(appDataPath, "Backup");
 
                 if (File.Exists(dbPath))
                 {
                     Directory.CreateDirectory(backupDir);
                     // Daily backup — one file per day, overwritten on subsequent closes the same day
-                    var dest = Path.Combine(backupDir, $"TDSPro_backup_{DateTime.Now:yyyyMMdd}.db");
+                    var dest = Path.Combine(backupDir, $"CDeTDS_backup_{DateTime.Now:yyyyMMdd}.db");
                     File.Copy(dbPath, dest, overwrite: true);
 
                     // Keep only the 30 most recent daily backups (~1 month rolling window)
-                    var old = Directory.GetFiles(backupDir, "TDSPro_backup_*.db")
+                    var old = Directory.GetFiles(backupDir, "CDeTDS_backup_*.db")
                                        .OrderByDescending(f => f)
                                        .Skip(30);
                     foreach (var f in old)
@@ -251,6 +253,47 @@ namespace TDSPro.App
             catch { }
 
             base.OnExit(e);
+        }
+
+        private static void MigrateAppDataIfNeeded(string newPath)
+        {
+            // Copies %AppData%\TDSPro → %AppData%\CDeTDS and
+            //        Documents\TDSPro  → Documents\CDeTDS on first run after rename.
+            // Safe: exits immediately if destination already exists.
+            try
+            {
+                if (!Directory.Exists(newPath))
+                {
+                    var oldAppData = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TDSPro");
+                    if (Directory.Exists(oldAppData))
+                        CopyDirectory(oldAppData, newPath);
+                }
+            }
+            catch { }
+
+            try
+            {
+                var newDocs = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CDeTDS");
+                if (!Directory.Exists(newDocs))
+                {
+                    var oldDocs = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TDSPro");
+                    if (Directory.Exists(oldDocs))
+                        CopyDirectory(oldDocs, newDocs);
+                }
+            }
+            catch { }
+        }
+
+        private static void CopyDirectory(string src, string dest)
+        {
+            Directory.CreateDirectory(dest);
+            foreach (var file in Directory.GetFiles(src))
+                File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), overwrite: true);
+            foreach (var dir in Directory.GetDirectories(src))
+                CopyDirectory(dir, Path.Combine(dest, Path.GetFileName(dir)));
         }
 
         private static void SeedInstallerPaths()
@@ -264,7 +307,7 @@ namespace TDSPro.App
                     && File.Exists(existingFvu) && File.Exists(existingJava))
                     return;
 
-                using var key = Registry.CurrentUser.OpenSubKey(@"Software\TDSPro");
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\CDeTDS");
                 if (key == null) return;
 
                 var fvuPath  = key.GetValue("FvuPath")  as string ?? "";
@@ -313,7 +356,7 @@ namespace TDSPro.App
         private static string CrashLogPath()
             => Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "TDSPro", "Logs", $"crash_{DateTime.Now:yyyyMMdd}.log");
+                "CDeTDS", "Logs", $"crash_{DateTime.Now:yyyyMMdd}.log");
 
         private static void TryCrashLog(string msg)
         {
@@ -322,7 +365,7 @@ namespace TDSPro.App
                 var path = CrashLogPath();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.AppendAllText(path,
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CDeTDS v{TDSPro.Common.AppConstants.AppVersion}\n{msg}\n\n");
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CDeTDS v{CDeTDS.Common.AppConstants.AppVersion}\n{msg}\n\n");
             }
             catch { }
         }
@@ -335,7 +378,7 @@ namespace TDSPro.App
                 {
                     _logPath = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        "TDSPro", "Logs", "startup.log");
+                        "CDeTDS", "Logs", "startup.log");
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
                 File.AppendAllText(_logPath, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n");

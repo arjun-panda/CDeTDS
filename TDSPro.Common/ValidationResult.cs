@@ -1,4 +1,4 @@
-namespace TDSPro.Common
+namespace CDeTDS.Common
 {
     /// <summary>
     /// Outcome of a validation pass. Aggregates all errors for one entity so the UI

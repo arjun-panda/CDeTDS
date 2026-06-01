@@ -1,7 +1,7 @@
 ﻿@page "/returns"
 @using System.IO
-@using TDSPro.Common
-@using TDSPro.BLL
+@using CDeTDS.Common
+@using CDeTDS.BLL
 @implements IDisposable
 @inject AppStateService AppState
 @inject ReturnService Svc
@@ -192,7 +192,7 @@
                 <div class="d-flex gap-2 mt-2 flex-wrap align-center">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.Folder"
-                               OnClick="() => FolderManager.OpenFolder(TDSPro.DAL.FolderManager.CsiFolder)">
+                               OnClick="() => FolderManager.OpenFolder(CDeTDS.DAL.FolderManager.CsiFolder)">
                         Open CSI Folder
                     </MudButton>
                     @if (!string.IsNullOrEmpty(_lastTxtPath))
@@ -234,7 +234,7 @@
                             var desc = e.Description ?? "";
                             var bracketIdx = desc.LastIndexOf('[');
                             var friendly = bracketIdx > 0 ? desc[..bracketIdx].Trim() : desc;
-                            var hint = TDSPro.DAL.FvuUtilityRunner.GetFvuFixHint(e.Code);
+                            var hint = CDeTDS.DAL.FvuUtilityRunner.GetFvuFixHint(e.Code);
                             <tr>
                                 <td style="font-weight:600;color:#c62828;white-space:nowrap;vertical-align:top">@e.Code</td>
                                 <td style="color:#1e3a8a;font-weight:600;vertical-align:top">@friendly</td>
@@ -572,7 +572,7 @@
         _    => ""
     };
     private string _prevQuarterToken = "";
-    private List<TDSPro.DAL.FilingHistoryRecord> _filingHistory = new();
+    private List<CDeTDS.DAL.FilingHistoryRecord> _filingHistory = new();
     private bool   _generating;
     private Step   _step = Step.Idle;
 
@@ -580,7 +580,7 @@
     private string   _lastTxtPath     = "";
     private string   _lastFvuPath     = "";
     private Severity _resultSeverity  = Severity.Info;
-    private List<TDSPro.DAL.FvuError> _fvuErrors = new();
+    private List<CDeTDS.DAL.FvuError> _fvuErrors = new();
     private List<string> _logLines = new();
 
     private bool _uploadLoggingIn = false;
@@ -635,7 +635,7 @@
         new("Add TDS Entries",      "Record all TDS deductions against deductees with correct sections."),
         new("Generate .txt File",   "Generate the return text file using this wizard."),
         new("Validate with FVU",    "Run NSDL FVU — validates PAN, challan totals, section codes."),
-        new("Download CSI File",    $"From OLTAS → e-Pay Tax → Payment History. Save .csi file to: {TDSPro.DAL.FolderManager.CsiFolder}"),
+        new("Download CSI File",    $"From OLTAS → e-Pay Tax → Payment History. Save .csi file to: {CDeTDS.DAL.FolderManager.CsiFolder}"),
         new("Upload to IT Portal",  "Login incometax.gov.in with TAN, upload validated .fvu file."),
         new("Download TDS Cert",    "Login TRACES → download Form 16 Part A (salary) or Form 16A (non-salary) → issue to deductees."),
     };
@@ -661,7 +661,7 @@
             var info = await UpdateSvc.CheckAsync(forceCheck: true);
             if (info != null && !string.IsNullOrEmpty(info.FvuLatestVersion))
             {
-                var local = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+                var local = CDeTDS.DAL.FvuUtilityRunner.GetLocalFvuVersion();
                 if (!string.IsNullOrEmpty(local))
                 {
                     if (!Version.TryParse(info.FvuLatestVersion, out var latest)) return;
@@ -683,7 +683,7 @@
         if (AppState.CurrentDeductorId == 0) return;
         try
         {
-            _filingHistory = TDSPro.DAL.Database.GetFilingHistory(
+            _filingHistory = CDeTDS.DAL.Database.GetFilingHistory(
                 AppState.CurrentDeductorId, AppState.CurrentFY, _formType, _quarter);
 
             // Auto-fill PRN fields from history (list is newest-first)
@@ -818,8 +818,8 @@
         var csiPath = Path.Combine(FolderManager.CsiFolder, $"{AppState.CurrentDeductorTan}.csi");
         if (!File.Exists(csiPath) && !string.IsNullOrEmpty(tan2))
         {
-            var csiPwd = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{did2}",
-                         TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", ""));
+            var csiPwd = CDeTDS.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{did2}",
+                         CDeTDS.DAL.AesEncryption.LoadCredential("ItPortalPassword", ""));
             if (!string.IsNullOrEmpty(csiPwd))
             {
                 _step = Step.DownloadingCsi;
@@ -918,7 +918,7 @@
                 Directory.CreateDirectory(outDir);
                 var fileName = $"{_formType}_{data.Header.TanOfDeductor}_{AppState.CurrentFY.Replace("-","")}_{_quarter}_Paper.html";
                 var outPath  = Path.Combine(outDir, fileName);
-                return TDSPro.DAL.PaperReturnGenerator.Generate(data, outPath);
+                return CDeTDS.DAL.PaperReturnGenerator.Generate(data, outPath);
             });
             // Open in default browser for viewing / printing / save-as-PDF
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
@@ -946,7 +946,7 @@
                 nilHeader.ResponsiblePan  = nilPan;
                 var outDir = FolderManager.ReturnFolder(AppState.CurrentFY, nilForm, nilQuarter + "_NIL");
                 Directory.CreateDirectory(outDir);
-                var content  = TDSPro.DAL.FvuGenerator.GenerateNil(nilHeader);
+                var content  = CDeTDS.DAL.FvuGenerator.GenerateNil(nilHeader);
                 var fyShort  = AppState.CurrentFY.Replace("-", "");
                 var fileName = $"{nilForm}_NIL_{nilHeader.TanOfDeductor}_{fyShort}_{nilQuarter}.txt";
                 var fullPath = Path.Combine(outDir, fileName);
@@ -988,12 +988,12 @@
     {
         var did = AppState.CurrentDeductorId;
         // Try scoped key first, fall back to old global key (migration for existing installs)
-        var tan      = TDSPro.DAL.Database.GetSetting($"ItPortalUserId_{did}", "");
+        var tan      = CDeTDS.DAL.Database.GetSetting($"ItPortalUserId_{did}", "");
         if (string.IsNullOrEmpty(tan))
-            tan = TDSPro.DAL.Database.GetSetting("ItPortalUserId", "");
-        var password = TDSPro.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{did}", "");
+            tan = CDeTDS.DAL.Database.GetSetting("ItPortalUserId", "");
+        var password = CDeTDS.DAL.AesEncryption.LoadCredential($"ItPortalPassword_{did}", "");
         if (string.IsNullOrEmpty(password))
-            password = TDSPro.DAL.AesEncryption.LoadCredential("ItPortalPassword", "");
+            password = CDeTDS.DAL.AesEncryption.LoadCredential("ItPortalPassword", "");
 
         if (string.IsNullOrEmpty(tan) || string.IsNullOrEmpty(password))
         {
@@ -1013,8 +1013,8 @@
         if (DateTime.TryParse(to, out var toDate) && toDate > DateTime.Today)
             to = DateTime.Today.ToString("yyyy-MM-dd");
 
-        TDSPro.DAL.FolderManager.EnsureStructure(fy);
-        var outPath = System.IO.Path.Combine(TDSPro.DAL.FolderManager.CsiFolder, $"{tan}.csi");
+        CDeTDS.DAL.FolderManager.EnsureStructure(fy);
+        var outPath = System.IO.Path.Combine(CDeTDS.DAL.FolderManager.CsiFolder, $"{tan}.csi");
 
         _csiDownloading = true;
         _csiStatus = "Opening portal...";
@@ -1035,7 +1035,7 @@
         if (result.Success)
         {
             Snackbar.Add($"CSI downloaded: {System.IO.Path.GetFileName(result.FilePath)}", Severity.Success);
-            try { TDSPro.DAL.FolderManager.OpenFolder(TDSPro.DAL.FolderManager.CsiFolder); } catch { }
+            try { CDeTDS.DAL.FolderManager.OpenFolder(CDeTDS.DAL.FolderManager.CsiFolder); } catch { }
         }
         else
         {
@@ -1064,7 +1064,7 @@
     {
         try
         {
-            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var conn = CDeTDS.DAL.Database.GetConnection();
             using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"SELECT COUNT(1) FROM tds_entries
                 WHERE deductor_id=@did AND financial_year=@fy AND quarter=@q
@@ -1080,7 +1080,7 @@
         catch { }
     }
 
-    TDSPro.DAL.Models.ReturnData BuildReturnData()
+    CDeTDS.DAL.Models.ReturnData BuildReturnData()
     {
         var data = Svc.BuildReturn(AppState.CurrentDeductorId, AppState.CurrentFY, _quarter, _formType);
         data.Header.IsCorrection   = _isCorrection;
@@ -1108,7 +1108,7 @@
     private string _prnEdit       = "";
     private int    _prnEditId     = 0;
 
-    void OpenPrnDialog(TDSPro.DAL.FilingHistoryRecord rec)
+    void OpenPrnDialog(CDeTDS.DAL.FilingHistoryRecord rec)
     {
         _prnEditId    = rec.Id;
         _prnEdit      = rec.Prn;
@@ -1120,7 +1120,7 @@
         if (_prnEditId == 0) return;
         try
         {
-            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var conn = CDeTDS.DAL.Database.GetConnection();
             using var cmd  = conn.CreateCommand();
             cmd.CommandText = "UPDATE tds_filing_history SET prn=@prn WHERE id=@id";
             cmd.Parameters.AddWithValue("@prn", _prnEdit.Trim());

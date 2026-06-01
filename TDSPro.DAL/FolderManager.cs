@@ -1,6 +1,6 @@
-﻿using TDSPro.Common;
+﻿using CDeTDS.Common;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Manages the CDeTDS file/folder structure.
@@ -32,7 +32,7 @@ namespace TDSPro.DAL
             {
                 if (!string.IsNullOrEmpty(_basePath)) return _basePath;
                 _basePath = LoadSetting("BASE_FOLDER",
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TDSPro"));
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CDeTDS"));
                 return _basePath;
             }
         }

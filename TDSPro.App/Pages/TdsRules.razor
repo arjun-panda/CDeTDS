@@ -4,7 +4,7 @@
 @inject IDialogService DialogSvc
 @implements IDisposable
 @inject AppStateService AppState
-@using TDSPro.BLL
+@using CDeTDS.BLL
 
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">TDS Rules</MudText>
@@ -449,7 +449,7 @@
     {
         try
         {
-            _rulesDbVersion = TDSPro.DAL.Database.GetSetting("RULES_VERSION", "Not applied");
+            _rulesDbVersion = CDeTDS.DAL.Database.GetSetting("RULES_VERSION", "Not applied");
             _ruleCount      = _allRules.Count;
         }
         catch { }

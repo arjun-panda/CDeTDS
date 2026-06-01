@@ -1,6 +1,6 @@
-﻿using TDSPro.DAL.Models;
+﻿using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// PDF Export — generates professional PDF reports using plain C#.
@@ -196,7 +196,7 @@ tr:nth-child(even) td{background:#F8FAFC}
 
         internal void Complete()
         {
-            _html.Append($"<div class='footer'>CDeTDS v{TDSPro.Common.AppConstants.AppVersion} &nbsp;|&nbsp; Income-tax Act 2025 &nbsp;|&nbsp; Printed: {_createdAt}</div>");
+            _html.Append($"<div class='footer'>CDeTDS v{CDeTDS.Common.AppConstants.AppVersion} &nbsp;|&nbsp; Income-tax Act 2025 &nbsp;|&nbsp; Printed: {_createdAt}</div>");
             _html.Append("</div></body></html>");
             File.WriteAllText(_path, _html.ToString(), System.Text.Encoding.UTF8);
         }
@@ -208,7 +208,7 @@ tr:nth-child(even) td{background:#F8FAFC}
     }
 }
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     public static class PdfExportExtensions
     {

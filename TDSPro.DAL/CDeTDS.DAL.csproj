@@ -13,6 +13,6 @@
     <PackageReference Include="QuestPDF" Version="2024.7.3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CDeTDS.Common\CDeTDS.Common.csproj" />
+    <ProjectReference Include="..\TDSPro.Common\CDeTDS.Common.csproj" />
   </ItemGroup>
 </Project>

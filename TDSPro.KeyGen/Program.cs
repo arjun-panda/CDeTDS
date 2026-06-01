@@ -5,7 +5,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using TDSPro.DAL;
+using CDeTDS.DAL;
 
 internal static class EntryPoint
 {

@@ -1,4 +1,4 @@
-namespace TDSPro.DAL.Models
+namespace CDeTDS.DAL.Models
 {
     /// <summary>
     /// Dynamic TDS Rules Engine — one row per effective rule.

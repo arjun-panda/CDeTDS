@@ -87,7 +87,7 @@
     {
         try
         {
-            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var conn = CDeTDS.DAL.Database.GetConnection();
             using var cmd  = conn.CreateCommand();
             cmd.CommandText = "SELECT username, action, module, details, created_at FROM audit_log ORDER BY created_at DESC LIMIT 2000";
             using var rd = cmd.ExecuteReader();

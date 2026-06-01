@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
-using TDSPro.Common;
+using CDeTDS.Common;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     public static class Database
     {

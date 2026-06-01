@@ -1,9 +1,9 @@
 using System.Net.Http;
 using System.Text.Json;
-using TDSPro.Common;
-using TDSPro.DAL;
+using CDeTDS.Common;
+using CDeTDS.DAL;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     public class UpdateInfo
     {

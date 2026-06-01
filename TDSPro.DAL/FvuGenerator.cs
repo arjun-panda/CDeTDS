@@ -1,7 +1,7 @@
-﻿using TDSPro.Common;
-using TDSPro.DAL.Models;
+﻿using CDeTDS.Common;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// NSDL/Protean FVU File Generator for Form 24Q and 26Q.

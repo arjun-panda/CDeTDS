@@ -234,14 +234,14 @@
         }
         else
         {
-            _selectedFY = TDSPro.Common.AppConstants.CurrentFinancialYear;
+            _selectedFY = CDeTDS.Common.AppConstants.CurrentFinancialYear;
         }
         _isAdmin    = AppState.CurrentRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
                    || AppState.CurrentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
         _deletedCount = _isAdmin ? DeductorSvc.GetDeleted().Count : 0;
 
         // Restore last-used deductor; FY stays on current unless user explicitly changes it
-        var lastDeductorId = TDSPro.DAL.Database.GetSetting("LAST_DEDUCTOR_ID", "0");
+        var lastDeductorId = CDeTDS.DAL.Database.GetSetting("LAST_DEDUCTOR_ID", "0");
 
         if (int.TryParse(lastDeductorId, out int lastId) && lastId > 0
             && _deductors.Any(d => d.Id == lastId))
@@ -250,7 +250,7 @@
             _selectedDeductorId = _deductors[0].Id;
 
         if (string.IsNullOrEmpty(_selectedFY))
-            _selectedFY = TDSPro.DAL.FolderManager.DetectFY(DateTime.Today);
+            _selectedFY = CDeTDS.DAL.FolderManager.DetectFY(DateTime.Today);
     }
 
     void Confirm()
@@ -264,14 +264,14 @@
         {
             var d = _deductors.First(x => x.Id == _selectedDeductorId);
             AppState.SetDeductor(d.Id, d.CompanyName, d.Tan);
-            TDSPro.DAL.Database.SetSetting("LAST_DEDUCTOR_ID", _selectedDeductorId.ToString());
+            CDeTDS.DAL.Database.SetSetting("LAST_DEDUCTOR_ID", _selectedDeductorId.ToString());
         }
         // First time at login: lock the editable session FY. Mid-session re-open: only refresh view.
         if (string.IsNullOrEmpty(AppState.SessionFY))
             AppState.SetSessionFY(_selectedFY);
         else
             AppState.SetFY(_selectedFY);
-        TDSPro.DAL.Database.SetSetting("LAST_FY", _selectedFY);
+        CDeTDS.DAL.Database.SetSetting("LAST_FY", _selectedFY);
         MudDialog.Close(DialogResult.Ok(true));
     }
 

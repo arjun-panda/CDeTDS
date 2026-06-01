@@ -1,8 +1,8 @@
 ﻿using ClosedXML.Excel;
-using TDSPro.Common;
-using TDSPro.DAL.Models;
+using CDeTDS.Common;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Excel Import / Export using ClosedXML.
@@ -1331,7 +1331,7 @@ namespace TDSPro.DAL
         // ══════════════════════════════════════════════════════════════════════
         // EXPORT — Employee Master to Excel
         // ══════════════════════════════════════════════════════════════════════
-        public static void ExportEmployees(List<TDSPro.DAL.Models.Employee> employees, string path)
+        public static void ExportEmployees(List<CDeTDS.DAL.Models.Employee> employees, string path)
         {
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Employees");
@@ -1530,7 +1530,7 @@ namespace TDSPro.DAL
         // ══════════════════════════════════════════════════════════════════════
         // EXPORT — Quarter Summary Report
         // ══════════════════════════════════════════════════════════════════════
-        public static void ExportQuarterSummary(List<TDSPro.DAL.Models.QuarterSummary> data, string path)
+        public static void ExportQuarterSummary(List<CDeTDS.DAL.Models.QuarterSummary> data, string path)
         {
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Quarter Summary");
@@ -1587,7 +1587,7 @@ namespace TDSPro.DAL
         // ══════════════════════════════════════════════════════════════════════
         // EXPORT — Deductee Report
         // ══════════════════════════════════════════════════════════════════════
-        public static void ExportDeducteeReport(List<TDSPro.DAL.Models.DeducteeReport> data, string path)
+        public static void ExportDeducteeReport(List<CDeTDS.DAL.Models.DeducteeReport> data, string path)
         {
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Deductee Report");
@@ -1641,7 +1641,7 @@ namespace TDSPro.DAL
         // ══════════════════════════════════════════════════════════════════════
         // EXPORT — Section Report
         // ══════════════════════════════════════════════════════════════════════
-        public static void ExportSectionReport(List<TDSPro.DAL.Models.SectionReport> data, string path)
+        public static void ExportSectionReport(List<CDeTDS.DAL.Models.SectionReport> data, string path)
         {
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Section Report");
@@ -1694,7 +1694,7 @@ namespace TDSPro.DAL
         // EXPORT — Full Year Salary Summary
         // ══════════════════════════════════════════════════════════════════════
         public static string ExportYearSummary(
-            List<TDSPro.DAL.Models.EmployeeYearSummary> summary,
+            List<CDeTDS.DAL.Models.EmployeeYearSummary> summary,
             string fy,
             string[] monthNames,
             int[]    monthNums,
@@ -1808,7 +1808,7 @@ namespace TDSPro.DAL
             {
                 string dir = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "TDSPro", fy.Replace("/","-"), "Reports");
+                    "CDeTDS", fy.Replace("/","-"), "Reports");
                 System.IO.Directory.CreateDirectory(dir);
                 path = System.IO.Path.Combine(dir, $"YearSummary_{fy.Replace("/","-")}_{DateTime.Today:yyyyMMdd}.xlsx");
             }

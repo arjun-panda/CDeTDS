@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace TDSPro.Common
+namespace CDeTDS.Common
 {
     public static class Validators
     {

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     // ══════════════════════════════════════════════════════════════════════════
     // AUTHORITATIVE TDS RULES — SEALED, COMPILED INTO APP

@@ -1,4 +1,4 @@
-namespace TDSPro.Common
+namespace CDeTDS.Common
 {
     // ══════════════════════════════════════════════════════════════════════════
     // TDSPro Tax Rules — verified against incometax.gov.in, Finance Acts 2020-2026

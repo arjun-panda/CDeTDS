@@ -1,4 +1,4 @@
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Surcharge and effective TDS rate calculator for Section 192 (Salary).

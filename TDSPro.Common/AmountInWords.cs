@@ -1,4 +1,4 @@
-namespace TDSPro.Common
+namespace CDeTDS.Common
 {
     /// <summary>
     /// Convert a rupee amount to Indian-English words (Lakh/Crore grouping).

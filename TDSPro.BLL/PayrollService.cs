@@ -1,8 +1,8 @@
-﻿using TDSPro.DAL;
-using TDSPro.DAL.Models;
-using TDSPro.Common;
+﻿using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
+using CDeTDS.Common;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     /// <summary>
     /// Salary computation engine.
@@ -122,7 +122,7 @@ namespace TDSPro.BLL
             // Variable pay (bonus + incentive) — annual lump-sum, added to projection so TDS spreads
             double annualVariable = ss.AnnualBonus + ss.AnnualIncentive;
             // Reimbursement shortfall — amounts eligible but not claimed with bills become taxable
-            double reimbShortfall = new TDSPro.DAL.ReimbursementRepository()
+            double reimbShortfall = new CDeTDS.DAL.ReimbursementRepository()
                 .GetForFy(emp.Id, fy)
                 .Sum(c => c.Shortfall);
             // Custom components — Received already in ss.GrossSalary; Paid (bills) is exempt
@@ -156,10 +156,10 @@ namespace TDSPro.BLL
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out var d) ? d :
                 (DateTime.TryParse(emp.DateOfBirth, out var d2) ? d2 : (DateTime?)null);
-            var ageCategory = TDSPro.Common.TaxRules.GetAgeCategory(dob, fy);
+            var ageCategory = CDeTDS.Common.TaxRules.GetAgeCategory(dob, fy);
 
-            var oldRules    = TDSPro.Common.TaxRules.GetRules(fy, false, ageCategory);
-            var newRules    = TDSPro.Common.TaxRules.GetRules(fy, true);
+            var oldRules    = CDeTDS.Common.TaxRules.GetRules(fy, false, ageCategory);
+            var newRules    = CDeTDS.Common.TaxRules.GetRules(fy, true);
             double stdDedOld = oldRules.StandardDeduction;   // ₹50,000 — old regime, fixed for all FYs
             double stdDedNew = newRules.StandardDeduction;   // ₹75,000 from FY 2024-25 (new regime only)
 
@@ -172,7 +172,7 @@ namespace TDSPro.BLL
 
             // 80D self-limit: ₹50K for senior citizen employee, ₹25K for general
             // 80D parent-limit: ₹50K if parent is senior citizen, ₹25K otherwise
-            double limit80DSelf    = (ageCategory != TDSPro.Common.AgeCategory.Below60) ? 50000 : 25000;
+            double limit80DSelf    = (ageCategory != CDeTDS.Common.AgeCategory.Below60) ? 50000 : 25000;
             double limit80DParents = decl.IsParentSeniorCitizen ? 50000 : 25000;
             if (dob.HasValue)
             {
@@ -183,7 +183,7 @@ namespace TDSPro.BLL
             }
 
             // 80TTA (non-senior ₹10K) and 80TTB (senior ₹50K) are mutually exclusive
-            bool isSeniorPs = ageCategory != TDSPro.Common.AgeCategory.Below60;
+            bool isSeniorPs = ageCategory != CDeTDS.Common.AgeCategory.Below60;
             double tta_ttbPs = isSeniorPs
                              ? Math.Min(decl.Sec80TTB, 50000)
                              : Math.Min(decl.Sec80TTA, 10000);
@@ -200,8 +200,8 @@ namespace TDSPro.BLL
                           + decl.OtherDeductions;                               // any other declared
 
             // 80CCD(2) — employer NPS: FY-aware rate (10% up to FY2023-24, 14% from FY2024-25 new regime)
-            double nps80CCD2Rate = TDSPro.Common.TaxRules.Get80CCD2Rate(fy, false); // old regime rate
-            double nps80CCD2RateNew = TDSPro.Common.TaxRules.Get80CCD2Rate(fy, true); // new regime rate
+            double nps80CCD2Rate = CDeTDS.Common.TaxRules.Get80CCD2Rate(fy, false); // old regime rate
+            double nps80CCD2RateNew = CDeTDS.Common.TaxRules.Get80CCD2Rate(fy, true); // new regime rate
             double npsEmployer  = Math.Min(decl.Sec80CCD_Employer, annualBasic * nps80CCD2Rate);
 
             double taxableOld = annualGross
@@ -215,9 +215,9 @@ namespace TDSPro.BLL
                               + decl.IncomeOtherSources;
             taxableOld = Math.Max(0, Math.Round(taxableOld));
 
-            double rawTaxOld               = TDSPro.Common.TaxRules.ComputeSlabTax(taxableOld, oldRules);
-            var   (taxAfterOld, r87AO)      = TDSPro.Common.TaxRules.Apply87A(rawTaxOld, taxableOld, oldRules);
-            double surchargeOld             = TDSPro.Common.TaxRules.CalcSurcharge(taxAfterOld, taxableOld, oldRules);
+            double rawTaxOld               = CDeTDS.Common.TaxRules.ComputeSlabTax(taxableOld, oldRules);
+            var   (taxAfterOld, r87AO)      = CDeTDS.Common.TaxRules.Apply87A(rawTaxOld, taxableOld, oldRules);
+            double surchargeOld             = CDeTDS.Common.TaxRules.CalcSurcharge(taxAfterOld, taxableOld, oldRules);
             double cessOld                  = Math.Round((taxAfterOld + surchargeOld) * 0.04);
             double totalTaxOld              = taxAfterOld + surchargeOld + cessOld;
             double taxOld = taxAfterOld;
@@ -232,9 +232,9 @@ namespace TDSPro.BLL
                               + decl.IncomeOtherSources;
             taxableNew = Math.Max(0, Math.Round(taxableNew));
 
-            double rawTaxNew               = TDSPro.Common.TaxRules.ComputeSlabTax(taxableNew, newRules);
-            var   (taxAfterNew, r87AN)      = TDSPro.Common.TaxRules.Apply87A(rawTaxNew, taxableNew, newRules);
-            double surchargeNew             = TDSPro.Common.TaxRules.CalcSurcharge(taxAfterNew, taxableNew, newRules);
+            double rawTaxNew               = CDeTDS.Common.TaxRules.ComputeSlabTax(taxableNew, newRules);
+            var   (taxAfterNew, r87AN)      = CDeTDS.Common.TaxRules.Apply87A(rawTaxNew, taxableNew, newRules);
+            double surchargeNew             = CDeTDS.Common.TaxRules.CalcSurcharge(taxAfterNew, taxableNew, newRules);
             double cessNew                  = Math.Round((taxAfterNew + surchargeNew) * 0.04);
             double totalTaxNew              = taxAfterNew + surchargeNew + cessNew;
             double taxNew = taxAfterNew;

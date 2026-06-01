@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// AES-256 encryption for storing portal credentials.

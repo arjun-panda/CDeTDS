@@ -413,7 +413,7 @@ else
         if (AppState.CurrentDeductorId == 0) return;
         try
         {
-            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var conn = CDeTDS.DAL.Database.GetConnection();
             using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"SELECT challan_no, SUM(tds_amount) FROM tds_entries
                 WHERE deductor_id=@d AND financial_year=@fy
@@ -434,7 +434,7 @@ else
         if (AppState.CurrentDeductorId == 0) return;
         try
         {
-            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var conn = CDeTDS.DAL.Database.GetConnection();
             using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"SELECT quarter, COUNT(1) FROM tds_entries
                 WHERE deductor_id=@d AND financial_year=@fy
@@ -663,7 +663,7 @@ else
         int linkedCount = 0;
         try
         {
-            using var conn = TDSPro.DAL.Database.GetConnection();
+            using var conn = CDeTDS.DAL.Database.GetConnection();
             using var cmd  = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM tds_entries WHERE challan_no=@cn AND deductor_id=@d";
             cmd.Parameters.AddWithValue("@cn", c.ChallanNo ?? "");

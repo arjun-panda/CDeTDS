@@ -3,13 +3,13 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 
-namespace TDSPro.App
+namespace CDeTDS.App
 {
     public partial class MainWindow : Window
     {
         private static readonly string LogPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "TDSPro", "Logs", "circuit.log");
+            "CDeTDS", "Logs", "circuit.log");
 
         public MainWindow()
         {

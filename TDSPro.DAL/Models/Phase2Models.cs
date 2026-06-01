@@ -1,4 +1,4 @@
-namespace TDSPro.DAL.Models
+namespace CDeTDS.DAL.Models
 {
     // ── Report models ─────────────────────────────────────────────────────────
     public class QuarterSummary

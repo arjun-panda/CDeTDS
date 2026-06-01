@@ -1,6 +1,6 @@
 using Velopack;
 
-namespace TDSPro.App
+namespace CDeTDS.App
 {
     public class Program
     {

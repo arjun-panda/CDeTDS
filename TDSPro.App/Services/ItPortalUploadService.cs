@@ -2,7 +2,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 using System.Windows;
 
-namespace TDSPro.App.Services
+namespace CDeTDS.App.Services
 {
     /// <summary>
     /// Auto-logs into the IT Portal using saved TAN + password, then reveals the same
@@ -24,8 +24,8 @@ namespace TDSPro.App.Services
         {
             var key      = deductorId > 0 ? $"ItPortalUserId_{deductorId}" : "ItPortalUserId";
             var passKey  = deductorId > 0 ? $"ItPortalPassword_{deductorId}" : "ItPortalPassword";
-            var tan      = TDSPro.DAL.Database.GetSetting(key, "").Trim().ToUpper();
-            var password = TDSPro.DAL.AesEncryption.LoadCredential(passKey, "");
+            var tan      = CDeTDS.DAL.Database.GetSetting(key, "").Trim().ToUpper();
+            var password = CDeTDS.DAL.AesEncryption.LoadCredential(passKey, "");
 
             if (string.IsNullOrWhiteSpace(tan))
                 return Task.FromResult(new UploadLoginResult(false,

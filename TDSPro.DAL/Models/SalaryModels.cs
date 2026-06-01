@@ -1,4 +1,4 @@
-namespace TDSPro.DAL.Models
+namespace CDeTDS.DAL.Models
 {
     /// <summary>
     /// Complete per-month salary entry for one employee.

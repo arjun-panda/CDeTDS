@@ -1,8 +1,8 @@
 using QuestPDF.Fluent;
-using TDSPro.DAL;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>
 /// Smoke tests: verify each PDF generator produces a non-empty, valid-looking PDF byte stream

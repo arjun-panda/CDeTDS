@@ -389,7 +389,7 @@
 
     protected override void OnInitialized()
     {
-        TDSPro.DAL.TdsLog.Clear();
+        CDeTDS.DAL.TdsLog.Clear();
         AppState.OnChange += Reload;
         Load();
         _deductees = DeducteeSvc.GetAll(includeEmployees: true);

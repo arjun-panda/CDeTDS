@@ -1,6 +1,6 @@
-using TDSPro.BLL;
+using CDeTDS.BLL;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>HRA exemption u/s 10(13A) — min(actual HRA, rent − 10% basic, 50%/40% basic).</summary>
 public class HraExemptionTests

@@ -1,4 +1,4 @@
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>
 /// Tests the [AUTO:salary:{empId}:{fy}:{month}] tag convention that links a

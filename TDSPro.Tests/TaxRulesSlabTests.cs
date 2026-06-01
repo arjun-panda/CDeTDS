@@ -1,6 +1,6 @@
-using TDSPro.Common;
+using CDeTDS.Common;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>Pure slab tax calculations across regimes / FYs / age categories.</summary>
 public class TaxRulesSlabTests

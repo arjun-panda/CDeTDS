@@ -1,8 +1,8 @@
-using TDSPro.DAL;
-using TDSPro.DAL.Models;
-using TDSPro.DAL.Repositories;
+using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
+using CDeTDS.DAL.Repositories;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     // ── Reports Service ───────────────────────────────────────────────────────
     public class ReportsService

@@ -1,8 +1,8 @@
-using TDSPro.BLL;
-using TDSPro.DAL.Models;
-using TDSPro.Common;
+using CDeTDS.BLL;
+using CDeTDS.DAL.Models;
+using CDeTDS.Common;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>
 /// End-to-end salary tax computation tests.

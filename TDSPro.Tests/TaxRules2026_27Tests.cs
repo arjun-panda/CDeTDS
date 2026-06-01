@@ -1,6 +1,6 @@
-using TDSPro.Common;
+using CDeTDS.Common;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>
 /// End-to-end FY 2026-27 verification (IT Act 2025 transitional year).

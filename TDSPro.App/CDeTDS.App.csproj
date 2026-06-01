@@ -39,9 +39,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CDeTDS.BLL\CDeTDS.BLL.csproj" />
-    <ProjectReference Include="..\CDeTDS.DAL\CDeTDS.DAL.csproj" />
-    <ProjectReference Include="..\CDeTDS.Common\CDeTDS.Common.csproj" />
+    <ProjectReference Include="..\TDSPro.BLL\CDeTDS.BLL.csproj" />
+    <ProjectReference Include="..\TDSPro.DAL\CDeTDS.DAL.csproj" />
+    <ProjectReference Include="..\TDSPro.Common\CDeTDS.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,9 +1,9 @@
 using System;
 using System.Linq;
-using TDSPro.DAL;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     public class RulesUpdateService
     {

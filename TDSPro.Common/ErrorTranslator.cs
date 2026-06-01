@@ -1,4 +1,4 @@
-namespace TDSPro.Common
+namespace CDeTDS.Common
 {
     /// <summary>
     /// Converts raw exceptions into user-friendly messages.

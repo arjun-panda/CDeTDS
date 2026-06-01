@@ -1,6 +1,6 @@
-using TDSPro.BLL;
+using CDeTDS.BLL;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>SalaryOptimizer: split must sum to CTC exactly; LTA + reimbursements only in Old regime.</summary>
 public class SalaryOptimizerTests

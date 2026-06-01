@@ -1,7 +1,7 @@
-using TDSPro.DAL;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>
 /// End-to-end FvuGenerator tests for Form 26Q (non-salary TDS).

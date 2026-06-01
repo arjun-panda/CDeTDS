@@ -4,9 +4,9 @@
 // ║  and imports deductor, deductees, challans, and TDS entries into DB.    ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 using ICSharpCode.SharpZipLib.Zip;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     public class ConsoImportResult
     {

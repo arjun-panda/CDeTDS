@@ -6,7 +6,7 @@
 @inject PayrollService PayrollSvc
 @inject ISnackbar Snackbar
 @using System.IO
-@using TDSPro.DAL.Models
+@using CDeTDS.DAL.Models
 
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">Import / Export</MudText>
@@ -606,7 +606,7 @@
         try
         {
             // Auto-backup before import so user can restore if import creates duplicates
-            await Task.Run(() => { try { TDSPro.DAL.FolderManager.BackupNow(TDSPro.DAL.Database.DbPath); } catch { } });
+            await Task.Run(() => { try { CDeTDS.DAL.FolderManager.BackupNow(CDeTDS.DAL.Database.DbPath); } catch { } });
             var password = _consoFilePath.EndsWith(".tds", StringComparison.OrdinalIgnoreCase)
                 ? _consoPassword.Trim()
                 : null;

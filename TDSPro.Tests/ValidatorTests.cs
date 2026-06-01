@@ -1,8 +1,8 @@
-using TDSPro.Common;
-using TDSPro.BLL;
-using TDSPro.DAL.Models;
+using CDeTDS.Common;
+using CDeTDS.BLL;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 public class ValidatorPrimitiveTests
 {

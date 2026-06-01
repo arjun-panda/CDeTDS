@@ -7,7 +7,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IDisposable
-@using TDSPro.Common
+@using CDeTDS.Common
 @using System.IO
 
 @* ── Sticky header ── *@
@@ -684,7 +684,7 @@
     // Quarter summary
     private List<QuarterSummary>?  _quarterSummary;
     private string? _expandedQuarter;
-    private List<TDSPro.DAL.Models.TdsEntry>? _expandedEntries;
+    private List<CDeTDS.DAL.Models.TdsEntry>? _expandedEntries;
     // Deductee report
     private string _deducteeQuarter = "";
     private List<DeducteeReport>?  _deducteeReport;
@@ -740,7 +740,7 @@
         try
         {
             var path = Path.Combine(DownloadsFolder, $"QuarterSummary_{AppState.CurrentFY.Replace("-","_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            TDSPro.DAL.ExcelEngine.ExportQuarterSummary(_quarterSummary!, path);
+            CDeTDS.DAL.ExcelEngine.ExportQuarterSummary(_quarterSummary!, path);
             OpenFile(path);
         }
         catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
@@ -752,7 +752,7 @@
         {
             var qLabel = string.IsNullOrEmpty(_deducteeQuarter) ? "AllQ" : _deducteeQuarter;
             var path   = Path.Combine(DownloadsFolder, $"DeducteeReport_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            TDSPro.DAL.ExcelEngine.ExportDeducteeReport(_deducteeReport!, path);
+            CDeTDS.DAL.ExcelEngine.ExportDeducteeReport(_deducteeReport!, path);
             OpenFile(path);
         }
         catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
@@ -764,7 +764,7 @@
         {
             var qLabel = string.IsNullOrEmpty(_sectionQuarter) ? "AllQ" : _sectionQuarter;
             var path   = Path.Combine(DownloadsFolder, $"SectionReport_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            TDSPro.DAL.ExcelEngine.ExportSectionReport(_sectionReport!, path);
+            CDeTDS.DAL.ExcelEngine.ExportSectionReport(_sectionReport!, path);
             OpenFile(path);
         }
         catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
@@ -777,7 +777,7 @@
             var challans = _recon?.Challans ?? new();
             var qLabel   = string.IsNullOrEmpty(_reconQuarter) ? "AllQ" : _reconQuarter;
             var path     = Path.Combine(DownloadsFolder, $"ChallanRecon_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            TDSPro.DAL.ExcelEngine.ExportChallans(challans, path);
+            CDeTDS.DAL.ExcelEngine.ExportChallans(challans, path);
             OpenFile(path);
         }
         catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
@@ -788,7 +788,7 @@
         try
         {
             var path = Path.Combine(DownloadsFolder, $"PayrollSummary_{AppState.CurrentFY.Replace("-","_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
-            TDSPro.DAL.ExcelEngine.ExportYearSummary(_yearSummary!, AppState.CurrentFY, _fyMonthLabels, _fyMonthNumbers, path);
+            CDeTDS.DAL.ExcelEngine.ExportYearSummary(_yearSummary!, AppState.CurrentFY, _fyMonthLabels, _fyMonthNumbers, path);
             OpenFile(path);
         }
         catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }

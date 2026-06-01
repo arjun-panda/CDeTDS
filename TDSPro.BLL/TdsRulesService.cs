@@ -1,7 +1,7 @@
-using TDSPro.DAL;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     /// <summary>
     /// Business logic layer for the dynamic TDS Rules Engine.

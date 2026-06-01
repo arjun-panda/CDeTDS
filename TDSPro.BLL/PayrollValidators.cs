@@ -1,7 +1,7 @@
-using TDSPro.Common;
-using TDSPro.DAL.Models;
+using CDeTDS.Common;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     /// <summary>
     /// Pure validation logic. No DB access. Returns a ValidationResult so the UI

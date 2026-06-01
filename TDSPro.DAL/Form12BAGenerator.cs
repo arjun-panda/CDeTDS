@@ -1,6 +1,6 @@
-using TDSPro.DAL.Models;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Form 12BA — Statement of perquisites and profits in lieu of salary (Section 17(2)).

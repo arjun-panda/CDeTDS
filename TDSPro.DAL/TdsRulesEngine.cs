@@ -1,8 +1,8 @@
 using Microsoft.Data.Sqlite;
-using TDSPro.Common;
-using TDSPro.DAL.Models;
+using CDeTDS.Common;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Dynamic TDS Rules Engine.

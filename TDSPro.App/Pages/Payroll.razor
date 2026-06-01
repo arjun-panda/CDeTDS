@@ -2695,7 +2695,7 @@
         (4,"Apr"),(5,"May"),(6,"Jun"),(7,"Jul"),(8,"Aug"),(9,"Sep"),
         (10,"Oct"),(11,"Nov"),(12,"Dec"),(1,"Jan"),(2,"Feb"),(3,"Mar")
     };
-    private Dictionary<string, TDSPro.DAL.Models.ReimbursementClaim> _reimbGrid = new();
+    private Dictionary<string, CDeTDS.DAL.Models.ReimbursementClaim> _reimbGrid = new();
 
     void LoadReimbursements()
     {
@@ -2713,7 +2713,7 @@
         if (_reimbCategories.Count == 0) return;     // nothing to track
 
         int fyStart = TaxRules.FyStartYear(AppState.CurrentFY);
-        var repo = new TDSPro.DAL.ReimbursementRepository();
+        var repo = new CDeTDS.DAL.ReimbursementRepository();
         var existing = repo.GetForFy(_reimbEmpId, AppState.CurrentFY)
                            .ToDictionary(c => $"{c.Month}_{c.Category}", c => c);
 
@@ -2730,7 +2730,7 @@
                 else
                 {
                     double eligible = reimbComps.First(rc => rc.Name == cat).Received;
-                    _reimbGrid[key] = new TDSPro.DAL.Models.ReimbursementClaim
+                    _reimbGrid[key] = new CDeTDS.DAL.Models.ReimbursementClaim
                     {
                         EmployeeId = _reimbEmpId, FinancialYear = AppState.CurrentFY,
                         Month = m, Year = yr, Category = cat, Eligible = eligible,
@@ -2741,15 +2741,15 @@
         }
     }
 
-    void SaveReimbClaim(TDSPro.DAL.Models.ReimbursementClaim c)
+    void SaveReimbClaim(CDeTDS.DAL.Models.ReimbursementClaim c)
     {
-        new TDSPro.DAL.ReimbursementRepository().Save(c);
+        new CDeTDS.DAL.ReimbursementRepository().Save(c);
         Snackbar.Add($"Saved {c.Category} for month {c.Month}.", Severity.Success);
     }
 
     void SaveAllReimbClaims()
     {
-        var repo = new TDSPro.DAL.ReimbursementRepository();
+        var repo = new CDeTDS.DAL.ReimbursementRepository();
         int saved = 0;
         foreach (var c in _reimbGrid.Values)
             if (c.Claimed > 0 || c.Status != "pending") { repo.Save(c); saved++; }
@@ -2767,7 +2767,7 @@
     private bool   _ctcGratuity = true;
     private string _ctcError = "";
     private double _ctcBasicPct = 0; // 0 = auto-optimize; >0 = user-specified (e.g. 0.40 = 40%)
-    private TDSPro.BLL.SalaryOptimizerResult? _ctcResult;
+    private CDeTDS.BLL.SalaryOptimizerResult? _ctcResult;
 
     void OpenCtcBreakup()
     {
@@ -2789,7 +2789,7 @@
     {
         _ctcError = "";
         if (_ctcMonthlyInput <= 0) { _ctcError = "Enter a valid monthly CTC."; return; }
-        _ctcResult = TDSPro.BLL.SalaryOptimizer.Optimize(new TDSPro.BLL.SalaryOptimizerInput
+        _ctcResult = CDeTDS.BLL.SalaryOptimizer.Optimize(new CDeTDS.BLL.SalaryOptimizerInput
         {
             MonthlyCtc          = _ctcMonthlyInput,
             Regime              = _ctcRegime,
@@ -3016,8 +3016,8 @@
     void AddVarEarnRow() => _sdVarEarnRows.Add(("", "Fully Taxable", 0));
 
     // Deduction schedules
-    private List<TDSPro.DAL.Models.DeductionSchedule> _schedules = new();
-    private TDSPro.DAL.Models.DeductionSchedule _schEditing = new();
+    private List<CDeTDS.DAL.Models.DeductionSchedule> _schedules = new();
+    private CDeTDS.DAL.Models.DeductionSchedule _schEditing = new();
     private bool   _schDialogOpen;
     private string _schMode = "amount"; // "amount" or "count"
 
@@ -3029,7 +3029,7 @@
 
     void OpenNewScheduleDialog()
     {
-        _schEditing = new TDSPro.DAL.Models.DeductionSchedule
+        _schEditing = new CDeTDS.DAL.Models.DeductionSchedule
         {
             EmployeeId = _sdEmpId,
             DeductorId = AppState.CurrentDeductorId,
@@ -3040,9 +3040,9 @@
         _schDialogOpen = true;
     }
 
-    void OpenEditScheduleDialog(TDSPro.DAL.Models.DeductionSchedule s)
+    void OpenEditScheduleDialog(CDeTDS.DAL.Models.DeductionSchedule s)
     {
-        _schEditing = new TDSPro.DAL.Models.DeductionSchedule
+        _schEditing = new CDeTDS.DAL.Models.DeductionSchedule
         {
             Id = s.Id, EmployeeId = s.EmployeeId, DeductorId = s.DeductorId,
             Type = s.Type, Description = s.Description, TotalAmount = s.TotalAmount,
@@ -3747,7 +3747,7 @@
         await Task.Run(() => {
             // Pre-load once to avoid N+1 queries inside the loop.
             var empCache = PayrollSvc.GetEmployees(AppState.CurrentDeductorId)
-                               as IReadOnlyList<TDSPro.DAL.Models.Employee>;
+                               as IReadOnlyList<CDeTDS.DAL.Models.Employee>;
             foreach (var r in toProcess)
             {
                 try
@@ -3897,7 +3897,7 @@
         _sdPerqLines.Clear(); _sdOtherLines.Clear();
         _sdVarEarnRows = new();
         _sdVarDedRows  = new();
-        foreach (var li in e.LineItems ?? new List<TDSPro.DAL.Models.SalaryLineItem>())
+        foreach (var li in e.LineItems ?? new List<CDeTDS.DAL.Models.SalaryLineItem>())
         {
             if (li.Category == "perq")
                 _sdPerqLines.Add((li.Name, li.Taxable, li.Exempt, li.RuleRef));
@@ -3961,13 +3961,13 @@
             ApprovedBy  = _sdCurEntry?.ApprovedBy  ?? "",
         };
         foreach (var ln in _sdOtherLines)
-            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "other",   Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
+            entry.LineItems.Add(new CDeTDS.DAL.Models.SalaryLineItem { Category = "other",   Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
         foreach (var ln in _sdPerqLines)
-            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "perq",    Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
+            entry.LineItems.Add(new CDeTDS.DAL.Models.SalaryLineItem { Category = "perq",    Name = ln.Name, Taxable = ln.Taxable, Exempt = ln.Exempt, RuleRef = ln.Rule });
         foreach (var ln in _sdVarEarnRows)
-            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "varEarn", Name = ln.Name, Taxable = ln.Amount, RuleRef = ln.Type });
+            entry.LineItems.Add(new CDeTDS.DAL.Models.SalaryLineItem { Category = "varEarn", Name = ln.Name, Taxable = ln.Amount, RuleRef = ln.Type });
         foreach (var ln in _sdVarDedRows)
-            entry.LineItems.Add(new TDSPro.DAL.Models.SalaryLineItem { Category = "varDed",  Name = ln.Name, Taxable = ln.Amount });
+            entry.LineItems.Add(new CDeTDS.DAL.Models.SalaryLineItem { Category = "varDed",  Name = ln.Name, Taxable = ln.Amount });
         return entry;
     }
 
@@ -4082,7 +4082,7 @@
                         LeaveEncTotal = base_.LeaveEncTotal, LeaveEncExempted = base_.LeaveEncExempted,
                         PfEmployee = base_.PfEmployee, VPF = base_.VPF, ProfessionalTax = base_.ProfessionalTax,
                         EsiEmployee = base_.EsiEmployee, TdsDeducted = 0, TaxComputed = 0,
-                        LineItems = base_.LineItems.Select(li => new TDSPro.DAL.Models.SalaryLineItem
+                        LineItems = base_.LineItems.Select(li => new CDeTDS.DAL.Models.SalaryLineItem
                         {
                             Category = li.Category, Name = li.Name,
                             Taxable = li.Taxable, Exempt = li.Exempt, RuleRef = li.RuleRef,

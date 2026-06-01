@@ -6,8 +6,8 @@
 @inject ISnackbar Snackbar
 @inject UpdateCheckService UpdateSvc
 @implements IDisposable
-@using TDSPro.Common
-@using TDSPro.BLL
+@using CDeTDS.Common
+@using CDeTDS.BLL
 
 @if (!AppState.IsLoggedIn)
 {
@@ -510,7 +510,7 @@ else
 
     void SendFeedback()
     {
-        var machineId = TDSPro.DAL.LicenseService.GetMachineId();
+        var machineId = CDeTDS.DAL.LicenseService.GetMachineId();
         var subject   = Uri.EscapeDataString($"CDeTDS v{AppConstants.AppVersion} — Feedback / Bug Report");
         var body      = Uri.EscapeDataString(
             $"CDeTDS v{AppConstants.AppVersion}\n" +

@@ -1,7 +1,7 @@
 using Microsoft.Win32;
 using System.Windows;
 
-namespace TDSPro.App.Services
+namespace CDeTDS.App.Services
 {
     /// <summary>
     /// Native WPF file picker — must be called from Blazor via InvokeAsync on the UI thread.

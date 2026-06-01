@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Renders a .fvu / validated TDS text file as a colour-coded HTML table.

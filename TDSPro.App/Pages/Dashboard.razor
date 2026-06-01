@@ -8,7 +8,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IDisposable
-@using TDSPro.Common
+@using CDeTDS.Common
 
 @* First-run wizard — shown only when no deductors exist *@
 @if (_showWizard)
@@ -219,7 +219,7 @@
     private PayrollDashStats? _payrollStats;
     private string _payrollMonthLabel = "";
     private bool   _showWizard;
-    private List<TDSPro.DAL.FilingHistoryRecord> _filingStatus = new();
+    private List<CDeTDS.DAL.FilingHistoryRecord> _filingStatus = new();
     private List<(string Icon, string Label, bool Ok)> _preflight = new();
 
     record PayrollDashStats(int Processed, double TotalGross, double MonthTds, double YtdTds);
@@ -234,7 +234,7 @@
     {
         AppState.OnChange += OnContextChanged;
         // Show first-run wizard once when no deductors exist + user hasn't dismissed it
-        var skipped = TDSPro.DAL.Database.GetSetting("FirstRunWizard_Skipped", "");
+        var skipped = CDeTDS.DAL.Database.GetSetting("FirstRunWizard_Skipped", "");
         var hasDeductors = DeductorSvc.GetAll().Any();
         if (!hasDeductors && skipped != "1") _showWizard = true;
     }
@@ -245,7 +245,7 @@
     {
         _showWizard = false;
         // Mark dismissed so it doesn't reappear if user skipped before adding a deductor
-        TDSPro.DAL.Database.SetSetting("FirstRunWizard_Skipped", "1");
+        CDeTDS.DAL.Database.SetSetting("FirstRunWizard_Skipped", "1");
         _ = LoadAsync();
         StateHasChanged();
     }
@@ -309,11 +309,11 @@
             var filingFy  = AppState.CurrentFY;
             _filingStatus = await Task.Run(() =>
             {
-                var latest = new List<TDSPro.DAL.FilingHistoryRecord>();
+                var latest = new List<CDeTDS.DAL.FilingHistoryRecord>();
                 foreach (var form in new[]{"24Q","26Q"})
                     foreach (var q in new[]{"Q1","Q2","Q3","Q4"})
                     {
-                        var recs = TDSPro.DAL.Database.GetFilingHistory(filingDid, filingFy, form, q);
+                        var recs = CDeTDS.DAL.Database.GetFilingHistory(filingDid, filingFy, form, q);
                         var best = recs.OrderByDescending(r => r.Id).FirstOrDefault();
                         if (best != null) latest.Add(best);
                     }
@@ -325,10 +325,10 @@
         // Pre-flight checklist
         try
         {
-            var runner = new TDSPro.DAL.FvuUtilityRunner();
+            var runner = new CDeTDS.DAL.FvuUtilityRunner();
             var pf     = await Task.Run(() => runner.CheckPreflight());
             var csiPath = System.IO.Path.Combine(
-                TDSPro.DAL.FolderManager.CsiFolder,
+                CDeTDS.DAL.FolderManager.CsiFolder,
                 $"{AppState.CurrentDeductorTan}.csi");
             bool csiOk = System.IO.File.Exists(csiPath);
             _preflight = new()

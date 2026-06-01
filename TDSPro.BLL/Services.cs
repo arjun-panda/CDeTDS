@@ -1,9 +1,9 @@
-using TDSPro.Common;
-using TDSPro.DAL;
-using TDSPro.DAL.Models;
-using TDSPro.DAL.Repositories;
+using CDeTDS.Common;
+using CDeTDS.DAL;
+using CDeTDS.DAL.Models;
+using CDeTDS.DAL.Repositories;
 
-namespace TDSPro.BLL
+namespace CDeTDS.BLL
 {
     // ── Deductor Service ──────────────────────────────────────────────────────
     public class DeductorService

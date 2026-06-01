@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL.Repositories
+namespace CDeTDS.DAL.Repositories
 {
     public class ReportsRepository
     {

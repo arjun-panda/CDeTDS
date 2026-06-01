@@ -1,6 +1,6 @@
-using TDSPro.Common;
+using CDeTDS.Common;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 public class ErrorTranslatorTests
 {

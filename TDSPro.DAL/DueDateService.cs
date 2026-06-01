@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// Due date reminder system.

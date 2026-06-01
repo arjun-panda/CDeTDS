@@ -1,6 +1,6 @@
-using TDSPro.DAL.Models;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     /// <summary>
     /// NIL Return — NSDL FVU-compatible .txt for quarters with no TDS transactions.
@@ -43,7 +43,7 @@ namespace TDSPro.DAL
                 var content  = GenerateNilReturn(deductor, fy, quarter, formType);
                 var outDir   = System.IO.Path.Combine(
                     System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
-                    "TDSPro", "Returns", fy, quarter, "NIL");
+                    "CDeTDS", "Returns", fy, quarter, "NIL");
                 System.IO.Directory.CreateDirectory(outDir);
                 var fyShort  = fy.Replace("-", "");
                 var path     = System.IO.Path.Combine(outDir,

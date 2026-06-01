@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using TDSPro.DAL.Models;
+using CDeTDS.DAL.Models;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     public static class ExportHelper
     {

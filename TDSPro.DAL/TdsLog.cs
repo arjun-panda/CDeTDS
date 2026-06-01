@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     public static class TdsLog
     {

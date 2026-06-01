@@ -1,6 +1,6 @@
-using TDSPro.DAL;
+using CDeTDS.DAL;
 
-namespace TDSPro.App
+namespace CDeTDS.App
 {
     /// <summary>
     /// Singleton that replaces Program.cs static state. Injected everywhere via DI.
@@ -26,7 +26,7 @@ namespace TDSPro.App
         public bool IsLoggedIn => !string.IsNullOrEmpty(CurrentUser);
 
         public string CurrentAY =>
-            TDSPro.Common.TaxRules.AssessmentYearLabel(CurrentFY);
+            CDeTDS.Common.TaxRules.AssessmentYearLabel(CurrentFY);
 
         /// <summary>True when the user is viewing a year other than the one they logged in to — UI must block create/edit/delete.</summary>
         public bool IsReadOnlyFY =>

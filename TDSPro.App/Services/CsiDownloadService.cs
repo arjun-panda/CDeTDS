@@ -3,7 +3,7 @@ using Microsoft.Web.WebView2.Wpf;
 using System.IO;
 using System.Windows;
 
-namespace TDSPro.App.Services
+namespace CDeTDS.App.Services
 {
     public class CsiDownloadService
     {

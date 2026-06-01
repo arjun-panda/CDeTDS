@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace TDSPro.DAL
+namespace CDeTDS.DAL
 {
     // ─────────────────────────────────────────────────────────────────────────
     // PAN VERIFICATION — 3-TIER SYSTEM
@@ -252,7 +252,7 @@ namespace TDSPro.DAL
         {
             try
             {
-                TDSPro.DAL.Database.LogAction("System", "PAN_VERIFY",
+                CDeTDS.DAL.Database.LogAction("System", "PAN_VERIFY",
                     "PanVerification",
                     $"PAN={pan} Status={r.Status} Provider={r.Provider} Name={r.Name}");
             }

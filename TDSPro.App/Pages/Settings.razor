@@ -5,9 +5,9 @@
 @inject IDialogService DialogSvc
 @using System.IO
 @using System.IO.Compression
-@using TDSPro.BLL
-@using TDSPro.Common
-@using TDSPro.DAL
+@using CDeTDS.BLL
+@using CDeTDS.Common
+@using CDeTDS.DAL
 
 <MudText Typo="Typo.h5" Class="mb-4">Settings</MudText>
 
@@ -36,15 +36,15 @@
             <MudItem xs="12">
                 <MudText Typo="Typo.subtitle2">Current Company Folder</MudText>
                 @{
-                    var compFolder = TDSPro.DAL.FolderManager.CompanyFolder;
-                    var hasCompany = !string.IsNullOrEmpty(compFolder) && compFolder != TDSPro.DAL.FolderManager.BasePath;
+                    var compFolder = CDeTDS.DAL.FolderManager.CompanyFolder;
+                    var hasCompany = !string.IsNullOrEmpty(compFolder) && compFolder != CDeTDS.DAL.FolderManager.BasePath;
                 }
                 @if (hasCompany)
                 {
                     <div style="display:flex;align-items:center;gap:8px">
                         <MudText Color="Color.Secondary" Style="font-size:12px;word-break:break-all">@compFolder</MudText>
                         <MudButton Size="Size.Small" Variant="Variant.Text"
-                                   OnClick='() => { try { TDSPro.DAL.FolderManager.OpenFolder(compFolder); } catch { } }'>
+                                   OnClick='() => { try { CDeTDS.DAL.FolderManager.OpenFolder(compFolder); } catch { } }'>
                             Open
                         </MudButton>
                     </div>
@@ -341,7 +341,7 @@
         <MudGrid>
             <MudItem xs="4">
                 <MudSelect @bind-Value="_rollFromFy" Label="From FY" Variant="Variant.Outlined">
-                    @foreach (var fy in TDSPro.Common.AppConstants.FinancialYears)
+                    @foreach (var fy in CDeTDS.Common.AppConstants.FinancialYears)
                     {
                         <MudSelectItem Value="@fy">@fy</MudSelectItem>
                     }
@@ -349,7 +349,7 @@
             </MudItem>
             <MudItem xs="4">
                 <MudSelect @bind-Value="_rollToFy" Label="To FY" Variant="Variant.Outlined">
-                    @foreach (var fy in TDSPro.Common.AppConstants.FinancialYearsWithNext)
+                    @foreach (var fy in CDeTDS.Common.AppConstants.FinancialYearsWithNext)
                     {
                         <MudSelectItem Value="@fy">@fy</MudSelectItem>
                     }
@@ -568,10 +568,10 @@
 
 @code {
     // About tab
-    private string   _machineId          = TDSPro.DAL.LicenseService.GetMachineId();
+    private string   _machineId          = CDeTDS.DAL.LicenseService.GetMachineId();
     private string   _changelogText      = "";
     private bool     _showChangelog      = true;
-    private string   _logFolder          = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TDSPro", "Logs");
+    private string   _logFolder          = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CDeTDS", "Logs");
     private string   _aboutUpdateMsg     = "";
     private string   _logSentMsg         = "";
     private string   _updateDownloadUrl  = "";
@@ -610,7 +610,7 @@
             {
                 _latestFvuVersion = info.FvuLatestVersion;
                 _fvuDownloadUrl   = info.FvuDownloadUrl;
-                _localFvuVersion  = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+                _localFvuVersion  = CDeTDS.DAL.FvuUtilityRunner.GetLocalFvuVersion();
                 if (!string.IsNullOrEmpty(_localFvuVersion))
                 {
                     try { _fvuOutdated = Version.Parse(_latestFvuVersion) > Version.Parse(_localFvuVersion); }
@@ -746,10 +746,10 @@
     private BackupInfo?        _deleteTarget;
 
     // Rollover
-    private string _rollFromFy = TDSPro.Common.AppConstants.CurrentFinancialYear;
-    private string _rollToFy   = TDSPro.Common.AppConstants.FinancialYearsWithNext.First();
+    private string _rollFromFy = CDeTDS.Common.AppConstants.CurrentFinancialYear;
+    private string _rollToFy   = CDeTDS.Common.AppConstants.FinancialYearsWithNext.First();
     private bool   _rolloverRunning;
-    private TDSPro.BLL.RolloverService.RolloverResult? _rolloverResult;
+    private CDeTDS.BLL.RolloverService.RolloverResult? _rolloverResult;
 
     // Due dates
     private int    _dueSoonDays = 7;
@@ -761,7 +761,7 @@
         _basePath     = FolderManager.BasePath;
         _fvuPath      = Database.GetSetting("FvuPath", "");
         _javaPath     = Database.GetSetting("JavaPath", "");
-        _localFvuVersion = TDSPro.DAL.FvuUtilityRunner.GetLocalFvuVersion();
+        _localFvuVersion = CDeTDS.DAL.FvuUtilityRunner.GetLocalFvuVersion();
         var _did = AppState.CurrentDeductorId;
         _tracesUserId     = Database.GetSetting($"TracesUserId_{_did}", "");
         _itPortalUserId   = Database.GetSetting($"ItPortalUserId_{_did}", "");
@@ -950,7 +950,7 @@
         {
             @"C:\Program Files\CDeTDS\FVU",
             @"C:\Program Files (x86)\CDeTDS\FVU",
-            @"C:\TDSPro\FVU",
+            @"C:\CDeTDS\FVU",
             Path.Combine(profile, "Downloads"),
             Path.Combine(profile, "OneDrive", "Downloads"),
             Path.Combine(profile, "OneDrive - Personal", "Downloads"),
@@ -1264,7 +1264,7 @@
 
         await Task.Run(() =>
         {
-            var svc = new TDSPro.BLL.RolloverService();
+            var svc = new CDeTDS.BLL.RolloverService();
             _rolloverResult = svc.Execute(AppState.CurrentDeductorId, _rollFromFy, _rollToFy);
         });
 

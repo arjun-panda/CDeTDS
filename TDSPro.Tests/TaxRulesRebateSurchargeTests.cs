@@ -1,6 +1,6 @@
-using TDSPro.Common;
+using CDeTDS.Common;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>87A rebate, surcharge, and full-tax ComputeFull tests.</summary>
 public class TaxRulesRebateSurchargeTests

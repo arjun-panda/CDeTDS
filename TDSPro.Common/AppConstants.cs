@@ -1,4 +1,4 @@
-namespace TDSPro.Common
+namespace CDeTDS.Common
 {
     /// <summary>
     /// Application-wide constants.
@@ -8,7 +8,7 @@ namespace TDSPro.Common
     public static class AppConstants
     {
         public const string AppName    = "CDeTDS";
-        // Read from assembly so bumping <Version> in TDSPro.App.csproj is the only required change.
+        // Read from assembly so bumping <Version> in CDeTDS.App.csproj is the only required change.
         public static string AppVersion =>
             System.Reflection.Assembly.GetEntryAssembly()
                   ?.GetName().Version

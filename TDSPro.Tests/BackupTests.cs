@@ -1,6 +1,6 @@
-using TDSPro.DAL;
+using CDeTDS.DAL;
 
-namespace TDSPro.Tests;
+namespace CDeTDS.Tests;
 
 /// <summary>
 /// Tests the backup file metadata + filename conventions.
