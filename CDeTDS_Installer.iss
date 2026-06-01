@@ -4,9 +4,9 @@
 #endif
 #define AppPublisher "CDeTDS Software"
 #define AppURL       "https://capitaldesk.co.in"
-#define AppExeName   "TDSPro.exe"
+#define AppExeName   "CDeTDS.exe"
 #define AppDesc      "TDS Compliance Software - Income-tax Act 2025"
-#define SourceDir    "publish\win-x64"
+#define SourceDir    "publish_out"
 #define FvuDir       "TDS_STANDALONE_FVU_9.4"
 #define JreDir       "bundled_jre"
 #define BuildStamp   GetDateTimeString('yyyymmdd_hhnnss', '', '')
@@ -27,7 +27,7 @@ AllowNoIcons=no
 DisableProgramGroupPage=yes
 LicenseFile=LICENSE.txt
 OutputDir=installer_output
-OutputBaseFilename=TDSPro_Setup_v{#AppVersion}_{#BuildStamp}
+OutputBaseFilename=CDeTDS_Setup_v{#AppVersion}_{#BuildStamp}
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
