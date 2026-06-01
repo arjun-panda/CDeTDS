@@ -133,9 +133,9 @@
             </MudButton>
         </div>
 
-        <div style="height:calc(100vh - 310px);overflow:hidden">
+        <div style="height:calc(100vh - 260px);overflow-y:auto">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="calc(100vh - 310px)">
+                     FixedHeader="true" Height="calc(100vh - 260px)">
             <Columns>
                 <PropertyColumn Property="x => x.SectionCode"     Title="Section" />
                 <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
