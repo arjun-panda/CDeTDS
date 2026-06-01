@@ -68,13 +68,13 @@ namespace CDeTDS.DAL
     public static class BuiltInTdsRules
     {
         // ── Version: bump this when rates change ─────────────────────────────
-        public const string CurrentVersion = "2026-27-20260507";
+        public const string CurrentVersion = "2026-27-20260601";
 
         public static readonly HashSet<string> StandardSections = new(StringComparer.OrdinalIgnoreCase)
         {
             "192","192A","193","194","194A","194B","194BA","194BB","194C","194D",
             "194DA","194G","194H","194I","194IA","194IB","194IC","194J","194K",
-            "194LA","194M","194N","194O","194Q","194R","194S","195","206AB","206CCA"
+            "194LA","194M","194N","194O","194P","194Q","194R","194S","195","206AA","206AB","206CCA"
             // Note: 194Q and 206AB are kept in StandardSections so their historical records are protected from user edit
         };
 
@@ -126,13 +126,16 @@ namespace CDeTDS.DAL
 
             // LOTTERY AGENT / COMMISSION — resident; cess=0
             new BuiltInRule("194G",  "Commission on Lottery",           "All",        true,   15000,   5.00, 0, 0, "2026-04-01", "", CurrentVersion),
-            // 194H: Finance Act 2025 reduced rate from 5% → 2% w.e.f. 1-Apr-2025; threshold unchanged ₹15,000
-            new BuiltInRule("194H",  "Commission / Brokerage",          "All",        true,   15000,   2.00, 0, 0, "2026-04-01", "", CurrentVersion),
+            // 194H: Finance Act 2025 reduced rate 5% → 2% AND raised threshold ₹15,000 → ₹20,000 w.e.f. 1-Apr-2025
+            // Ref: Finance Act 2025, Section 49(a); IT Act 2025 Section 393(1) Sl.10(i)
+            new BuiltInRule("194H",  "Commission / Brokerage",          "All",        true,   20000,   2.00, 0, 0, "2026-04-01", "", CurrentVersion),
 
             // RENT — resident; cess=0
-            // Finance Act 2025 increased 194I threshold from ₹2,40,000/year → ₹6,00,000/year (₹50,000/month) w.e.f. 1-Apr-2025
-            new BuiltInRule("194I",  "Rent - Plant & Machinery",        "All",        true,  600000,   2.00, 0, 0, "2026-04-01", "", CurrentVersion),
-            new BuiltInRule("194I",  "Rent - Land/Building/Furniture",  "All",        true,  600000,  10.00, 0, 0, "2026-04-01", "", CurrentVersion),
+            // Finance Act 2025: threshold changed to ₹50,000 PER MONTH (or part thereof) w.e.f. 1-Apr-2025
+            // Stored as 50000 (monthly). TDS triggered when single month credit/payment exceeds ₹50,000.
+            // Ref: Finance Act 2025, Section 50; IT Act 2025 Section 393(1) Sl.11
+            new BuiltInRule("194I",  "Rent - Plant & Machinery",        "All",        true,   50000,   2.00, 0, 0, "2026-04-01", "", CurrentVersion),
+            new BuiltInRule("194I",  "Rent - Land/Building/Furniture",  "All",        true,   50000,  10.00, 0, 0, "2026-04-01", "", CurrentVersion),
             new BuiltInRule("194IA", "Transfer of Immovable Property",  "All",        true, 5000000,   1.00, 0, 0, "2026-04-01", "", CurrentVersion),
             // 194IB: Finance Act 2023 reduced rate from 5% → 2% w.e.f. FY 2023-24; cess=0
             new BuiltInRule("194IB", "Rent by Individual/HUF",          "Individual", true,   50000,   2.00, 0, 0, "2026-04-01", "", CurrentVersion),
@@ -157,10 +160,21 @@ namespace CDeTDS.DAL
             new BuiltInRule("194R",  "Benefit/Perquisite to Business",  "All",        true,   20000,  10.00, 0, 0, "2026-04-01", "", CurrentVersion),
             new BuiltInRule("194S",  "Virtual Digital Assets (VDA)",    "All",        true,   10000,   1.00, 0, 0, "2026-04-01", "", CurrentVersion),
 
+            // 194P — Tax deduction for specified senior citizens (75+) by specified bank
+            // Introduced Finance Act 2021; bank computes full tax liability (salary + interest); cess=4
+            // No separate TDS return by deductee — bank files Form 26QAA; rate = slab (rate=0 → engine)
+            // Ref: Section 393(1) Sl.19 — IT Act 2025
+            new BuiltInRule("194P",  "Senior Citizen (75+) — Specified Bank", "Individual", true, 0, 0.00, 0, 4, "2021-04-01", "", CurrentVersion),
+
             // NON-RESIDENTS — TDS is often final tax; cess=4 applies at source
             new BuiltInRule("195",   "Payments to Non-Residents",       "All",        false,      0,  20.00, 0, 4, "2026-04-01", "", CurrentVersion),
 
-            // 206AB: REMOVED by Finance Act 2025 w.e.f. 1-Apr-2025 — section abolished; higher rate no longer applied for ITR non-filers
+            // 206AA — Higher TDS when PAN not available; rate = Max(applicable rate, 20%)
+            // Not a deductible section by itself — used as override flag; stored for reference/display
+            // Ref: Section 397(1) — IT Act 2025
+            new BuiltInRule("206AA", "Higher TDS — PAN Not Available",  "All",        true,       0,  20.00, 0, 0, "2026-04-01", "", CurrentVersion),
+
+            // 206AB: REMOVED by Finance Act 2025 w.e.f. 1-Apr-2025 — section abolished
             new BuiltInRule("206AB", "Higher Rate — ITR not filed (Removed — Finance Act 2025)", "All", true, 0, 20.00, 0, 0, "2021-07-01", "2025-03-31", "2025-26-20250401"),
         };
     }
