@@ -5,7 +5,8 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogSvc
 
-<div class="d-flex align-center gap-3 mb-4">
+<div style="display:flex;flex-direction:column;height:100%">
+<div class="d-flex align-center gap-3 mb-4" style="flex-shrink:0">
     <MudText Typo="Typo.h5">Deductee Master</MudText>
     <MudSpacer />
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
@@ -23,10 +24,10 @@
 }
 else
 {
-<div style="height:calc(100vh - 200px);overflow:hidden">
+<div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
 <MudDataGrid T="Deductee" Items="_items" Hover="true" Striped="true" Dense="true"
              QuickFilter="_filter" SortMode="SortMode.Multiple"
-             FixedHeader="true" Height="calc(100vh - 200px)">
+             FixedHeader="true" Height="100%">
     <ToolBarContent>
         <MudTextField @bind-Value="_search" Placeholder="Search name / PAN / section..."
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -76,6 +77,7 @@ else
 </MudDataGrid>
 </div>
 }
+</div>
 
 <MudDialog @bind-Visible="_dialogOpen" Options="_dialogOptions">
     <TitleContent>
