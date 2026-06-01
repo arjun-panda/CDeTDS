@@ -3766,6 +3766,7 @@
         AppState.NotifyStateChanged();
         LoadBulkGrid();
         RefreshSdEmpStatus();
+        LoadSavedRuns();
         if (_sdEmpId > 0) SelectSdMonth(_sdMonth);
         Snackbar.Add(_sdBulkMsg, failed > 0 ? Severity.Warning : Severity.Success);
     }
