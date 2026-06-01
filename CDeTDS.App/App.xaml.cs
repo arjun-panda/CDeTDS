@@ -298,24 +298,18 @@ namespace CDeTDS.App
         {
             try
             {
-                // Skip if already configured
-                var existingFvu  = Database.GetSetting("FvuPath",  "");
-                var existingJava = Database.GetSetting("JavaPath", "");
-                if (!string.IsNullOrEmpty(existingFvu) && !string.IsNullOrEmpty(existingJava)
-                    && File.Exists(existingFvu) && File.Exists(existingJava))
-                    return;
-
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\CDeTDS");
                 if (key == null) return;
 
-                var fvuPath  = key.GetValue("FvuPath")  as string ?? "";
-                var javaPath = key.GetValue("JavaPath") as string ?? "";
+                var regFvu  = key.GetValue("FvuPath")  as string ?? "";
+                var regJava = key.GetValue("JavaPath") as string ?? "";
 
-                if (!string.IsNullOrEmpty(fvuPath) && File.Exists(fvuPath))
-                    Database.SetSetting("FvuPath", fvuPath);
+                // Always prefer the registry path from the current installer over a migrated/stale DB value
+                if (!string.IsNullOrEmpty(regFvu) && File.Exists(regFvu))
+                    Database.SetSetting("FvuPath", regFvu);
 
-                if (!string.IsNullOrEmpty(javaPath) && File.Exists(javaPath))
-                    Database.SetSetting("JavaPath", javaPath);
+                if (!string.IsNullOrEmpty(regJava) && File.Exists(regJava))
+                    Database.SetSetting("JavaPath", regJava);
             }
             catch { }
         }

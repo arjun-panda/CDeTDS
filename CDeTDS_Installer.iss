@@ -93,7 +93,8 @@ Name: "{autodesktop}\{#AppName}";      Filename: "{app}\{#AppExeName}"; Tasks: d
 Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "InstallPath";    ValueData: "{app}";                    Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "Version";        ValueData: "{#AppVersion}"
 Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "DataPath";       ValueData: "{userappdata}\CDeTDS"
-Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "FvuPath";        ValueData: "{app}\FVU"
+Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "FvuPath";        ValueData: "{app}\FVU\TDS_STANDALONE_FVU_9.4.jar"
+Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "JavaPath";       ValueData: "{app}\jre\bin\java.exe"
 ; Bundled JRE path — app uses this to auto-detect java.exe without user configuration
 Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "BundledJrePath"; ValueData: "{app}\jre"
 
