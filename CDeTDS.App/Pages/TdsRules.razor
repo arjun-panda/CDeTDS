@@ -133,44 +133,40 @@
             </MudButton>
         </div>
 
-        <div style="height:calc(100vh - 200px);overflow-y:auto">
+        <div style="height:calc(100vh - 170px);overflow-y:auto;overflow-x:auto">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="calc(100vh - 200px)">
+                     FixedHeader="true" Height="calc(100vh - 170px)">
             <Columns>
-                <PropertyColumn Property="x => x.SectionCode"     Title="Section" />
-                <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
-                <PropertyColumn Property="x => x.DeducteeType"    Title="Type" />
-                <TemplateColumn Title="Threshold (₹)">
+                <PropertyColumn Property="x => x.SectionCode"     Title="Section"            HeaderStyle="width:80px" CellStyle="width:80px" />
+                <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment"  HeaderStyle="min-width:180px" />
+                <PropertyColumn Property="x => x.DeducteeType"    Title="Type"               HeaderStyle="width:85px" CellStyle="width:85px" />
+                <TemplateColumn Title="Threshold (₹)"             HeaderStyle="width:90px" CellStyle="width:90px;text-align:right">
                     <CellTemplate>@context.Item.ThresholdLimit.ToString("N0")</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Rate %">
+                <TemplateColumn Title="Rate %"                    HeaderStyle="width:65px" CellStyle="width:65px;text-align:right">
                     <CellTemplate><b>@context.Item.TdsRate.ToString("N2")</b></CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Surcharge %">
+                <TemplateColumn Title="SC %"                      HeaderStyle="width:55px" CellStyle="width:55px;text-align:right">
                     <CellTemplate>@context.Item.SurchargeRate.ToString("N2")</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Cess %">
+                <TemplateColumn Title="Cess %"                    HeaderStyle="width:55px" CellStyle="width:55px;text-align:right">
                     <CellTemplate>@context.Item.CessRate.ToString("N2")</CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.ReferenceAct"   Title="Act Reference" />
-                <TemplateColumn Title="Effective">
+                <PropertyColumn Property="x => x.ReferenceAct"   Title="Act Ref"             HeaderStyle="width:160px" CellStyle="width:160px;font-size:12px" />
+                <TemplateColumn Title="Eff. From"                 HeaderStyle="width:95px" CellStyle="width:95px;font-size:12px">
                     <CellTemplate>
                         @context.Item.EffectiveFrom.ToString("dd-MMM-yyyy")
                         @if (context.Item.EffectiveTo.HasValue)
-                        { <span> – @context.Item.EffectiveTo.Value.ToString("dd-MMM-yyyy")</span> }
+                        { <div style="font-size:10px;color:#e65100">to @context.Item.EffectiveTo.Value.ToString("dd-MMM-yyyy")</div> }
                     </CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Active" Sortable="false">
+                <TemplateColumn Title="Actions" Sortable="false"  HeaderStyle="width:90px" CellStyle="width:90px">
                     <CellTemplate>
                         @if (context.Item.IsActive) {
-                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Style="vertical-align:middle;margin-right:2px" />
                         } else {
-                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Default" Size="Size.Small" />
+                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Default" Size="Size.Small" Style="vertical-align:middle;margin-right:2px" />
                         }
-                    </CellTemplate>
-                </TemplateColumn>
-                <TemplateColumn Title="Actions" Sortable="false">
-                    <CellTemplate>
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                        OnClick="() => OpenEditRule(context.Item)" />
                         <MudIconButton Icon="@(context.Item.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
@@ -188,7 +184,7 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
             Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
         </MudAlert>
-        <div style="height:calc(100vh - 240px);overflow-y:auto">
+        <div style="height:calc(100vh - 190px);overflow-y:auto">
         <MudSimpleTable Dense="true" Striped="true" Hover="true">
             <thead>
                 <tr>
