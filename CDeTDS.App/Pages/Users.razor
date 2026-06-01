@@ -8,9 +8,9 @@
 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
            OnClick="OpenAdd" Class="mb-4">Add User</MudButton>
 
-<div style="height:calc(100vh - 190px);overflow-y:auto">
+<div style="height:calc(100vh - 160px);overflow-y:auto">
 <MudDataGrid T="AppUser" Items="_items" Hover="true" Striped="true" Dense="true"
-             FixedHeader="true" Height="calc(100vh - 190px)">
+             FixedHeader="true" Height="calc(100vh - 160px)">
     <Columns>
         <PropertyColumn Property="x => x.Username"  Title="Username" />
         <PropertyColumn Property="x => x.FullName"  Title="Full Name" />
