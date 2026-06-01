@@ -18,6 +18,7 @@ namespace CDeTDS.DAL.Models
         public string Notes              { get; set; } = "";
         public string LastPostedFy       { get; set; } = "";
         public int    LastPostedMonth    { get; set; } = 0;
+        public double LastPostedAmt      { get; set; } = 0;
 
         // ── Computed ────────────────────────────────────────────────────────
         public double Balance => Math.Max(0, TotalAmount - RecoveredAmt);
@@ -49,8 +50,6 @@ namespace CDeTDS.DAL.Models
         public bool IsDue(string fy, int month)
         {
             if (!IsActive || Balance <= 0) return false;
-            // Skip if already posted for this exact FY+month (prevents double-posting on re-save)
-            if (LastPostedFy == fy && LastPostedMonth == month) return false;
             int cmp = string.Compare(StartFy, fy, StringComparison.Ordinal);
             if (cmp < 0) return true;          // started in an earlier FY — always due
             if (cmp > 0) return false;         // starts in a future FY — not yet due

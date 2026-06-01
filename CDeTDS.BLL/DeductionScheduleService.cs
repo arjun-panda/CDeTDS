@@ -28,19 +28,31 @@ namespace CDeTDS.BLL
         public void Close(int id) => _repo.Close(id);
 
         /// <summary>
-        /// For each active schedule due this month, records the installment recovery.
-        /// Call this after a month is locked (Approve) to decrement the balance.
-        /// Returns the list of schedules that were posted (for logging).
+        /// Records actual recovered amount for each active schedule this month.
+        /// Uses the actual varDed line item amount saved in salary (supports manual overrides /
+        /// extra repayments). Falls back to ThisInstallment if no line item found.
         /// </summary>
         public List<(DeductionSchedule Schedule, double Posted)> PostInstallments(
             int employeeId, int deductorId, string fy, int month)
         {
             var posted = new List<(DeductionSchedule, double)>();
             var schedules = _repo.GetActive(employeeId);
+            if (!schedules.Any()) return posted;
+
+            // Load actual line items saved for this employee+month to get real recovered amounts
+            var salRepo  = new SalaryRepository();
+            var entry    = salRepo.Get(employeeId, fy, month);
+            var lineItems = entry != null ? salRepo.GetLineItems(entry.Id) : new List<SalaryLineItem>();
+
             foreach (var s in schedules)
             {
                 if (!s.IsDue(fy, month)) continue;
-                double amount = s.ThisInstallment;
+
+                // Use actual amount from saved varDed line item (RuleRef = schedule ID)
+                var li = lineItems.FirstOrDefault(l =>
+                    l.Category == "varDed" && l.RuleRef == s.Id.ToString());
+                double amount = li != null ? li.Taxable : s.ThisInstallment;
+
                 if (amount <= 0) continue;
                 _repo.UpdateRecovered(s.Id, amount, fy, month);
                 posted.Add((s, amount));

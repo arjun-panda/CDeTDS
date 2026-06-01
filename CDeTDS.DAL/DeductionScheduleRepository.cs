@@ -9,7 +9,8 @@ namespace CDeTDS.DAL
                                        recovered_amt,start_fy,start_month,is_active,
                                        created_at,notes,
                                        COALESCE(last_posted_fy,'') AS last_posted_fy,
-                                       COALESCE(last_posted_month,0) AS last_posted_month";
+                                       COALESCE(last_posted_month,0) AS last_posted_month,
+                                       COALESCE(last_posted_amt,0) AS last_posted_amt";
 
         public List<DeductionSchedule> GetActive(int employeeId)
         {
@@ -80,22 +81,48 @@ namespace CDeTDS.DAL
             }
         }
 
-        // Add recovered amount; auto-close when fully recovered; stamp last-posted month
+        // Update recovered amount for a month. If re-posting the same month, replaces the
+        // previous amount (supports changed/extra repayments). Otherwise adds to total.
         public void UpdateRecovered(int id, double amount, string fy = "", int month = 0)
         {
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = @"UPDATE deduction_schedules
-                SET recovered_amt     = MIN(total_amount, recovered_amt + @amt),
-                    is_active         = CASE WHEN MIN(total_amount, recovered_amt + @amt) >= total_amount THEN 0 ELSE is_active END,
+            // When re-saving the same month: subtract last_posted_amt and add new amount.
+            // last_posted_amt is stored as the difference: new_recovered - old_recovered.
+            // Simpler: read current row, compute new recovered_amt, then write it back.
+            cmd.CommandText = "SELECT recovered_amt, total_amount, last_posted_fy, last_posted_month, last_posted_amt FROM deduction_schedules WHERE id=@id";
+            cmd.Parameters.AddWithValue("@id", id);
+            double currentRecovered, totalAmount, lastPostedAmt = 0;
+            string lastFy; int lastMonth;
+            using (var r = cmd.ExecuteReader())
+            {
+                if (!r.Read()) return;
+                currentRecovered = r.GetDouble(0);
+                totalAmount      = r.GetDouble(1);
+                lastFy           = r.IsDBNull(2) ? "" : r.GetString(2);
+                lastMonth        = r.IsDBNull(3) ? 0  : r.GetInt32(3);
+                lastPostedAmt    = r.IsDBNull(4) ? 0  : r.GetDouble(4);
+            }
+            // If re-posting same month, reverse previous posting first
+            double base_ = (lastFy == fy && lastMonth == month)
+                ? Math.Max(0, currentRecovered - lastPostedAmt)
+                : currentRecovered;
+            double newRecovered = Math.Min(totalAmount, base_ + amount);
+
+            using var upd = conn.CreateCommand();
+            upd.CommandText = @"UPDATE deduction_schedules
+                SET recovered_amt     = @rec,
+                    is_active         = CASE WHEN @rec >= total_amount THEN 0 ELSE is_active END,
                     last_posted_fy    = @fy,
-                    last_posted_month = @month
+                    last_posted_month = @month,
+                    last_posted_amt   = @amt
                 WHERE id=@id";
-            cmd.Parameters.AddWithValue("@amt",   amount);
-            cmd.Parameters.AddWithValue("@fy",    fy);
-            cmd.Parameters.AddWithValue("@month", month);
-            cmd.Parameters.AddWithValue("@id",    id);
-            cmd.ExecuteNonQuery();
+            upd.Parameters.AddWithValue("@rec",   newRecovered);
+            upd.Parameters.AddWithValue("@fy",    fy);
+            upd.Parameters.AddWithValue("@month", month);
+            upd.Parameters.AddWithValue("@amt",   amount);
+            upd.Parameters.AddWithValue("@id",    id);
+            upd.ExecuteNonQuery();
         }
 
         public void Close(int id)
@@ -125,6 +152,7 @@ namespace CDeTDS.DAL
             Notes             = r.GetString(13),
             LastPostedFy      = r.GetString(14),
             LastPostedMonth   = r.GetInt32(15),
+            LastPostedAmt     = r.GetDouble(16),
         };
     }
 }
