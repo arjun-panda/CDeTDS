@@ -152,21 +152,32 @@ namespace CDeTDS.DAL
             string prn     = h.IsCorrection ? (h.PreviousPrn ?? "").Trim() : "";
             string origPrn = h.IsCorrection ? (string.IsNullOrEmpty(h.OriginalPrn) ? prn : h.OriginalPrn.Trim()) : "";
             string corrType = h.IsCorrection ? (h.CorrectionType ?? "C1").Trim().ToUpper() : "";
-            // BH[47] must equal sum of CD[27] (TotalDepositPerChallan) exactly — T-FV-3070.
-            // Mirror the CD calculation: Max(challan, DD) for TDS/surcharge/cess; raw for interest/latefee.
+            // BH[47] must equal sum of CD[27] exactly — T-FV-3070.
+            // Must use the same deductee-assignment logic as CD: linked by ChallanNo,
+            // unlinked (empty ChallanNo) go under the first challan only.
             bool isSal = nsdlForm == "24Q" || nsdlForm == "138";
-            double challanTotal = data.Challans.Sum(c => {
-                var ddsForChallan = data.Deductees
-                    .Where(d => d.ChallanNo == c.ChallanNo && d.BsrCode == c.BsrCode)
+            bool bhUnlinkedAssigned = false;
+            double challanTotal = 0;
+            foreach (var c in data.Challans)
+            {
+                var linked = data.Deductees
+                    .Where(d => !string.IsNullOrEmpty(d.ChallanNo) && d.ChallanNo == c.ChallanNo)
                     .ToList();
+                var unlinked = new List<ReturnDeducteeDetail>();
+                if (!bhUnlinkedAssigned)
+                {
+                    unlinked = data.Deductees.Where(d => string.IsNullOrEmpty(d.ChallanNo)).ToList();
+                    if (unlinked.Any()) bhUnlinkedAssigned = true;
+                }
+                var ddsForChallan = linked.Concat(unlinked).ToList();
                 double ddTdsC  = ddsForChallan.Sum(d => Math.Round(d.TdsDeducted,  MidpointRounding.AwayFromZero));
                 double ddScC   = ddsForChallan.Sum(d => Math.Round(d.Surcharge,    MidpointRounding.AwayFromZero));
                 double ddCessC = isSal ? ddsForChallan.Sum(d => Math.Round(d.Cess, MidpointRounding.AwayFromZero)) : 0;
                 double oltasTdsC  = Math.Max(c.TdsDeposited, ddTdsC);
                 double oltasScC   = Math.Max(c.Surcharge,    ddScC);
                 double oltasCessC = Math.Max(isSal ? c.Cess : 0, ddCessC);
-                return oltasTdsC + oltasScC + oltasCessC + c.Interest + c.LateFee;
-            });
+                challanTotal += oltasTdsC + oltasScC + oltasCessC + c.Interest + c.LateFee;
+            }
             double batchTds = challanTotal;
             string batchTdsStr = batchTds.ToString("F2"); // rupees with .00, e.g. "500000.00"
             // Split deductor address into up to 4 lines, max 25 chars each (NSDL BH field limit)
