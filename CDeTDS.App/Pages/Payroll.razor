@@ -3644,6 +3644,12 @@
                 SelectSdMonth(_sdMonth);
                 RefreshSdMonthStrip();
             }
+            // Tab 3 = Salary Slips — sync month to current Salary Data month and reload
+            if (index == 3)
+            {
+                if (_sdMonth > 0) _slipMonth = _sdMonth;
+                LoadSavedRuns();
+            }
         }
         finally
         {
@@ -4036,6 +4042,7 @@
             LoadSchedules();
             _sdAnnual = null;
             _ = SdCompute();
+            if (_slipMonth == _sdMonth) LoadSavedRuns();
             Snackbar.Add($"Saved {new DateTime(1, _sdMonth, 1):MMMM} salary for {entry.EmployeeName}.", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Save error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
