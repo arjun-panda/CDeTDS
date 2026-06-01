@@ -1,0 +1,71 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>CDeTDS.App</RootNamespace>
+    <AssemblyName>CDeTDS</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>CDeTDS.App.Program</StartupObject>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
+    <TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops>
+    <TieredPGO>true</TieredPGO>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <Product>CDeTDS</Product>
+    <Company>CDeTDS Software</Company>
+    <Description>TDS Compliance Software – Income-tax Act 2025</Description>
+    <Copyright>Copyright 2026 CDeTDS Software</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.*" />
+    <PackageReference Include="MudBlazor" Version="7.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.*" />
+    <PackageReference Include="Velopack" Version="0.0.1298" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CDeTDS.BLL\CDeTDS.BLL.csproj" />
+    <ProjectReference Include="..\CDeTDS.DAL\CDeTDS.DAL.csproj" />
+    <ProjectReference Include="..\CDeTDS.Common\CDeTDS.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\CHANGELOG.txt" CopyToOutputDirectory="PreserveNewest" Link="CHANGELOG.txt" />
+  </ItemGroup>
+
+  <!-- Build-time guard: CHANGELOG.txt first version entry must match <Version> in this csproj -->
+  <Target Name="ValidateChangelog" BeforeTargets="Build">
+    <ReadLinesFromFile File="$(MSBuildProjectDirectory)\..\CHANGELOG.txt">
+      <Output TaskParameter="Lines" ItemName="ChangelogLines" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <!-- Find first line matching "vX.Y.Z" pattern -->
+      <ChangelogFirstVersion>@(ChangelogLines->'^v(\d+\.\d+\.\d+).*$'->Replace('v','')->Substring(0,5))</ChangelogFirstVersion>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -Command &quot;$cl = (Get-Content '$(MSBuildProjectDirectory)\..\CHANGELOG.txt') | Where-Object { $_ -match '^v\d' } | Select-Object -First 1; $ver = ($cl -replace '^v(\d+\.\d+\.\d+).*','$1').Trim(); if ($ver -ne '$(Version)') { Write-Error &quot;VERSION MISMATCH: CHANGELOG.txt says v$ver but CDeTDS.App.csproj says v$(Version). Update both together.&quot;; exit 1 }&quot;"
+          ConsoleToMSBuild="true"
+          StandardErrorImportance="high">
+      <Output TaskParameter="ExitCode" PropertyName="ChangelogCheckExit" />
+    </Exec>
+    <Error Condition="'$(ChangelogCheckExit)' != '0'"
+           Text="VERSION MISMATCH â€” CHANGELOG.txt and CDeTDS.App.csproj versions must match. Update both together." />
+  </Target>
+</Project>
+
+
+

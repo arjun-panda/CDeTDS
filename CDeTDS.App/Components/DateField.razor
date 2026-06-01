@@ -1,0 +1,120 @@
+@* Smart date input — accepts ddMMyyyy, dd/MM/yyyy, dd-MM-yyyy, dd MMM yyyy, etc.
+   Displays as dd-MM-yyyy once parsed. Binds to DateTime? via Value/ValueChanged. *@
+
+<div style="position:relative">
+    <MudTextField Value="@_text"
+                  Label="@Label"
+                  Variant="@Variant"
+                  Margin="@Margin"
+                  Class="@Class"
+                  Placeholder="e.g. 01-04-2026"
+                  Error="@(_error)"
+                  ErrorText="Invalid date — try dd-MM-yyyy or ddMMyyyy"
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@Icons.Material.Filled.CalendarMonth"
+                  AdornmentAriaLabel="date"
+                  OnAdornmentClick="OpenPicker"
+                  ValueChanged="@(EventCallback.Factory.Create<string>(this, OnTextChanged))"
+                  @onblur="OnBlur" />
+
+    @if (_pickerOpen)
+    {
+        <div style="position:absolute;top:100%;left:0;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:8px;background:#fff">
+            <MudDatePicker Date="_pickerDate"
+                           PickerVariant="PickerVariant.Static"
+                           DateChanged="@(EventCallback.Factory.Create<DateTime?>(this, OnPickerDateChanged))" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime?       Value        { get; set; }
+    [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
+    [Parameter] public string          Label        { get; set; } = "Date";
+    [Parameter] public Variant         Variant      { get; set; } = Variant.Outlined;
+    [Parameter] public Margin          Margin       { get; set; } = Margin.None;
+    [Parameter] public string          Class        { get; set; } = "";
+
+    private string    _text       = "";
+    private bool      _error      = false;
+    private bool      _pickerOpen = false;
+    private DateTime? _pickerDate;
+
+    protected override void OnParametersSet()
+    {
+        var display = Value.HasValue ? Value.Value.ToString("dd-MM-yyyy") : "";
+        if (_text != display && !_error)
+            _text = display;
+    }
+
+    void OnTextChanged(string val)
+    {
+        _text  = val;
+        _error = false;
+    }
+
+    async Task OnBlur()
+    {
+        if (string.IsNullOrWhiteSpace(_text))
+        {
+            _error = false;
+            await ValueChanged.InvokeAsync(null);
+            return;
+        }
+        var parsed = ParseDate(_text);
+        if (parsed.HasValue)
+        {
+            _error = false;
+            _text  = parsed.Value.ToString("dd-MM-yyyy");
+            await ValueChanged.InvokeAsync(parsed);
+        }
+        else
+        {
+            _error = true;
+        }
+    }
+
+    void OpenPicker()
+    {
+        _pickerDate = Value ?? DateTime.Today;
+        _pickerOpen = !_pickerOpen;
+    }
+
+    async Task OnPickerDateChanged(DateTime? d)
+    {
+        _pickerOpen = false;
+        if (d.HasValue)
+        {
+            _text  = d.Value.ToString("dd-MM-yyyy");
+            _error = false;
+            await ValueChanged.InvokeAsync(d);
+        }
+    }
+
+    static DateTime? ParseDate(string s)
+    {
+        s = s.Trim();
+        if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^\d{6,8}$"))
+        {
+            s = s.PadLeft(8, '0');
+            s = $"{s[..2]}-{s[2..4]}-{s[4..]}";
+        }
+        s = s.Replace('/', '-').Replace('.', '-').Replace(' ', '-');
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"-+", "-");
+
+        string[] formats = {
+            "dd-MM-yyyy", "d-M-yyyy", "dd-MMM-yyyy", "d-MMM-yyyy",
+            "dd-MM-yy",   "d-M-yy",
+            "yyyy-MM-dd",
+        };
+        if (DateTime.TryParseExact(s, formats,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var result))
+            return result;
+
+        if (DateTime.TryParse(s, out result))
+            return result;
+
+        return null;
+    }
+}

@@ -1,0 +1,860 @@
+﻿@page "/reports"
+@inject AppStateService AppState
+@inject ReportsService Svc
+@inject TdsEntryService EntrySvc
+@inject PayrollService PayrollSvc
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IDisposable
+@using CDeTDS.Common
+@using System.IO
+
+@* ── Sticky header ── *@
+<div class="reports-sticky-hdr" style="position:sticky;top:0;z-index:50;background:#f5f7fa;margin:-16px -24px 12px -24px;padding:8px 24px 10px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
+
+    @* Row 1: title + controls *@
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Reports — FY @AppState.CurrentFY</span>
+        <span style="font-size:11px;color:#64748b;white-space:nowrap">@AppState.CurrentDeductorName</span>
+        <div style="flex:1"></div>
+        @if (_activeTab == 1 || _activeTab == 2 || _activeTab == 3)
+        {
+            var _qVal   = _activeTab == 1 ? _deducteeQuarter : _activeTab == 2 ? _sectionQuarter : _reconQuarter;
+            var _qChg   = _activeTab == 1 ? EventCallback.Factory.Create<string>(this, async (string v) => { _deducteeQuarter = v; await LoadDeducteeReport(); })
+                        : _activeTab == 2 ? EventCallback.Factory.Create<string>(this, async (string v) => { _sectionQuarter  = v; await LoadSectionReport(); })
+                                          : EventCallback.Factory.Create<string>(this, async (string v) => { _reconQuarter    = v; await LoadChallanRecon(); });
+            <MudSelect T="string" Value="@_qVal" Label="Quarter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Style="width:130px" AnchorOrigin="Origin.BottomCenter" ShrinkLabel="true"
+                       ValueChanged="@_qChg">
+                <MudSelectItem T="string" Value="@string.Empty">All Quarters</MudSelectItem>
+                @foreach (var q in AppConstants.QuarterCodes) { <MudSelectItem T="string" Value="@q">@q</MudSelectItem> }
+            </MudSelect>
+        }
+        @if (_activeTab == 0 && _quarterSummary != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadQuarterExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 1 && _deducteeReport != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadDeducteeExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 2 && _sectionReport != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadSectionExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 3 && _recon != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadReconExcel">Excel</MudButton>
+        }
+        @if (_activeTab == 4 && _yearSummary != null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadPayrollExcel">Excel</MudButton>
+        }
+    </div>
+
+    @* Row 2: Tab bar *@
+    <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin:0 -24px;padding:0 24px">
+        @{ var _tabs = new[] {
+            ("Quarter Summary", Icons.Material.Filled.BarChart),
+            ("Deductee-wise",   Icons.Material.Filled.People),
+            ("Section-wise",    Icons.Material.Filled.Category),
+            ("Challan Recon",   Icons.Material.Filled.CompareArrows),
+            ("Payroll Summary", Icons.Material.Filled.TableChart),
+        }; }
+        @for (int _ti = 0; _ti < _tabs.Length; _ti++)
+        {
+            var _tIdx = _ti;
+            var _active = _activeTab == _tIdx;
+            <button @onclick="@(() => OnTabChanged(_tIdx))"
+                    style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:none;background:none;cursor:pointer;
+                           font-size:12px;font-weight:@(_active?"700":"500");letter-spacing:.3px;text-transform:uppercase;
+                           color:@(_active?"#1565C0":"#64748b");
+                           border-bottom:@(_active?"2px solid #1565C0":"2px solid transparent");
+                           margin-bottom:-2px;white-space:nowrap;transition:color .15s">
+                <MudIcon Icon="@_tabs[_tIdx].Item2" Size="Size.Small" Style="@(_active?"color:#1565C0":"color:#94a3b8")"/>
+                @_tabs[_tIdx].Item1
+            </button>
+        }
+    </div>
+
+    @* Row 3: KPI strip — one per tab *@
+    @if (_activeTab == 0 && _quarterSummary != null)
+    {
+        <div style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Entries</div><div class="rpt-kpi-val" style="color:#1565C0">@_quarterSummary.Sum(q=>q.Entries)</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Gross Amount</div><div class="rpt-kpi-val" style="color:#2e7d32">₹@_quarterSummary.Sum(q=>q.GrossAmount).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total TDS</div><div class="rpt-kpi-val" style="color:#e65100">₹@_quarterSummary.Sum(q=>q.TotalTds).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Paid</div><div class="rpt-kpi-val" style="color:#2e7d32">@_quarterSummary.Sum(q=>q.PaidCount)</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Pending</div><div class="rpt-kpi-val" style="color:@(_quarterSummary.Sum(q=>q.PendingCount)>0?"#e65100":"#999")">@_quarterSummary.Sum(q=>q.PendingCount)</div></div>
+        </div>
+    }
+    @if (_activeTab == 1 && _deducteeReport != null && _deducteeReport.Any())
+    {
+        <div style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Deductees</div><div class="rpt-kpi-val" style="color:#1565C0">@_deducteeReport.Count</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Entries</div><div class="rpt-kpi-val" style="color:#1565C0">@_deducteeReport.Sum(r=>r.Entries)</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Gross Amount</div><div class="rpt-kpi-val" style="color:#2e7d32">₹@_deducteeReport.Sum(r=>r.GrossAmount).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total TDS</div><div class="rpt-kpi-val" style="color:#e65100">₹@_deducteeReport.Sum(r=>r.TotalTds).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Pending</div><div class="rpt-kpi-val" style="color:@(_deducteeReport.Sum(r=>r.PendingCount)>0?"#e65100":"#999")">@_deducteeReport.Sum(r=>r.PendingCount)</div></div>
+        </div>
+    }
+    @if (_activeTab == 2 && _sectionReport != null && _sectionReport.Any())
+    {
+        <div style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Sections</div><div class="rpt-kpi-val" style="color:#1565C0">@_sectionReport.Count</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Entries</div><div class="rpt-kpi-val" style="color:#1565C0">@_sectionReport.Sum(r=>r.Entries)</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Gross Amount</div><div class="rpt-kpi-val" style="color:#2e7d32">₹@_sectionReport.Sum(r=>r.GrossAmount).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total TDS</div><div class="rpt-kpi-val" style="color:#e65100">₹@_sectionReport.Sum(r=>r.TotalTds).ToString("N0")</div></div>
+        </div>
+    }
+    @if (_activeTab == 3 && _recon != null)
+    {
+        <div style="margin-top:8px;border-left:5px solid @(_recon.IsReconciled?"#4CAF50":"#FF9800");background:@(_recon.IsReconciled?"#e8f5e9":"#fff3e0");border-radius:8px;padding:10px 16px">
+            <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+                <div>
+                    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666;margin-bottom:1px">TDS Payable</div>
+                    <div style="font-size:20px;font-weight:800;color:#1565C0;font-family:monospace">₹@_recon.TdsPayable.ToString("N0")</div>
+                </div>
+                <div style="color:#bbb;font-size:18px">→</div>
+                <div>
+                    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666;margin-bottom:1px">Challan Deposited</div>
+                    <div style="font-size:20px;font-weight:800;color:#2e7d32;font-family:monospace">₹@_recon.ChallanDeposited.ToString("N0")</div>
+                </div>
+                <div style="color:#bbb;font-size:18px">=</div>
+                <div>
+                    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#666;margin-bottom:1px">Difference</div>
+                    <div style="font-size:20px;font-weight:800;color:@(_recon.IsReconciled?"#4CAF50":"#FF9800");font-family:monospace">
+                        @(_recon.Difference >= 0 ? "+" : "")₹@_recon.Difference.ToString("N0")
+                    </div>
+                </div>
+                <div style="margin-left:auto">
+                    @if (_recon.IsReconciled)
+                    {
+                        <div style="display:flex;align-items:center;gap:6px;background:#4CAF50;color:#fff;border-radius:20px;padding:6px 16px;font-weight:700;font-size:13px">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"/>RECONCILED
+                        </div>
+                    }
+                    else
+                    {
+                        <div @onclick="@(() => _reconDetailOpen = !_reconDetailOpen)"
+                             style="display:flex;align-items:center;gap:6px;background:#FF9800;color:#fff;border-radius:20px;padding:6px 16px;font-weight:700;font-size:13px;cursor:pointer;user-select:none">
+                            <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small"/>
+                            MISMATCH
+                            <MudIcon Icon="@(_reconDetailOpen ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small"/>
+                        </div>
+                    }
+                </div>
+            </div>
+            @if (_reconDetailOpen && _recon.SectionBreakdown.Any())
+            {
+                var _qtrs = _recon.SectionBreakdown.GroupBy(r => r.Quarter).OrderBy(g => g.Key).ToList();
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ffe0b2;display:flex;gap:10px;flex-wrap:wrap">
+                    @foreach (var qg in _qtrs)
+                    {
+                        var qPayable   = qg.Sum(r => r.TdsPayable);
+                        var qDeposited = qg.Sum(r => r.ChallanDeposited);
+                        var qDiff      = qDeposited - qPayable;
+                        var qOk        = Math.Abs(qDiff) < 1.0;
+                        <div style="background:rgba(255,255,255,.65);border-radius:8px;padding:8px 12px;min-width:170px;border:1px solid @(qOk?"#c8e6c9":"#ffcc80")">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                                <span style="font-size:12px;font-weight:800;color:#444">@qg.Key</span>
+                                @if (qOk) { <span style="font-size:10px;color:#4CAF50;font-weight:700">✓ OK</span> }
+                                else { <span style="font-size:11px;font-weight:700;color:#e65100">@(qDiff>=0?"+":"")₹@qDiff.ToString("N0")</span> }
+                            </div>
+                            @foreach (var sb in qg)
+                            {
+                                var sbOk = Math.Abs(sb.Difference) < 1.0;
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-top:1px solid #f5e6d0;font-size:11px;gap:6px">
+                                    <span style="font-weight:600;color:#555;min-width:48px">@sb.Section</span>
+                                    <span style="font-family:monospace;color:#1565C0">₹@sb.TdsPayable.ToString("N0")</span>
+                                    <span style="color:#999;font-size:10px">→</span>
+                                    <span style="font-family:monospace;color:#2e7d32">₹@sb.ChallanDeposited.ToString("N0")</span>
+                                    @if (!sbOk) { <span style="font-family:monospace;font-weight:700;color:#e65100">@(sb.Difference>=0?"+":"")₹@sb.Difference.ToString("N0")</span> }
+                                    else { <span style="color:#4CAF50;font-size:10px">✓</span> }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    @if (_activeTab == 4 && _yearSummary != null && _yearSummary.Any())
+    {
+        <div id="payroll-kpi" style="display:flex;gap:0;margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Employees</div><div class="rpt-kpi-val" style="color:#1565C0">@_yearSummary.Count</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total Gross</div><div class="rpt-kpi-val" style="color:#2e7d32">₹@_yearSummary.Sum(e=>e.TotalGross).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total TDS</div><div class="rpt-kpi-val" style="color:#e65100">₹@_yearSummary.Sum(e=>e.TotalTds).ToString("N0")</div></div>
+            <div class="rpt-kpi-sep"></div>
+            <div class="rpt-kpi"><div class="rpt-kpi-lbl">Total Net Pay</div><div class="rpt-kpi-val" style="color:#6a1b9a">₹@_yearSummary.Sum(e=>e.TotalNet).ToString("N0")</div></div>
+        </div>
+    }
+</div>
+
+<div style="display:flex;flex-direction:column;flex:1;min-height:0;padding:16px 24px">
+
+    @* ── 1. Quarter Summary ── *@
+    @if (_activeTab == 0) {
+        @if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" /> }
+        @if (_quarterSummary != null)
+        {
+            <div style="overflow-y:auto;max-height:calc(100vh - 260px);border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
+                <colgroup>
+                    <col style="width:36px" />     @* chevron *@
+                    <col style="width:80px" />     @* Quarter *@
+                    <col style="width:70px" />     @* Entries *@
+                    <col style="width:140px" />    @* Gross Amount *@
+                    <col style="width:120px" />    @* TDS *@
+                    <col style="width:110px" />    @* Surcharge *@
+                    <col style="width:90px" />     @* Cess *@
+                    <col style="width:110px" />    @* Interest *@
+                    <col style="width:130px" />    @* Total TDS *@
+                    <col style="width:60px" />     @* Paid *@
+                    <col style="width:70px" />     @* Pending *@
+                </colgroup>
+                <thead>
+                    <tr style="background:#1565C0;color:#fff;font-size:12px;letter-spacing:.3px;position:sticky;top:0;z-index:5">
+                        <th style="padding:10px 8px"></th>
+                        <th style="padding:10px 12px;text-align:center">Quarter</th>
+                        <th style="padding:10px 12px;text-align:center">Entries</th>
+                        <th style="padding:10px 12px;text-align:right">Gross Amount (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">TDS (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Surcharge (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Cess (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Interest (₹)</th>
+                        <th style="padding:10px 12px;text-align:right">Total TDS (₹)</th>
+                        <th style="padding:10px 12px;text-align:center">Paid</th>
+                        <th style="padding:10px 12px;text-align:center">Pending</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var q in _quarterSummary)
+                    {
+                        var isExpanded = _expandedQuarter == q.Quarter;
+                        <tr @onclick="() => ToggleQuarter(q.Quarter)"
+                            style="cursor:pointer;border-bottom:1px solid #e8e8e8;transition:background .15s;
+                                   background:@(isExpanded ? "#e8f0fe" : "white")"
+                            onmouseover="if(!this.dataset.expanded)this.style.background='#f5f8ff'"
+                            onmouseout="if(!this.dataset.expanded)this.style.background='white'"
+                            data-expanded="@isExpanded">
+                            <td style="padding:10px 8px;text-align:center">
+                                <span style="display:inline-block;font-size:11px;color:#1565C0;
+                                             transform:@(isExpanded?"rotate(90deg)":"rotate(0deg)");
+                                             transition:transform .2s;font-weight:700">▶</span>
+                            </td>
+                            <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1565C0;font-size:14px">@q.Quarter</td>
+                            <td style="padding:10px 12px;text-align:center;color:#555">@q.Entries</td>
+                            <td style="padding:10px 12px;text-align:right;color:#2e7d32;font-weight:600">@q.GrossAmount.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right">@q.TdsAmount.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#888">@q.Surcharge.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#888">@q.Cess.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;color:#888">@q.Interest.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:right;font-weight:700;color:#e65100">@q.TotalTds.ToString("N0")</td>
+                            <td style="padding:10px 12px;text-align:center">
+                                <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:600;
+                                             padding:2px 8px;border-radius:12px">@q.PaidCount</span>
+                            </td>
+                            <td style="padding:10px 12px;text-align:center">
+                                <span style="background:@(q.PendingCount>0?"#fff3e0":"#f5f5f5");
+                                             color:@(q.PendingCount>0?"#e65100":"#999");
+                                             font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px">@q.PendingCount</span>
+                            </td>
+                        </tr>
+                        @if (isExpanded)
+                        {
+                            <tr style="background:#f0f4ff">
+                                <td colspan="11" style="padding:0">
+                                    <div style="border-top:2px solid #1565C0;border-bottom:1px solid #c5cae9;
+                                                margin:0;padding:12px 16px 14px 48px">
+                                        @if (_expandedEntries == null)
+                                        {
+                                            <div style="padding:10px 0 6px">
+                                                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Style="border-radius:4px" />
+                                                <div style="font-size:12px;color:#666;margin-top:6px;text-align:center">Loading entries…</div>
+                                            </div>
+                                        }
+                                        else if (!_expandedEntries.Any())
+                                        {
+                                            <div style="padding:8px 0;color:#888;font-style:italic;font-size:13px">No TDS entries found for @q.Quarter.</div>
+                                        }
+                                        else
+                                        {
+                                            <div style="margin-bottom:6px;font-size:11px;font-weight:600;color:#1565C0;letter-spacing:.4px;text-transform:uppercase">
+                                                @q.Quarter — @_expandedEntries.Count Entries
+                                            </div>
+                                            <div style="border:1px solid #c5cae9;border-radius:6px;overflow:hidden;background:white;
+                                                        box-shadow:0 1px 3px rgba(21,101,192,.1)">
+                                            <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+                                                <colgroup>
+                                                    <col style="width:100px" />   @* Entry No *@
+                                                    <col style="width:100px" />   @* Date *@
+                                                    <col />                        @* Deductee (flex) *@
+                                                    <col style="width:80px" />    @* Section *@
+                                                    <col style="width:110px" />   @* Gross *@
+                                                    <col style="width:110px" />   @* TDS *@
+                                                    <col style="width:110px" />   @* Total TDS *@
+                                                    <col style="width:110px" />   @* Challan No *@
+                                                    <col style="width:80px" />    @* Status *@
+                                                </colgroup>
+                                                <thead>
+                                                    <tr style="background:#1976D2;color:#fff;font-size:11px;letter-spacing:.3px">
+                                                        <th style="padding:7px 10px;text-align:left">Entry No</th>
+                                                        <th style="padding:7px 10px;text-align:left">Date</th>
+                                                        <th style="padding:7px 10px;text-align:left">Deductee</th>
+                                                        <th style="padding:7px 10px;text-align:left">Section</th>
+                                                        <th style="padding:7px 10px;text-align:right">Gross (₹)</th>
+                                                        <th style="padding:7px 10px;text-align:right">TDS (₹)</th>
+                                                        <th style="padding:7px 10px;text-align:right">Total TDS (₹)</th>
+                                                        <th style="padding:7px 10px;text-align:left">Challan No</th>
+                                                        <th style="padding:7px 10px;text-align:center">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @{ int rowIdx = 0; }
+                                                    @foreach (var e in _expandedEntries)
+                                                    {
+                                                        <tr style="border-bottom:1px solid #e8eaf6;background:@(rowIdx++ % 2 == 0 ? "white" : "#fafbff")">
+                                                            <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#1565C0;font-weight:600">@e.EntryNo</td>
+                                                            <td style="padding:6px 10px;color:#555">@e.EntryDate.ToString("dd-MMM-yyyy")</td>
+                                                            <td style="padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@e.DeducteeName</td>
+                                                            <td style="padding:6px 10px;font-weight:600;color:#455a64">@e.Section</td>
+                                                            <td style="padding:6px 10px;text-align:right;color:#2e7d32">@e.Amount.ToString("N0")</td>
+                                                            <td style="padding:6px 10px;text-align:right">@e.TdsAmount.ToString("N0")</td>
+                                                            <td style="padding:6px 10px;text-align:right;font-weight:700;color:#e65100">@e.TotalTds.ToString("N0")</td>
+                                                            <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#1565C0">
+                                                                @(string.IsNullOrEmpty(e.ChallanNo) ? "—" : e.ChallanNo)
+                                                            </td>
+                                                            <td style="padding:6px 10px;text-align:center">
+                                                                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap;
+                                                                    background:@(e.Status=="Paid"?"#e8f5e9":e.Status=="Overdue"?"#ffebee":"#fff3e0");
+                                                                    color:@(e.Status=="Paid"?"#2e7d32":e.Status=="Overdue"?"#c62828":"#e65100")">
+                                                                    @e.Status
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr style="background:#e8eaf6;font-weight:700;border-top:2px solid #c5cae9;font-size:12px">
+                                                        <td colspan="4" style="padding:7px 10px;color:#1565C0">
+                                                            Total — @_expandedEntries.Count entries
+                                                        </td>
+                                                        <td style="padding:7px 10px;text-align:right;color:#2e7d32">@_expandedEntries.Sum(e=>e.Amount).ToString("N0")</td>
+                                                        <td style="padding:7px 10px;text-align:right">@_expandedEntries.Sum(e=>e.TdsAmount).ToString("N0")</td>
+                                                        <td style="padding:7px 10px;text-align:right;color:#e65100">@_expandedEntries.Sum(e=>e.TotalTds).ToString("N0")</td>
+                                                        <td colspan="2"></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+                <tfoot>
+                    <tr style="background:#1565C0;color:#fff;font-weight:700;font-size:13px">
+                        <td style="padding:10px 8px"></td>
+                        <td style="padding:10px 12px">TOTAL</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Entries)</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.GrossAmount).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.TdsAmount).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Surcharge).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Cess).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.Interest).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.TotalTds).ToString("N0")</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.PaidCount)</td>
+                        <td style="padding:10px 12px;text-align:right">@_quarterSummary.Sum(q=>q.PendingCount)</td>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+        }
+    }
+
+    @* ── 2. Deductee Report ── *@
+    @if (_activeTab == 1) {
+        @if (_deducteeReport != null)
+        {
+            @if (!_deducteeReport.Any())
+            {
+                <MudAlert Severity="Severity.Info">No data for selected period.</MudAlert>
+            }
+            else
+            {
+                <div style="overflow-y:auto;max-height:calc(100vh - 260px);border:1px solid #e0e0e0;border-radius:8px">
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="margin:0">
+                    <thead>
+                        <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
+                            <th>Name</th>
+                            <th>PAN</th>
+                            <th>Type</th>
+                            <th>Section(s)</th>
+                            <th style="text-align:right">Entries</th>
+                            <th style="text-align:right">Gross (₹)</th>
+                            <th style="text-align:right">TDS (₹)</th>
+                            <th style="text-align:right">Interest (₹)</th>
+                            <th style="text-align:right">Total TDS (₹)</th>
+                            <th style="text-align:right">Paid</th>
+                            <th style="text-align:right">Pending</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in _deducteeReport)
+                        {
+                            <tr>
+                                <td>@r.Name</td>
+                                <td style="font-family:monospace">@r.Pan</td>
+                                <td>@r.DeducteeType</td>
+                                <td>@r.Section</td>
+                                <td style="text-align:right">@r.Entries</td>
+                                <td style="text-align:right">@r.GrossAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.TdsAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.Interest.ToString("N0")</td>
+                                <td style="text-align:right"><b>@r.TotalTds.ToString("N0")</b></td>
+                                <td style="text-align:right;color:#2e7d32">@r.PaidCount</td>
+                                <td style="text-align:right;color:#c62828">@r.PendingCount</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#e3f2fd;font-weight:bold">
+                            <td colspan="4">TOTAL (@_deducteeReport.Count deductees)</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.Entries)</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.GrossAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.TdsAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.Interest).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.TotalTds).ToString("N0")</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.PaidCount)</td>
+                            <td style="text-align:right">@_deducteeReport.Sum(r=>r.PendingCount)</td>
+                        </tr>
+                    </tfoot>
+                </MudSimpleTable>
+                </div>
+            }
+        }
+    }
+
+    @* ── 3. Section Report ── *@
+    @if (_activeTab == 2) {
+        @if (_sectionReport != null)
+        {
+            @if (!_sectionReport.Any())
+            {
+                <MudAlert Severity="Severity.Info">No data for selected period.</MudAlert>
+            }
+            else
+            {
+                <div style="overflow-y:auto;max-height:calc(100vh - 260px);border:1px solid #e0e0e0;border-radius:8px">
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="margin:0">
+                    <thead>
+                        <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
+                            <th>Section</th>
+                            <th>Nature of Payment</th>
+                            <th style="text-align:right">Entries</th>
+                            <th style="text-align:right">Gross (₹)</th>
+                            <th style="text-align:right">TDS (₹)</th>
+                            <th style="text-align:right">Surcharge (₹)</th>
+                            <th style="text-align:right">Cess (₹)</th>
+                            <th style="text-align:right">Interest (₹)</th>
+                            <th style="text-align:right">Total TDS (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in _sectionReport)
+                        {
+                            <tr>
+                                <td><b>@r.Section</b></td>
+                                <td>@r.Description</td>
+                                <td style="text-align:right">@r.Entries</td>
+                                <td style="text-align:right">@r.GrossAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.TdsAmount.ToString("N0")</td>
+                                <td style="text-align:right">@r.Surcharge.ToString("N0")</td>
+                                <td style="text-align:right">@r.Cess.ToString("N0")</td>
+                                <td style="text-align:right">@r.Interest.ToString("N0")</td>
+                                <td style="text-align:right"><b>@r.TotalTds.ToString("N0")</b></td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#e3f2fd;font-weight:bold">
+                            <td colspan="2">TOTAL</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Entries)</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.GrossAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.TdsAmount).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Surcharge).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Cess).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.Interest).ToString("N0")</td>
+                            <td style="text-align:right">@_sectionReport.Sum(r=>r.TotalTds).ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </MudSimpleTable>
+                </div>
+            }
+        }
+    }
+
+    @* ── 4. Challan Reconciliation ── *@
+    @if (_activeTab == 3) {
+        @if (_recon != null)
+        {
+            @* Challan details table — scrollable *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Challan Details</MudText>
+            <div style="overflow-y:auto;max-height:calc(100vh - @(_reconDetailOpen ? 580 : 420)px);border:1px solid #e0e0e0;border-radius:6px">
+            <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="margin:0">
+                <thead>
+                    <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:5">
+                        <th>Challan No.</th>
+                        <th>Date</th>
+                        <th>BSR Code</th>
+                        <th>Section</th>
+                        <th>Quarter</th>
+                        <th>Bank</th>
+                        <th style="text-align:right">TDS (₹)</th>
+                        <th style="text-align:right">Interest (₹)</th>
+                        <th style="text-align:right">Total (₹)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in _recon.Challans)
+                    {
+                        <tr>
+                            <td><b>@c.ChallanNo</b></td>
+                            <td>@c.ChallanDate.ToString("dd-MMM-yyyy")</td>
+                            <td style="font-family:monospace">@c.BsrCode</td>
+                            <td>@c.Section</td>
+                            <td>@c.Quarter</td>
+                            <td>@c.BankName</td>
+                            <td style="text-align:right">@c.TdsAmount.ToString("N0")</td>
+                            <td style="text-align:right">@c.Interest.ToString("N0")</td>
+                            <td style="text-align:right"><b>@c.TotalAmount.ToString("N0")</b></td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(c.Status=="Paid"?Color.Success:Color.Warning)">@c.Status</MudChip>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr style="background:#e3f2fd;font-weight:bold">
+                        <td colspan="6">TOTAL</td>
+                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.TdsAmount).ToString("N0")</td>
+                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.Interest).ToString("N0")</td>
+                        <td style="text-align:right">@_recon.Challans.Sum(c=>c.TotalAmount).ToString("N0")</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </MudSimpleTable>
+            </div>@* /scrollable *@
+        }
+    }
+
+    @* ── 5. Payroll Year Summary ── *@
+    @if (_activeTab == 4) {
+
+        @if (_yearSummary != null)
+        {
+            @if (!_yearSummary.Any())
+            {
+                <MudAlert Severity="Severity.Info">No payroll data for FY @AppState.CurrentFY.</MudAlert>
+            }
+            else
+            {
+                @* flex:1 + min-height:0 lets this div fill remaining space and hand scroll to the table wrapper *@
+                <div id="payroll-tbl-wrap" style="flex:1;min-height:0;overflow:auto;width:100%">
+
+                    <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:auto;width:max-content;min-width:100%">
+                        <colgroup>
+                            <col style="min-width:80px">   @* Code *@
+                            <col style="min-width:160px">  @* Employee *@
+                            <col style="min-width:108px">  @* PAN *@
+                            @foreach (var _ in _fyMonthLabels) { <col style="min-width:80px"> }
+                            <col style="min-width:100px">  @* Total Gross *@
+                            <col style="min-width:90px">   @* Total TDS *@
+                            <col style="min-width:90px">   @* Total Net *@
+                        </colgroup>
+
+                        <thead>
+                            <tr style="background:#1565C0;color:#fff;position:sticky;top:0;z-index:10">
+                                @* Frozen col 1: Code *@
+                                <th style="padding:9px 10px;text-align:left;position:sticky;left:0;background:#1565C0;z-index:12;
+                                           box-shadow:inset -1px 0 0 rgba(255,255,255,.15);letter-spacing:.3px;font-size:11px;text-transform:uppercase">Code</th>
+                                @* Frozen col 2: Employee — right-shadow marks freeze boundary *@
+                                <th style="padding:9px 10px;text-align:left;position:sticky;left:80px;background:#1565C0;z-index:12;
+                                           box-shadow:2px 0 6px -1px rgba(0,0,0,.35);letter-spacing:.3px;font-size:11px;text-transform:uppercase">Employee</th>
+                                <th style="padding:9px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:rgba(255,255,255,.8)">PAN</th>
+                                @foreach (var m in _fyMonthLabels)
+                                { <th style="padding:9px 8px;text-align:right;font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:rgba(255,255,255,.85)">@m</th> }
+                                @* Summary cols — darker band *@
+                                <th style="padding:9px 10px;text-align:right;background:#0d47a1;font-size:11px;letter-spacing:.3px;text-transform:uppercase">Gross ₹</th>
+                                <th style="padding:9px 10px;text-align:right;background:#7f1d1d;font-size:11px;letter-spacing:.3px;text-transform:uppercase">TDS ₹</th>
+                                <th style="padding:9px 10px;text-align:right;background:#14532d;font-size:11px;letter-spacing:.3px;text-transform:uppercase">Net ₹</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @{ int _ri = 0; }
+                            @foreach (var emp in _yearSummary)
+                            {
+                                var _even = _ri % 2 == 0;
+                                var _rBg  = _even ? "#ffffff" : "#f4f7fb";
+                                _ri++;
+                                <tr class="prl-row" style="border-bottom:1px solid #eaeff5;background:@_rBg;transition:background .1s">
+                                    @* Frozen: Code *@
+                                    <td style="padding:6px 10px;font-size:11px;color:#6b7280;font-family:monospace;
+                                               position:sticky;left:0;background:@_rBg;z-index:2;
+                                               box-shadow:inset -1px 0 0 #e5eaf1">@emp.EmployeeCode</td>
+                                    @* Frozen: Employee — freeze shadow *@
+                                    <td style="padding:6px 10px;font-weight:600;color:#0f172a;
+                                               position:sticky;left:80px;background:@_rBg;z-index:2;
+                                               box-shadow:2px 0 6px -1px rgba(0,0,0,.12)">@emp.EmployeeName</td>
+                                    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#64748b;letter-spacing:.4px">@emp.Pan</td>
+                                    @foreach (var mn in _fyMonthNumbers)
+                                    {
+                                        @if (emp.MonthlyRuns.TryGetValue(mn, out var run))
+                                        {
+                                            <td style="padding:6px 8px;text-align:right;font-size:11.5px;color:#1e40af;font-variant-numeric:tabular-nums">@run.GrossSalary.ToString("N0")</td>
+                                        }
+                                        else
+                                        {
+                                            <td style="padding:6px 8px;text-align:right;font-size:12px;color:#cbd5e1">—</td>
+                                        }
+                                    }
+                                    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:12px;color:#1e3a8a;font-variant-numeric:tabular-nums;background:@(_even?"#eff6ff":"#e8f0fe")">@emp.TotalGross.ToString("N0")</td>
+                                    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:12px;color:#991b1b;font-variant-numeric:tabular-nums;background:@(_even?"#fff5f5":"#fee2e2")">@emp.TotalTds.ToString("N0")</td>
+                                    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:12px;color:#166534;font-variant-numeric:tabular-nums;background:@(_even?"#f0fdf4":"#dcfce7")">@emp.TotalNet.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+
+                        <tfoot style="position:sticky;bottom:0;z-index:10">
+                            <tr style="background:#1a237e;color:#fff;font-weight:700;font-size:12px;letter-spacing:.2px">
+                                @* Frozen total label *@
+                                <td style="padding:9px 10px;position:sticky;left:0;background:#1a237e;z-index:12;
+                                           box-shadow:inset -1px 0 0 rgba(255,255,255,.15);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.75)">TOTAL</td>
+                                <td style="padding:9px 10px;position:sticky;left:80px;background:#1a237e;z-index:12;
+                                           box-shadow:2px 0 6px -1px rgba(0,0,0,.4);font-size:11px;color:rgba(255,255,255,.55)">@_yearSummary.Count employees</td>
+                                <td style="padding:9px 10px"></td>
+                                @foreach (var mn in _fyMonthNumbers)
+                                {
+                                    double mTotal = _yearSummary.Sum(e => e.MonthlyRuns.TryGetValue(mn, out var r) ? r.GrossSalary : 0);
+                                    <td style="padding:9px 8px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">@(mTotal > 0 ? mTotal.ToString("N0") : "")</td>
+                                }
+                                <td style="padding:9px 10px;text-align:right;background:#1565C0;font-variant-numeric:tabular-nums;font-size:13px">₹@_yearSummary.Sum(e=>e.TotalGross).ToString("N0")</td>
+                                <td style="padding:9px 10px;text-align:right;background:#b91c1c;font-variant-numeric:tabular-nums;font-size:13px">₹@_yearSummary.Sum(e=>e.TotalTds).ToString("N0")</td>
+                                <td style="padding:9px 10px;text-align:right;background:#15803d;font-variant-numeric:tabular-nums;font-size:13px">₹@_yearSummary.Sum(e=>e.TotalNet).ToString("N0")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">Click Load to generate the Payroll Year Summary (employee × month grid).</MudAlert>
+        }
+    }
+
+</div>
+
+@code {
+    // Quarter summary
+    private List<QuarterSummary>?  _quarterSummary;
+    private string? _expandedQuarter;
+    private List<CDeTDS.DAL.Models.TdsEntry>? _expandedEntries;
+    // Deductee report
+    private string _deducteeQuarter = "";
+    private List<DeducteeReport>?  _deducteeReport;
+    // Section report
+    private string _sectionQuarter = "";
+    private List<SectionReport>?   _sectionReport;
+    // Challan recon
+    private string _reconQuarter = "";
+    private ChallanReconciliation? _recon;
+    private bool _reconDetailOpen = false;
+    // Payroll year summary
+    private List<EmployeeYearSummary>? _yearSummary;
+
+    private bool _loading;
+    private int  _activeTab;
+
+    // FY month helpers
+    private static readonly int[]    _fyMonthNumbers = new[] {4,5,6,7,8,9,10,11,12,1,2,3};
+    private static readonly string[] _fyMonthLabels  = new[] {"Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"};
+
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += Refresh;
+        _ = LoadAllAsync();
+    }
+
+    async Task LoadAllAsync()
+    {
+        await LoadQuarterSummaryAsync();
+        await LoadDeducteeReport();
+        await LoadSectionReport();
+        await LoadChallanRecon();
+        await LoadPayrollSummary();
+    }
+
+    void OnTabChanged(int idx)
+    {
+        _activeTab = idx;
+        StateHasChanged();
+    }
+
+    void Refresh() { _ = InvokeAsync(LoadAllAsync); }
+
+    // ── Excel Downloads ──────────────────────────────────────────────────────
+    static string DownloadsFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+
+    static void OpenFile(string path)
+        => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+
+    void DownloadQuarterExcel()
+    {
+        try
+        {
+            var path = Path.Combine(DownloadsFolder, $"QuarterSummary_{AppState.CurrentFY.Replace("-","_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            CDeTDS.DAL.ExcelEngine.ExportQuarterSummary(_quarterSummary!, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadDeducteeExcel()
+    {
+        try
+        {
+            var qLabel = string.IsNullOrEmpty(_deducteeQuarter) ? "AllQ" : _deducteeQuarter;
+            var path   = Path.Combine(DownloadsFolder, $"DeducteeReport_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            CDeTDS.DAL.ExcelEngine.ExportDeducteeReport(_deducteeReport!, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadSectionExcel()
+    {
+        try
+        {
+            var qLabel = string.IsNullOrEmpty(_sectionQuarter) ? "AllQ" : _sectionQuarter;
+            var path   = Path.Combine(DownloadsFolder, $"SectionReport_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            CDeTDS.DAL.ExcelEngine.ExportSectionReport(_sectionReport!, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadReconExcel()
+    {
+        try
+        {
+            var challans = _recon?.Challans ?? new();
+            var qLabel   = string.IsNullOrEmpty(_reconQuarter) ? "AllQ" : _reconQuarter;
+            var path     = Path.Combine(DownloadsFolder, $"ChallanRecon_{AppState.CurrentFY.Replace("-","_")}_{qLabel}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            CDeTDS.DAL.ExcelEngine.ExportChallans(challans, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    void DownloadPayrollExcel()
+    {
+        try
+        {
+            var path = Path.Combine(DownloadsFolder, $"PayrollSummary_{AppState.CurrentFY.Replace("-","_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            CDeTDS.DAL.ExcelEngine.ExportYearSummary(_yearSummary!, AppState.CurrentFY, _fyMonthLabels, _fyMonthNumbers, path);
+            OpenFile(path);
+        }
+        catch (Exception ex) { Snackbar.Add("Export failed: " + ex.Message, Severity.Error); }
+    }
+
+    async Task LoadQuarterSummaryAsync()
+    {
+        _loading = true; StateHasChanged();
+        try { _quarterSummary = await Task.Run(() => Svc.GetQuarterSummary(AppState.CurrentFY, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _loading = false; StateHasChanged();
+    }
+
+    async Task LoadDeducteeReport()
+    {
+        _loading = true; StateHasChanged();
+        try { _deducteeReport = await Task.Run(() => Svc.GetDeducteeReport(AppState.CurrentFY, string.IsNullOrEmpty(_deducteeQuarter) ? null : _deducteeQuarter, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _loading = false; StateHasChanged();
+    }
+
+    async Task LoadSectionReport()
+    {
+        _loading = true; StateHasChanged();
+        try { _sectionReport = await Task.Run(() => Svc.GetSectionReport(AppState.CurrentFY, string.IsNullOrEmpty(_sectionQuarter) ? null : _sectionQuarter, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _loading = false; StateHasChanged();
+    }
+
+    async Task LoadChallanRecon()
+    {
+        _loading = true; StateHasChanged();
+        try { _recon = await Task.Run(() => Svc.GetChallanRecon(AppState.CurrentFY, string.IsNullOrEmpty(_reconQuarter) ? null : _reconQuarter, AppState.CurrentDeductorId > 0 ? AppState.CurrentDeductorId : null)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _loading = false; StateHasChanged();
+    }
+
+    async Task LoadPayrollSummary()
+    {
+        _loading = true; StateHasChanged();
+        try { _yearSummary = await Task.Run(() => PayrollSvc.GetYearSummary(AppState.CurrentFY, AppState.CurrentDeductorId)); }
+        catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
+        _loading = false; StateHasChanged();
+    }
+
+    private async Task ToggleQuarter(string quarter)
+    {
+        if (_expandedQuarter == quarter)
+        {
+            _expandedQuarter = null;
+            _expandedEntries = null;
+        }
+        else
+        {
+            _expandedQuarter = quarter;
+            _expandedEntries = null;
+            StateHasChanged();
+            _expandedEntries = await Task.Run(() =>
+                EntrySvc.GetByQuarter(AppState.CurrentDeductorId, AppState.CurrentFY, quarter));
+        }
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        AppState.OnChange -= Refresh;
+        // no cleanup needed
+    }
+}

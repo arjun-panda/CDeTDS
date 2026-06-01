@@ -1,0 +1,571 @@
+﻿@page "/rules"
+@inject TdsRulesService RulesSvc
+@inject ISnackbar Snackbar
+@inject IDialogService DialogSvc
+@implements IDisposable
+@inject AppStateService AppState
+@using CDeTDS.BLL
+
+<div class="d-flex align-center gap-3 mb-4">
+    <MudText Typo="Typo.h5">TDS Rules</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.caption" Color="Color.Secondary">
+        FY @AppState.CurrentFY · @AppState.CurrentLicense.TierLabel
+    </MudText>
+</div>
+
+<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+
+    @* ── Tab 1: Live Calculator ── *@
+    <MudTabPanel Text="Live Calculator" Icon="@Icons.Material.Filled.Calculate">
+        <MudGrid>
+            <MudItem xs="3">
+                <MudSelect @bind-Value="_section" Label="Section" Variant="Variant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var s in AppConstants.KnownSections)
+                    { <MudSelectItem Value="@s">@s</MudSelectItem> }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField @bind-Value="_amount" Label="Amount (₹)" Variant="Variant.Outlined" Format="N2" HideSpinButtons="true" Class="amount-field" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudSelect @bind-Value="_deducteeType" Label="Deductee Type" Variant="Variant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var t in AppConstants.DeducteeTypes)
+                    { <MudSelectItem Value="@t">@t</MudSelectItem> }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="3" Class="d-flex align-end gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Calculate">Calculate</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="ResetCalc">Clear</MudButton>
+            </MudItem>
+            <MudItem xs="3">
+                <MudCheckBox @bind-Value="_panAvailable" Label="PAN Available" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTooltip Text="Section 206AB was removed by Finance Act 2025 w.e.f. 1-Apr-2025. No higher rate applies for ITR non-filers from FY 2025-26 onwards.">
+                    <MudCheckBox @bind-Value="_itrFiled" Label="ITR Filed (206AB — removed FY25)" Disabled="true" />
+                </MudTooltip>
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField @bind-Value="_lowerCertRate" Label="LDC Rate % (0=none)"
+                                 Variant="Variant.Outlined" Format="N2" Min="0" Max="100"
+                                 HideSpinButtons="true" Class="amount-field" HelperText="Lower deduction cert u/s 197" />
+            </MudItem>
+        </MudGrid>
+
+        @if (_calcResult != null)
+        {
+            <MudDivider Class="my-4" />
+            <MudGrid>
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-3" Elevation="0" Style="background:#e3f2fd;border-radius:8px">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Calculation Result</MudText>
+                        <MudSimpleTable Dense="true">
+                            <tbody>
+                                <tr><td>Section</td><td><b>@_calcResult.SectionCode</b></td></tr>
+                                <tr><td>Nature of Payment</td><td>@_calcResult.NatureOfPayment</td></tr>
+                                <tr><td>Gross Amount</td><td>₹ @_calcResult.GrossAmount.ToString("N0")</td></tr>
+                                <tr><td>Applicable Rate</td><td><b>@_calcResult.ApplicableRate %</b></td></tr>
+                                <tr><td>TDS</td><td>₹ @_calcResult.TdsAmount.ToString("N0")</td></tr>
+                                <tr><td>Surcharge</td><td>₹ @_calcResult.SurchargeAmount.ToString("N0")</td></tr>
+                                <tr><td>Health & Ed Cess (4%)</td><td>₹ @_calcResult.CessAmount.ToString("N0")</td></tr>
+                                <tr style="background:#1565C0;color:#fff">
+                                    <td><b>Total TDS to Deduct</b></td>
+                                    <td><b>₹ @_calcResult.TotalTds.ToString("N0")</b></td>
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
+                        @if (_calcResult.BelowThreshold)
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                Amount is below threshold — no TDS applicable.
+                            </MudAlert>
+                        }
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="7">
+                    @if (_calcResult.HigherRateApplied)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mb-2">
+                            <b>Higher rate applied:</b> @_calcResult.HigherRateReason
+                        </MudAlert>
+                    }
+                    @if (_calcResult.Warnings.Count > 0)
+                    {
+                        @foreach (var w in _calcResult.Warnings)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-1">@w</MudAlert>
+                        }
+                    }
+                    @if (!string.IsNullOrEmpty(_calcResult.RuleApplied))
+                    {
+                        <MudPaper Class="pa-3 mt-2" Elevation="0" Style="background:#f5f5f5;border-radius:8px">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Rule Applied</MudText>
+                            <MudText Typo="Typo.body2">@_calcResult.RuleApplied</MudText>
+                        </MudPaper>
+                    }
+                    @* Quick reference *@
+                    <MudPaper Class="pa-3 mt-3" Elevation="0" Style="background:#fff8e1;border-radius:8px">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Key Rules</MudText>
+                        <MudText Typo="Typo.caption">• <b>u/s 206AA</b>: PAN not provided → TDS @@ higher of 20% or twice applicable rate</MudText>
+                        <MudText Typo="Typo.caption" Style="text-decoration:line-through;color:#999">• <b>u/s 206AB</b>: Removed by Finance Act 2025 w.e.f. 1-Apr-2025 — no longer applicable</MudText>
+                        <MudText Typo="Typo.caption">• <b>u/s 197</b>: Lower deduction certificate from AO applies LDC rate</MudText>
+                        <MudText Typo="Typo.caption">• Cess: 4% Health &amp; Education Cess on (TDS + Surcharge)</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudTabPanel>
+
+    @* ── Tab 2: Rules Reference ── *@
+    <MudTabPanel Text="Rules Reference" Icon="@Icons.Material.Filled.TableChart">
+        <div class="d-flex gap-2 mb-3 align-center">
+            <MudTextField @bind-Value="_rulesSearch" Placeholder="Search section or nature..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" Style="max-width:320px" Variant="Variant.Outlined" />
+            <MudCheckBox @bind-Value="_showInactive" Label="Show inactive" Color="Color.Secondary" />
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddRule">
+                Add Rule
+            </MudButton>
+        </div>
+
+        <div style="height:calc(100vh - 310px);overflow:hidden">
+        <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
+                     FixedHeader="true" Height="calc(100vh - 310px)">
+            <Columns>
+                <PropertyColumn Property="x => x.SectionCode"     Title="Section" />
+                <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
+                <PropertyColumn Property="x => x.DeducteeType"    Title="Type" />
+                <TemplateColumn Title="Threshold (₹)">
+                    <CellTemplate>@context.Item.ThresholdLimit.ToString("N0")</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Rate %">
+                    <CellTemplate><b>@context.Item.TdsRate.ToString("N2")</b></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Surcharge %">
+                    <CellTemplate>@context.Item.SurchargeRate.ToString("N2")</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Cess %">
+                    <CellTemplate>@context.Item.CessRate.ToString("N2")</CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.ReferenceAct"   Title="Act Reference" />
+                <TemplateColumn Title="Effective">
+                    <CellTemplate>
+                        @context.Item.EffectiveFrom.ToString("dd-MMM-yyyy")
+                        @if (context.Item.EffectiveTo.HasValue)
+                        { <span> – @context.Item.EffectiveTo.Value.ToString("dd-MMM-yyyy")</span> }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Active" Sortable="false">
+                    <CellTemplate>
+                        @if (context.Item.IsActive) {
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                        } else {
+                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Default" Size="Size.Small" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Actions" Sortable="false">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="() => OpenEditRule(context.Item)" />
+                        <MudIconButton Icon="@(context.Item.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
+                                       Size="Size.Small" Color="@(context.Item.IsActive ? Color.Default : Color.Success)"
+                                       OnClick="() => ToggleActive(context.Item)" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+        </div>
+    </MudTabPanel>
+
+    @* ── Tab 3: Section Quick Reference ── *@
+    <MudTabPanel Text="Section Guide" Icon="@Icons.Material.Filled.MenuBook">
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
+        </MudAlert>
+        <MudSimpleTable Dense="true" Striped="true" Hover="true">
+            <thead>
+                <tr>
+                    <th>Section</th><th>Nature of Payment</th><th>Threshold (₹)</th>
+                    <th>Resident Rate</th><th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><b>192</b></td><td>Salary</td><td>Basic exemption limit</td><td>Slab rate (old/new regime)</td><td>Employer deducts monthly; Form 24Q / Form 138 (Act 2025)</td></tr>
+                <tr><td><b>192A</b></td><td>Premature PF withdrawal</td><td>50,000</td><td>10%</td><td>206AA applies if no PAN → 20%</td></tr>
+                <tr><td><b>193</b></td><td>Interest on securities</td><td>10,000 (all deductees — FA 2023 unified)</td><td>10%</td><td>Debentures, Govt securities; listed bonds exempted</td></tr>
+                <tr><td><b>194</b></td><td>Dividend</td><td>10,000</td><td>10%</td><td>Finance Act 2025 increased threshold from ₹5,000 → ₹10,000 w.e.f. 1-Apr-2025; mutual fund dividends → 194K</td></tr>
+                <tr><td><b>194A</b></td><td>Interest other than securities</td><td>40,000 (general); 1,00,000 (bank/co-op/post, senior citizen)</td><td>10%</td><td>Finance Act 2025 raised senior citizen threshold ₹50,000 → ₹1,00,000 w.e.f. 1-Apr-2025</td></tr>
+                <tr><td><b>194B</b></td><td>Winnings from lottery/crossword puzzle</td><td>10,000 per transaction</td><td>30%</td><td>TDS on gross amount; no deduction allowed</td></tr>
+                <tr><td><b>194BA</b></td><td>Winnings from online games</td><td>Nil (no threshold)</td><td>30%</td><td>Inserted by Finance Act 2023 w.e.f. 01-Apr-2023; net winnings basis</td></tr>
+                <tr><td><b>194BB</b></td><td>Winnings from horse races</td><td>10,000 per transaction</td><td>30%</td><td>Bookmaker / totalisator</td></tr>
+                <tr><td><b>194C</b></td><td>Contractor / sub-contractor</td><td>₹30,000 single; ₹1,00,000 aggregate p.a.</td><td>1% Individual/HUF; 2% Company/LLP</td><td>Includes advertising, transport, catering</td></tr>
+                <tr><td><b>194D</b></td><td>Insurance commission</td><td>15,000</td><td>5% Individual; 10% Company (domestic)</td><td>Life / general insurance agents</td></tr>
+                <tr><td><b>194DA</b></td><td>Life insurance maturity payment</td><td>1,00,000</td><td>5% on income portion (maturity − premium paid)</td><td>Only on income component; not on return of premium</td></tr>
+                <tr><td><b>194G</b></td><td>Commission on lottery tickets</td><td>15,000</td><td>5%</td><td>Stocking agent / sub-agent</td></tr>
+                <tr><td><b>194H</b></td><td>Commission / brokerage</td><td>20,000</td><td>2%</td><td>Finance Act 2025: rate reduced 5%→2%; threshold raised ₹15,000→₹20,000 w.e.f. 1-Apr-2025; excludes insurance commission and securities brokerage</td></tr>
+                <tr><td><b>194I</b></td><td>Rent</td><td>₹50,000 per month or part thereof</td><td>2% Plant &amp; Machinery; 10% Land/Building/Furniture</td><td>Finance Act 2025: threshold changed to ₹50,000 per month or part thereof w.e.f. 1-Apr-2025 (earlier annual ₹2,40,000)</td></tr>
+                <tr><td><b>194IA</b></td><td>Transfer of immovable property</td><td>50,00,000 per transaction</td><td>1%</td><td>Buyer deducts at time of payment; agricultural land exempt</td></tr>
+                <tr><td><b>194IB</b></td><td>Rent by Individual/HUF (not under audit)</td><td>₹50,000 per month</td><td>2%</td><td>Rate 2% (reduced from 5% by Finance Act 2023, w.e.f. 1-Oct-2023); no major FY 2025-26 change</td></tr>
+                <tr><td><b>194IC</b></td><td>Payment under Joint Development Agreement</td><td>Nil</td><td>10%</td><td>Cash/cheque component to landowner under JDA</td></tr>
+                <tr><td><b>194J</b></td><td>Professional / technical fees / royalty</td><td>50,000 (nil for directors)</td><td>10% Professional/Royalty; 2% Technical services</td><td>Finance Act 2025 increased threshold from ₹30,000 → ₹50,000 w.e.f. 1-Apr-2025; directors: no threshold; royalty for software @@ 10%</td></tr>
+                <tr><td><b>194K</b></td><td>Income from mutual fund units</td><td>5,000</td><td>10%</td><td>Dividend distributed by MF; capital gains → exempt from TDS</td></tr>
+                <tr><td><b>194LA</b></td><td>Compensation on compulsory acquisition</td><td>2,50,000</td><td>10%</td><td>Urban agricultural land included; rural agri land exempt</td></tr>
+                <tr><td><b>194LB</b></td><td>Interest from infrastructure debt fund</td><td>Nil</td><td>5%</td><td>NRI / foreign company investors only</td></tr>
+                <tr><td><b>194M</b></td><td>Contractor/professional by Individual/HUF (&gt;₹50L)</td><td>50,00,000 p.a.</td><td>2%</td><td>Inserted by Finance Act 2019; no TAN required — use PAN</td></tr>
+                <tr><td><b>194N</b></td><td>Cash withdrawal from bank/co-op/post</td><td>₹1 Cr (return-filer); ₹20L (non-filer)</td><td>2% on excess (return-filer); 2% ₹20L–1Cr, 5% above ₹1Cr (non-filer)</td><td>Per account per FY; ITR non-filer rates apply if ITR not filed for 3 preceding years</td></tr>
+                <tr><td><b>194O</b></td><td>E-commerce payments to participants</td><td>Nil (no threshold)</td><td>1%</td><td>E-commerce operator deducts at time of credit/payment; w.e.f. Oct 2020</td></tr>
+                <tr><td><b>194Q</b></td><td>Purchase of goods</td><td>50,00,000 p.a. per seller</td><td>0.1%</td><td>Continues in force. Finance Act 2025 only removed the Section 206C(1H) cross-reference; 194Q itself applies — buyer's turnover &gt;₹10 Cr in preceding FY</td></tr>
+                <tr><td><b>194R</b></td><td>Benefit/perquisite to business/profession</td><td>20,000 p.a.</td><td>10%</td><td>Cash or non-cash; FMV for non-cash; inserted by Finance Act 2022</td></tr>
+                <tr><td><b>194S</b></td><td>VDA / cryptocurrency transfer consideration</td><td>₹10,000 (specified persons: exchanges); ₹50,000 (others)</td><td>1%</td><td>Virtual digital assets w.e.f. 01-Jul-2022; deductor uses Form 26QE if no TAN</td></tr>
+                <tr><td><b>195</b></td><td>Payments to non-residents</td><td>Nil</td><td>As per rates in force / DTAA (lower)</td><td>Requires Form 15CA + 15CB from CA; DTAA rates available on TRACES</td></tr>
+                <tr><td><b>206AA</b></td><td>Higher rate — PAN not furnished</td><td>—</td><td>Higher of 20% or twice the applicable rate</td><td>Applies on top of any section; furnish PAN to avoid</td></tr>
+                <tr style="color:#999;text-decoration:line-through"><td><b>206AB</b></td><td>Higher rate — ITR non-filer (deductee)</td><td>TDS &gt; ₹50,000 in each of 2 preceding years</td><td>Higher of 5% or twice the normal rate</td><td>REMOVED by Finance Act 2025 w.e.f. 1-Apr-2025 — no longer applicable from FY 2025-26</td></tr>
+                <tr><td><b>206CCA</b></td><td>Higher rate TCS — ITR non-filer (collectee)</td><td>TCS &gt; ₹50,000 in each of 2 preceding years</td><td>Higher of 5% or twice the normal TCS rate</td><td>Mirror provision of 206AB for Tax Collected at Source</td></tr>
+            </tbody>
+        </MudSimpleTable>
+    </MudTabPanel>
+
+    @* ── Tab 4: Finance Act / Rules Status ── *@
+    <MudTabPanel Text="Rules Status" Icon="@Icons.Material.Filled.Update">
+        <MudGrid Spacing="3" Justify="Justify.Center">
+            <MudItem xs="12" md="7">
+                <MudPaper Class="pa-5" Elevation="1" Style="border-radius:12px">
+                    <MudText Typo="Typo.h6" Class="mb-1">Finance Act — TDS Rules Status</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                        TDS rates and thresholds are compiled into the app and auto-seeded to the database on startup.
+                        Every April 1 (Finance Act), a new app version is released with updated rules.
+                        Use this panel to check the current rules version and manually re-apply if needed.
+                    </MudText>
+
+                    <MudSimpleTable Dense="true" Class="mb-4" Style="width:100%">
+                        <tbody>
+                            <tr>
+                                <td style="width:160px"><b>Compiled Rules</b></td>
+                                <td style="font-family:monospace">v@(RulesUpdateService.AppVersion)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Applied to DB</b></td>
+                                <td style="font-family:monospace">
+                                    @if (_rulesDbVersion == RulesUpdateService.AppVersion)
+                                    {
+                                        <span style="color:#166534">@_rulesDbVersion ✓ up to date</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#b45309">@_rulesDbVersion ⚠ out of date</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>Total Rules</b></td>
+                                <td>@_ruleCount standard + custom rules in database</td>
+                            </tr>
+                            <tr>
+                                <td><b>Effective From</b></td>
+                                <td>1 April @(AppState.CurrentFY.Length >= 4 ? AppState.CurrentFY[..4] : DateTime.Today.Year.ToString()) (FY @AppState.CurrentFY)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Act Reference</b></td>
+                                <td>Income Tax Act 2025 · Finance Act @(AppState.CurrentFY.Length >= 4 && int.TryParse(AppState.CurrentFY[..4], out var faYear) ? (faYear + 1).ToString() : "2026") · CBDT Circulars</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+
+                    @if (!string.IsNullOrEmpty(_rulesUpdateMsg))
+                    {
+                        <MudAlert Severity="@_rulesUpdateSeverity" Dense="true" Class="mb-3">@_rulesUpdateMsg</MudAlert>
+                    }
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Sync"
+                               Disabled="_updatingRules" OnClick="ApplyBuiltInRules">
+                        @if (_updatingRules) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Re-apply Built-in Rules
+                    </MudButton>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
+                        Safe to run anytime — only updates standard sections, never overwrites custom rules or user notes.
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-5" Elevation="1" Style="border-radius:12px;background:#f0fdf4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Finance Act 2025 — Key Changes (FY 2025-26)</b></MudText>
+                    <MudSimpleTable Dense="true" Style="font-size:12px">
+                        <thead>
+                            <tr><th>Section</th><th>Change</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><b>194</b></td><td>Dividend threshold raised ₹5,000 → ₹10,000</td></tr>
+                            <tr><td><b>194H</b></td><td>Rate reduced 5% → 2%; threshold ₹15,000 → ₹20,000</td></tr>
+                            <tr><td><b>194I</b></td><td>Threshold changed to ₹50,000 per month or part thereof</td></tr>
+                            <tr><td><b>194J</b></td><td>Threshold raised ₹30,000 → ₹50,000</td></tr>
+                            <tr><td><b>194A</b></td><td>Senior citizen bank interest threshold ₹50,000 → ₹1,00,000</td></tr>
+                            <tr><td><b>206AB</b></td><td>Omitted — higher TDS for ITR non-filers no longer applies</td></tr>
+                            <tr><td><b>194Q</b></td><td>Continues — only 206C(1H) cross-reference removed</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3 d-block">
+                        CDeTDS is updated every year after the Finance Act. Use <b>Re-apply Built-in Rules</b> to ensure your database reflects the latest rates.
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+</MudTabs>
+
+@* ── Add/Edit Rule Dialog ── *@
+<MudDialog @bind-Visible="_ruleDialogOpen" Options='new DialogOptions { MaxWidth=MaxWidth.Medium, FullWidth=true, CloseOnEscapeKey=true }'>
+    <TitleContent>
+        <MudIcon Icon="@Icons.Material.Filled.Gavel" Class="mr-2" />
+        @(_editingRule?.Id == 0 ? "Add" : "Edit") TDS Rule
+    </TitleContent>
+    <DialogContent>
+        @if (_editingRule != null)
+        {
+            <MudGrid>
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_editingRule.SectionCode" Label="Section Code*"
+                                  Variant="Variant.Outlined" Placeholder="194C" />
+                </MudItem>
+                <MudItem xs="8">
+                    <MudTextField @bind-Value="_editingRule.NatureOfPayment" Label="Nature of Payment*"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudSelect @bind-Value="_editingRule.DeducteeType" Label="Deductee Type"
+                               Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value='@("All")'>All</MudSelectItem>
+                        @foreach (var t in AppConstants.DeducteeTypes)
+                        { <MudSelectItem Value="@t">@t</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="4">
+                    <MudCheckBox @bind-Value="_editingRule.IsResident" Label="Resident" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudCheckBox @bind-Value="_editingRule.IsActive" Label="Active" />
+                </MudItem>
+                <MudItem xs="3">
+                    <MudNumericField @bind-Value="_editingRule.ThresholdLimit" Label="Threshold (₹)"
+                                     Variant="Variant.Outlined" Format="N0" Min="0" HideSpinButtons="true" Class="amount-field" />
+                </MudItem>
+                <MudItem xs="3">
+                    <MudNumericField @bind-Value="_editingRule.TdsRate" Label="TDS Rate %*"
+                                     Variant="Variant.Outlined" Format="N3" Min="0" Max="100" HideSpinButtons="true" Class="amount-field" />
+                </MudItem>
+                <MudItem xs="3">
+                    <MudNumericField @bind-Value="_editingRule.SurchargeRate" Label="Surcharge %"
+                                     Variant="Variant.Outlined" Format="N2" Min="0" Max="40" HideSpinButtons="true" Class="amount-field" />
+                </MudItem>
+                <MudItem xs="3">
+                    <MudNumericField @bind-Value="_editingRule.CessRate" Label="Cess %"
+                                     Variant="Variant.Outlined" Format="N2" Min="0" Max="10" HideSpinButtons="true" Class="amount-field" />
+                </MudItem>
+                <MudItem xs="6">
+                    <DateField Value="_ruleEffFrom" ValueChanged="d => _ruleEffFrom = d" Label="Effective From*"
+                               Variant="Variant.Outlined" Class="date-field" />
+                </MudItem>
+                <MudItem xs="6">
+                    <DateField Value="_ruleEffTo" ValueChanged="d => _ruleEffTo = d" Label="Effective To (blank=current)"
+                               Variant="Variant.Outlined" Class="date-field" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_editingRule.ReferenceAct" Label="Act Reference"
+                                  Variant="Variant.Outlined" Placeholder="Income-tax Act 2025 s.194C" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_editingRule.Notes" Label="Notes"
+                                  Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+            </MudGrid>
+            @if (!string.IsNullOrEmpty(_ruleSaveError))
+            { <MudAlert Severity="Severity.Error" Class="mt-2">@_ruleSaveError</MudAlert> }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _ruleDialogOpen = false">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveRule">Save Rule</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // Calculator
+    private string _section       = "194J";
+    private double _amount        = 100000;
+    private string _deducteeType  = "Individual";
+    private bool   _panAvailable  = true;
+    private bool   _itrFiled      = true;
+    private double _lowerCertRate = 0;
+    private TdsCalculationResult? _calcResult;
+
+    // Rules table
+    private List<TdsRule> _allRules    = new();
+    private string        _rulesSearch = "";
+    private bool          _showInactive = false;
+
+    // Rule dialog
+    private bool     _ruleDialogOpen = false;
+    private TdsRule? _editingRule;
+    private DateTime? _ruleEffFrom;
+    private DateTime? _ruleEffTo;
+    private string   _ruleSaveError = "";
+
+    // Rules status tab
+    private string   _rulesDbVersion   = "";
+    private int      _ruleCount        = 0;
+    private bool     _updatingRules    = false;
+    private string   _rulesUpdateMsg   = "";
+    private Severity _rulesUpdateSeverity = Severity.Info;
+
+    private IEnumerable<TdsRule> FilteredRules => _allRules.Where(r =>
+        (_showInactive || r.IsActive) &&
+        (string.IsNullOrEmpty(_rulesSearch) ||
+         r.SectionCode.Contains(_rulesSearch, StringComparison.OrdinalIgnoreCase) ||
+         r.NatureOfPayment.Contains(_rulesSearch, StringComparison.OrdinalIgnoreCase) ||
+         r.DeducteeType.Contains(_rulesSearch, StringComparison.OrdinalIgnoreCase)));
+
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += Reload;
+        LoadRules();
+        LoadRulesStatus();
+    }
+
+    void LoadRules()
+    {
+        try { _allRules = RulesSvc.GetAllRules(activeOnly: false); }
+        catch (Exception ex) { Snackbar.Add("Failed to load rules: " + ex.Message, Severity.Error); }
+    }
+
+    void LoadRulesStatus()
+    {
+        try
+        {
+            _rulesDbVersion = CDeTDS.DAL.Database.GetSetting("RULES_VERSION", "Not applied");
+            _ruleCount      = _allRules.Count;
+        }
+        catch { }
+    }
+
+    async Task ApplyBuiltInRules()
+    {
+        _updatingRules   = true;
+        _rulesUpdateMsg  = "";
+        StateHasChanged();
+        var msg = await Task.Run(() => new RulesUpdateService().AutoUpdateIfNeeded());
+        _rulesUpdateMsg      = msg;
+        _rulesUpdateSeverity = msg.StartsWith("✓") || msg.Contains("up to date") ? Severity.Success : Severity.Warning;
+        LoadRules();
+        LoadRulesStatus();
+        _updatingRules = false;
+    }
+
+    void Reload() { LoadRules(); StateHasChanged(); }
+
+    void ResetCalc() { _calcResult = null; _amount = 100000; _lowerCertRate = 0; }
+
+    void Calculate()
+    {
+        try
+        {
+            _calcResult = RulesSvc.Calculate(_section, _amount, _deducteeType,
+                panAvailable: _panAvailable, itrFiled: _itrFiled, txDate: DateTime.Today);
+            // apply LDC override
+            if (_lowerCertRate > 0 && _calcResult != null && !_calcResult.BelowThreshold)
+            {
+                var ldc = _amount * _lowerCertRate / 100;
+                _calcResult.ApplicableRate    = _lowerCertRate;
+                _calcResult.TdsAmount         = ldc;
+                _calcResult.SurchargeAmount   = 0;
+                _calcResult.CessAmount        = ldc * 0.04;
+                _calcResult.TotalTds          = ldc + _calcResult.CessAmount;
+                _calcResult.RuleApplied      += $" [LDC u/s 197 @ {_lowerCertRate:N2}%]";
+            }
+        }
+        catch (Exception ex) { _calcResult = null; Snackbar.Add("Calculation failed: " + ex.Message, Severity.Error); }
+    }
+
+    void OpenAddRule()
+    {
+        _editingRule = new TdsRule
+        {
+            IsActive = true, IsResident = true, DeducteeType = "All",
+            CessRate = 4.0, EffectiveFrom = new DateTime(AppState.CurrentFY.Length >= 4 && int.TryParse(AppState.CurrentFY[..4], out var fyY) ? fyY : DateTime.Today.Year, 4, 1)
+        };
+        _ruleEffFrom   = _editingRule.EffectiveFrom;
+        _ruleEffTo     = null;
+        _ruleSaveError = "";
+        _ruleDialogOpen = true;
+    }
+
+    void OpenEditRule(TdsRule r)
+    {
+        _editingRule = new TdsRule
+        {
+            Id = r.Id, SectionCode = r.SectionCode, NatureOfPayment = r.NatureOfPayment,
+            DeducteeType = r.DeducteeType, IsResident = r.IsResident,
+            ThresholdLimit = r.ThresholdLimit, TdsRate = r.TdsRate,
+            SurchargeRate = r.SurchargeRate, CessRate = r.CessRate,
+            EffectiveFrom = r.EffectiveFrom, EffectiveTo = r.EffectiveTo,
+            ReferenceAct = r.ReferenceAct, Notes = r.Notes, IsActive = r.IsActive
+        };
+        _ruleEffFrom   = r.EffectiveFrom;
+        _ruleEffTo     = r.EffectiveTo;
+        _ruleSaveError = "";
+        _ruleDialogOpen = true;
+    }
+
+    void SaveRule()
+    {
+        if (_editingRule == null) return;
+        if (string.IsNullOrWhiteSpace(_editingRule.SectionCode))
+            { _ruleSaveError = "Section code is required."; return; }
+        if (string.IsNullOrWhiteSpace(_editingRule.NatureOfPayment))
+            { _ruleSaveError = "Nature of payment is required."; return; }
+        if (_ruleEffFrom.HasValue) _editingRule.EffectiveFrom = _ruleEffFrom.Value;
+        _editingRule.EffectiveTo = _ruleEffTo;
+        _editingRule.SectionCode = _editingRule.SectionCode.Trim().ToUpper();
+
+        var (ok, msg) = RulesSvc.SaveRule(_editingRule);
+        if (ok)
+        {
+            _ruleDialogOpen = false;
+            LoadRules();
+            Snackbar.Add("Rule saved.", Severity.Success);
+        }
+        else _ruleSaveError = msg;
+    }
+
+    async Task ToggleActive(TdsRule r)
+    {
+        var action = r.IsActive ? "deactivate" : "activate";
+        var confirmed = await DialogSvc.ShowMessageBox(
+            $"{(r.IsActive ? "Deactivate" : "Activate")} Rule?",
+            $"{action.Substring(0,1).ToUpper() + action.Substring(1)} rule '{r.SectionCode} — {r.NatureOfPayment}'?",
+            yesText: "Yes", cancelText: "Cancel");
+        if (confirmed != true) return;
+        var copy = new TdsRule
+        {
+            Id = r.Id, SectionCode = r.SectionCode, NatureOfPayment = r.NatureOfPayment,
+            DeducteeType = r.DeducteeType, IsResident = r.IsResident,
+            ThresholdLimit = r.ThresholdLimit, TdsRate = r.TdsRate,
+            SurchargeRate = r.SurchargeRate, CessRate = r.CessRate,
+            EffectiveFrom = r.EffectiveFrom, EffectiveTo = r.EffectiveTo,
+            ReferenceAct = r.ReferenceAct, Notes = r.Notes,
+            IsActive = !r.IsActive
+        };
+        var (ok, msg) = RulesSvc.SaveRule(copy);
+        if (ok) { LoadRules(); Snackbar.Add($"Rule {action}d.", Severity.Info); }
+        else Snackbar.Add(msg, Severity.Error);
+    }
+
+    public void Dispose() => AppState.OnChange -= Reload;
+}

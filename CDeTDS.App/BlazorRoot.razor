@@ -1,0 +1,33 @@
+@* Entry point wired into BlazorWebView RootComponent *@
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<Router AppAssembly="@typeof(BlazorRoot).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudText Typo="Typo.h5" Class="pa-4">Page not found.</MudText>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    private MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary        = "#1565C0",
+            PrimaryDarken  = "#003c8f",
+            PrimaryLighten = "#5e92f3",
+            Secondary      = "#00897B",
+            AppbarBackground = "#1565C0",
+            DrawerBackground = "#F5F7FA",
+            Background     = "#F5F7FA",
+            Surface        = "#FFFFFF",
+        }
+    };
+}

@@ -1,0 +1,631 @@
+﻿@inherits LayoutComponentBase
+@inject AppStateService AppState
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IDialogService DialogSvc
+@inject ISnackbar Snackbar
+@inject UpdateCheckService UpdateSvc
+@implements IDisposable
+@using CDeTDS.Common
+@using CDeTDS.BLL
+
+@if (!AppState.IsLoggedIn)
+{
+    @Body
+}
+else
+{
+    <MudLayout>
+        <!-- Top App Bar -->
+        <MudAppBar Elevation="1" Dense="false">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                           Edge="Edge.Start" OnClick="ToggleDrawer" />
+            <MudText Typo="Typo.h6" Class="ml-2" Style="font-weight:700;letter-spacing:.5px">CDeTDS</MudText>
+            <MudText Typo="Typo.caption" Class="ml-2" Style="opacity:.7">@TaxRules.ActName(AppState.CurrentFY)</MudText>
+
+            <MudSpacer />
+
+            @if (AppState.CurrentDeductorId > 0)
+            {
+                <div @onclick="OpenCompanySelector" title="Switch / manage company" style="display:flex;align-items:center;gap:10px;cursor:pointer;
+                     border:1.5px solid rgba(255,255,255,0.6);border-radius:6px;padding:7px 18px;
+                     white-space:nowrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Style="color:white;font-size:22px;flex-shrink:0" />
+                    <span style="color:white;font-size:15px;font-weight:600;letter-spacing:.2px">@AppState.CurrentDeductorName</span>
+                </div>
+            }
+
+            <MudMenu Class="ml-2" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
+                <ActivatorContent>
+                    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;
+                                background:linear-gradient(135deg,#FFD600,#FFA000);
+                                border-radius:8px;padding:5px 14px;
+                                box-shadow:0 2px 8px rgba(0,0,0,0.25)">
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
+                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">FY</span>
+                            <span style="font-size:16px;font-weight:900;color:#1a1a1a;letter-spacing:.3px">@AppState.CurrentFY</span>
+                        </div>
+                        <div style="width:1px;height:28px;background:rgba(0,0,0,0.2)"></div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
+                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">AY</span>
+                            <span style="font-size:13px;font-weight:800;color:#1a1a1a">@TaxRules.AssessmentYearLabel(AppState.CurrentFY)</span>
+                        </div>
+                    </div>
+                </ActivatorContent>
+                <ChildContent>
+                    @foreach (var fy in AppConstants.FinancialYears)
+                    {
+                        var isSession = fy == AppState.SessionFY;
+                        <MudMenuItem OnClick="@(() => OnFYChanged(fy))">
+                            <div style="display:flex;flex-direction:column;line-height:1.3">
+                                <span style="font-weight:@(fy == AppState.CurrentFY ? "700" : "400");font-size:14px">
+                                    FY @fy@(isSession ? "  · Editable" : "  · Read-only")
+                                </span>
+                                <span style="font-size:11px;color:#888">AY @TaxRules.AssessmentYearLabel(fy)</span>
+                            </div>
+                        </MudMenuItem>
+                    }
+                </ChildContent>
+            </MudMenu>
+
+            <MudText Typo="Typo.caption" Class="ml-3" Style="opacity:.75;font-family:monospace;white-space:nowrap">
+                @_clock
+            </MudText>
+
+            <MudIconButton Icon="@Icons.Material.Filled.Feedback" Color="Color.Inherit"
+                           Class="ml-1" OnClick="SendFeedback" title="Send Feedback / Report Bug" />
+
+            <MudIconButton Icon="@Icons.Material.Filled.HelpOutline" Color="Color.Inherit"
+                           Class="ml-1" OnClick="ToggleHelp" title="Help & Support" />
+
+            <MudText Typo="Typo.body2" Class="ml-1 mr-1" Style="white-space:nowrap">@AppState.CurrentUser</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit"
+                           OnClick="Logout" />
+        </MudAppBar>
+
+        <!-- Side Drawer -->
+        <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="DrawerVariant.Persistent"
+                   ClipMode="DrawerClipMode.Always">
+            <MudDrawerHeader>
+                <MudText Typo="Typo.subtitle1" Style="font-weight:600; color:#1565C0">
+                    Navigation
+                </MudText>
+            </MudDrawerHeader>
+            <MudNavMenu>
+                <MudNavLink Href="/dashboard"  Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                <MudNavLink Href="/deductees"  Icon="@Icons.Material.Filled.People">Deductees</MudNavLink>
+                <MudNavLink Href="/entries"    Icon="@Icons.Material.Filled.Receipt">TDS Entries</MudNavLink>
+                <MudNavLink Href="/challans"   Icon="@Icons.Material.Filled.AccountBalance">Challans</MudNavLink>
+                <MudNavLink Href="/payroll"    Icon="@Icons.Material.Filled.Payments">Payroll</MudNavLink>
+                <MudNavLink Href="/reports"    Icon="@Icons.Material.Filled.BarChart">Reports</MudNavLink>
+                <MudNavLink Href="/returns"    Icon="@Icons.Material.Filled.FileUpload">Returns / FVU</MudNavLink>
+                <MudNavLink Href="/rules"      Icon="@Icons.Material.Filled.Gavel">TDS Rules</MudNavLink>
+                <MudDivider Class="my-1" />
+                <MudNavLink Href="/excel"         Icon="@Icons.Material.Filled.TableChart">Excel Import/Export</MudNavLink>
+                <MudNavLink Href="/challan/print" Icon="@Icons.Material.Filled.Print">Challan 281 Print</MudNavLink>
+                <MudNavLink Href="/portals"       Icon="@Icons.Material.Filled.Language">Portal Logins</MudNavLink>
+                <MudNavLink Href="/calculator"    Icon="@Icons.Material.Filled.Calculate">Interest Calc</MudNavLink>
+                <MudNavLink Href="/audit"         Icon="@Icons.Material.Filled.History">Audit Log</MudNavLink>
+                <MudNavLink Href="/users"         Icon="@Icons.Material.Filled.ManageAccounts">Users</MudNavLink>
+                <MudNavLink Href="/settings"      Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+                <MudNavLink Href="/activate"      Icon="@Icons.Material.Filled.VpnKey">License</MudNavLink>
+            </MudNavMenu>
+        </MudDrawer>
+
+        <!-- Help Drawer -->
+        <MudDrawer @bind-Open="_helpOpen" Anchor="Anchor.End" Elevation="2" Variant="DrawerVariant.Temporary"
+                   Width="400px" ClipMode="DrawerClipMode.Never">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#1565C0;color:white">
+                <span style="font-weight:700;font-size:16px">Help & Support</span>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" Size="Size.Small" OnClick="ToggleHelp" />
+            </div>
+            <div style="overflow-y:auto;height:calc(100vh - 64px);padding:16px 20px">
+
+                <!-- Quick Start -->
+                <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:8px">🚀 Quick Start</div>
+                <div style="font-size:13px;color:#334155;line-height:1.8;margin-bottom:16px">
+                    <div>1. Add your <b>Deductor</b> (company/TAN)</div>
+                    <div>2. Add <b>Deductees</b> (vendors/employees)</div>
+                    <div>3. Enter <b>TDS Entries</b> with amounts</div>
+                    <div>4. Create <b>Challans</b> after payment</div>
+                    <div>5. Go to <b>Returns / FVU</b> → Generate FVU</div>
+                    <div>6. Validate with RPU → Upload to TRACES</div>
+                </div>
+
+                <MudDivider Class="mb-3" />
+
+                <!-- FAQ -->
+                <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:10px">❓ Help Topics</div>
+                <!-- Category pills -->
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+                    @foreach (var cat in _faqs.Select(f => f.Category).Distinct())
+                    {
+                        <span @onclick="() => { _faqCategory = cat; _openFaq = string.Empty; }"
+                              style="cursor:pointer;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+                                     background:@(_faqCategory==cat?"#1565C0":"#e2e8f0");
+                                     color:@(_faqCategory==cat?"white":"#475569")">
+                            @cat
+                        </span>
+                    }
+                </div>
+                @foreach (var (cat, q, a) in _faqs.Where(f => f.Category == _faqCategory))
+                {
+                    <div style="margin-bottom:8px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
+                        <div style="font-size:12px;font-weight:600;color:#1e293b;cursor:pointer;padding:8px 12px;background:@(_openFaq==q?"#eff6ff":"#f8fafc")"
+                             @onclick="() => ToggleFaq(q)">
+                            @((_openFaq == q ? "▼ " : "▶ "))@q
+                        </div>
+                        @if (_openFaq == q)
+                        {
+                            <div style="font-size:12px;color:#475569;padding:8px 12px;line-height:1.7;border-top:1px solid #e2e8f0;background:white">@a</div>
+                        }
+                    </div>
+                }
+
+                <MudDivider Class="mb-3 mt-1" />
+
+                <!-- Workflow -->
+                <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:8px">📋 TDS Filing Workflow</div>
+                <div style="font-size:12px;color:#334155;line-height:1.9;margin-bottom:16px">
+                    <div>✅ Enter TDS transactions in <b>TDS Entries</b></div>
+                    <div>✅ Record challan payment in <b>Challans</b></div>
+                    <div>✅ Link entries to challans</div>
+                    <div>✅ Generate FVU file from <b>Returns / FVU</b></div>
+                    <div>✅ Download CSI from IT Portal</div>
+                    <div>✅ Validate with RPU tool (Java)</div>
+                    <div>✅ Upload .fvu file to TRACES portal</div>
+                    <div>✅ Issue <b>Form 16 / 16A</b> to deductees</div>
+                </div>
+
+                <MudDivider Class="mb-3" />
+
+                <!-- Check for Updates -->
+                <MudDivider Class="mb-3" />
+                <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:8px">🔄 Updates</div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:13px;color:#334155">
+                    <div style="margin-bottom:6px">Current Version: <strong>v@(AppConstants.AppVersion)</strong></div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px">
+                        CDeTDS is updated regularly for new Budget rules, FVU versions and feature improvements.
+                        Click below to check if a newer version is available.
+                    </div>
+                    <button @onclick="CheckForUpdates"
+                            style="width:100%;background:#1565C0;color:white;border:none;border-radius:6px;padding:8px;font-size:13px;font-weight:600;cursor:pointer">
+                        Check for Updates
+                    </button>
+                    @if (_updateMsg != "")
+                    {
+                        <div style="margin-top:8px;font-size:11px;color:#16a34a;font-weight:600">@_updateMsg</div>
+                    }
+                </div>
+
+                <!-- Support -->
+                <MudDivider Class="my-3" />
+                <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:8px">📞 Contact Support</div>
+                <div style="background:#f0f7ff;border-radius:8px;padding:14px;font-size:13px;color:#334155;line-height:2">
+                    <div>📧 <a href="mailto:admin@capitaldesk.co.in" style="color:#1565C0;font-weight:600">admin@capitaldesk.co.in</a></div>
+                    <div>🕐 Mon–Sat, 10 AM – 6 PM IST</div>
+                    <div style="margin-top:6px;font-size:11px;color:#94a3b8">Include your Machine ID and license key when contacting support.</div>
+                </div>
+
+                <div style="margin-top:16px;text-align:center;font-size:11px;color:#94a3b8">
+                    CDeTDS v@(AppConstants.AppVersion) · Developed by Arjun Panda
+                </div>
+            </div>
+        </MudDrawer>
+
+        <!-- Main Content -->
+        <MudMainContent>
+            <LicenseBanner />
+            @if (AppState.IsReadOnlyFY)
+            {
+                <div class="tds-readonly-bar">
+                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Style="font-size:18px;color:#e65100" />
+                    <span><b>Viewing FY @AppState.CurrentFY for reference (read-only).</b> You are logged in to FY @AppState.SessionFY — switch back to make changes.</span>
+                </div>
+            }
+            <div class="page-content">
+                <ErrorBoundary @ref="_errorBoundary">
+                    <ChildContent>@Body</ChildContent>
+                    <ErrorContent Context="ex">
+                        <div style="padding:40px;text-align:center">
+                            <div style="font-size:48px">⚠️</div>
+                            <div style="font-size:20px;font-weight:700;color:#e53935;margin:12px 0 8px">Something went wrong</div>
+                            <div style="color:#64748b;margin-bottom:8px;max-width:600px;margin-left:auto;margin-right:auto">@ex.Message</div>
+                            <div style="color:#94a3b8;font-size:12px;margin-bottom:24px;max-width:600px;margin-left:auto;margin-right:auto;font-family:monospace">@ex.GetType().Name</div>
+                            <div style="display:flex;gap:12px;justify-content:center">
+                                <button @onclick="RecoverError"
+                                        style="background:#1565C0;color:white;padding:10px 28px;border-radius:8px;border:none;font-weight:600;cursor:pointer;font-size:14px">
+                                    Try Again
+                                </button>
+                                <a href="/dashboard"
+                                   style="background:#546e7a;color:white;padding:10px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;line-height:1.5">
+                                    Go to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </ErrorContent>
+                </ErrorBoundary>
+            </div>
+        </MudMainContent>
+
+        <!-- Bottom bar: footer text centred + Back button right -->
+        <div class="tds-footer-strip">
+            <span class="tds-footer-text">
+                CDeTDS v@(AppConstants.AppVersion) &nbsp;·&nbsp; Income-tax Act 1961 &amp; IT Act 2025 &nbsp;·&nbsp; NSDL FVU 9.4 &nbsp;·&nbsp; Developed by <strong>Arjun Panda</strong>
+            </span>
+            <button @onclick="GoBack" class="tds-back-btn">← Back</button>
+        </div>
+    </MudLayout>
+}
+
+@code {
+    private ErrorBoundary? _errorBoundary;
+    private bool _drawerOpen = true;
+    private bool _helpOpen   = false;
+    private string _clock    = "";
+    private string _openFaq  = "";
+    private string _updateMsg = "";
+    private System.Threading.Timer? _timer;
+
+    private static readonly (string Category, string Q, string A)[] _faqs =
+    [
+        // Deductor
+        ("Deductor", "How do I add a new deductor?",              "Click the company name in the top bar → company selector dialog opens. Use Create to add a new deductor. Enter TAN, PAN, address, responsible person details and GSTIN."),
+        ("Deductor", "Can I manage multiple companies?",          "Yes. CDeTDS supports unlimited deductors. Each company has its own separate challans, entries, payroll and return files. Use the company selector in the top bar to switch."),
+        ("Deductor", "Where do I enter TRACES / portal credentials?", "Go to Portals page. Each portal card (IT Portal, TRACES, TIN-NSDL) has a credential button. Credentials are AES-encrypted and stored locally."),
+        ("Deductor", "Where are company files saved?",            "Each company gets its own folder: Documents\\TDSPro\\Companies\\{TAN}_{Name}\\. FVU files go into {FY}\\Returns\\{FormType}\\{Quarter}\\."),
+
+        // Deductee
+        ("Deductee", "How do I add a deductee?",                  "Go to Deductees → click Add. Enter name, PAN, type (Company/Individual), default TDS section and rate. The system auto-fills the default rate from the TDS Rules table."),
+        ("Deductee", "What is a Lower Deduction Certificate (LDC)?", "If the deductee holds an IT Dept certificate for a lower TDS rate, enter the cert number, concessional rate and validity date in the deductee form. CDeTDS applies the lower rate automatically."),
+        ("Deductee", "What happens if PAN is not available?",     "TDS is deducted at 20% under Section 206AA when PAN is unavailable. CDeTDS warns you and flags the entry. Use 'PANNOTAVBL' as the PAN placeholder."),
+        ("Deductee", "What is Section 206AB?",                    "Higher TDS (2× normal rate or 5%, whichever is higher) applies to deductees who have not filed ITR for 2 consecutive prior years with aggregate TDS > ₹50,000. CDeTDS alerts when this may apply."),
+
+        // TDS Entries
+        ("TDS Entries", "How do I record a TDS transaction?",     "Go to TDS Entries → Add. Select the deductee, TDS section, enter gross payment amount. TDS is auto-calculated. Set the payment date — the quarter is auto-detected from the date."),
+        ("TDS Entries", "How is the quarter auto-detected?",      "Quarter is set from the payment date: Q1 = Apr–Jun, Q2 = Jul–Sep, Q3 = Oct–Dec, Q4 = Jan–Mar. You can override it manually if needed."),
+        ("TDS Entries", "How do I link an entry to a challan?",   "In the TDS Entry form, select the challan from the Challan dropdown. This links the deduction to your bank payment — required for FVU generation. All entries must be linked before generating the return."),
+        ("TDS Entries", "What does status 'Paid' mean?",          "'Paid' means the TDS has been deducted and the challan has been paid. Only Paid entries are included in the FVU return. Set status to Paid after remitting TDS to the bank."),
+
+        // Challans
+        ("Challans", "How do I add a challan?",                   "Go to Challans → Add. Enter BSR code (7 digits), challan number, date, section (192 for salary, leave blank for mixed), TDS amount, surcharge, cess, interest and late fee."),
+        ("Challans", "What is a BSR Code?",                       "BSR (Basic Statistical Return) code is the 7-digit code of the bank branch where you paid TDS. It appears on your Challan 281 receipt and is mandatory for FVU validation."),
+        ("Challans", "How do I print Challan 281?",               "Go to Challan 281 Print in the sidebar. Select the challan → Preview → Print or Save PDF. This generates the official ITNS 281 layout."),
+        ("Challans", "Why does the return show 'No challans found'?", "Ensure challans for the correct FY, quarter and form type are entered and their status is 'Paid'. For 26Q, challan section must be blank or non-salary (not 192). For 24Q, section must be 192 or blank."),
+
+        // Payroll
+        ("Payroll", "How does the payroll module work?",          "Go to Payroll → Employee Master to add employees with salary structure. Each month, go to Monthly Run → select month → Compute. CDeTDS calculates salary, HRA, deductions and TDS under Old or New tax regime (Income-tax Act 1961)."),
+        ("Payroll", "How is salary TDS calculated?",              "Annual projected tax is computed, then spread monthly (Annual Tax ÷ remaining months). Accounts for HRA exemption, standard deduction ₹75,000, Section 80C/D, Chapter VI-A and Rebate u/s 87A."),
+        ("Payroll", "What is pro-rata salary?",                   "For employees joining or leaving mid-month, enter Days Worked in Monthly Run. CDeTDS calculates salary as (Days Worked ÷ Total Days) × Gross."),
+        ("Payroll", "How do I generate salary slips?",            "Go to Payroll → select an employee and month → click Export / Print Slip. Salary slips can be saved as Excel or printed."),
+        ("Payroll", "What is a Tax Declaration?",                 "Employees submit investment proofs (HRA receipts, 80C, 80D, etc.) at the start of the year. Go to Payroll → Tax Declaration → enter declared amounts per employee to reduce monthly TDS."),
+        ("Payroll", "How does payroll feed into the TDS return?", "Every time you save a month's salary in Salary Data, CDeTDS automatically creates or updates a Section 192 TDS entry for that employee. These appear in TDS Entries and are included in the 24Q FVU return. Link them to a salary challan before generating the return."),
+        ("Payroll", "How do I save salary data? Is there a Lock step?", "Just click Save. There is no Lock/Unlock step. When you save, CDeTDS immediately updates the Section 192 TDS entry for that employee. Copy Forward copies the current month's structure forward to all remaining months and saves them automatically."),
+        ("Payroll", "What is a Deduction Schedule (Loan / Advance Recovery)?", "Go to Payroll → Salary Data → Deduction Schedules section. Add a schedule for loan or advance recovery — enter total amount, monthly installment, and start month. CDeTDS auto-posts the installment as a variable deduction each month until the balance reaches zero."),
+
+        // Returns & FVU
+        ("Returns & FVU", "How do I generate a FVU file?",        "Returns / FVU → select Form Type (26Q for non-salary, 24Q for salary) → select Quarter → click Generate .txt. Then click Generate & Validate (FVU) to run the NSDL validator. Java and FVU are bundled — no separate installation needed."),
+        ("Returns & FVU", "What is the difference between 24Q and 26Q?", "24Q covers salary TDS (Section 192). 26Q covers all non-salary TDS (194C, 194I, 194J, etc.). File both if you have salary AND non-salary payments in the same quarter."),
+        ("Returns & FVU", "What is a NIL return?",                "Even when no TDS was deducted in a quarter, a NIL return must be filed (penalty u/s 272A otherwise). Click NIL Return, enter the responsible person name and PAN, and generate the file."),
+        ("Returns & FVU", "How do I file a correction return (C1/C2/C3)?", "Check 'Correction Return', select the type (C1 = first correction, C2 = second, C3 = third), enter the Previous PRN from the IT Portal. For C2/C3 also enter the Original Return PRN. CDeTDS auto-fills these from the Filing History panel if you filed the original from CDeTDS."),
+        ("Returns & FVU", "What does C1 correction fix?",               "C1 corrects deductee-level data only — wrong PAN, name, payment amount, TDS amount, section code, or payment date. It does NOT touch challan data. This is the most common correction. PRN needed: only the original filing PRN. Example: vendor PAN was entered incorrectly."),
+        ("Returns & FVU", "What does C2 correction fix?",               "C2 corrects challan-level data — wrong BSR code, challan date, challan serial number, or challan amount. You can also fix deductee data in the same C2 filing. PRN needed: Original PRN + Previous PRN (both are the same PRN if this is the first correction). Example: BSR code was entered wrong."),
+        ("Returns & FVU", "What does C3 correction fix?",               "C3 is used when a challan or entry was completely absent from the original return — either add a missed one or remove a wrongly included one. The correction FVU file contains ALL records (original + new), not just the additions. NSDL replaces the entire return. PRN needed: Original PRN + Previous PRN (same value if this is the first correction). Example: one challan and its entries were not included in the original filing."),
+        ("Returns & FVU", "How does the PRN chain work across corrections?",
+            "OrigPRN never changes — it is always the very first (original) filing PRN. PrevPRN always points to the immediately preceding accepted filing. Example chain: Original → PRN1. C1 on original → PRN2 (PrevPRN=PRN1, OrigPRN=PRN1). C2 on C1 → PRN3 (PrevPRN=PRN2, OrigPRN=PRN1). C3 on C2 → PRN4 (PrevPRN=PRN3, OrigPRN=PRN1). Always wait for each correction to be accepted on the portal before filing the next one."),
+        ("Returns & FVU", "What is a PRN?",                       "PRN (Provisional Receipt Number) is a 15-digit token issued by the IT Portal after successful upload of a return. You must enter this in CDeTDS's Filing History (click the pencil icon) to enable future corrections."),
+        ("Returns & FVU", "What is the Filing History panel?",    "The Filing History panel on the Returns page shows all returns filed for the selected form/quarter. It tracks the filing date, PRN, and correction type. Use the pencil icon to enter the PRN after uploading to the portal."),
+        ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
+        ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
+        ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates a printable HTML copy of exactly what was filed — Annexure I (deductee details) and, for 24Q Q4, Annexure II (annual salary breakup per employee). Click Paper Return → it opens in your browser → use Ctrl+P to save as PDF. Useful for internal records, CA review, or employee reference."),
+        ("Returns & FVU", "Excess challan amount in original return — adding new entries to utilise it via correction",
+            "Scenario: Original return has a challan of e.g. ₹50,000 but only ₹30,000 worth of entries were filed. " +
+            "Now you need to add ₹20,000 of missing entries (even if same deductee/section/amount as existing ones) to utilise the excess.\n\n" +
+            "This is a C3 correction — you are ADDING entries that were absent from the original.\n\n" +
+            "STEP 1 — Import Conso file (strongly recommended):\n" +
+            "• Excel Import/Export → TRACES Conso File → import original return data\n" +
+            "• This ensures CDeTDS has the original entries so the correction includes everything\n\n" +
+            "STEP 2 — Add the new entries:\n" +
+            "• TDS Entries → Add → select deductee, section, amount, payment date\n" +
+            "• Use the ACTUAL payment date of the new transaction (even if same deductee and amount as another entry, it is a separate transaction)\n" +
+            "• Link to the SAME existing challan (BSR + challan no stays the same — the ₹50,000 challan)\n" +
+            "• Do NOT change the challan amount — it stays at ₹50,000\n\n" +
+            "STEP 3 — Generate C3 correction:\n" +
+            "• Returns / FVU → Correction Return → C3 → enter Previous PRN (= original PRN)\n" +
+            "• Original PRN = same as Previous PRN (first correction on the original)\n" +
+            "• Generate → Validate → Upload to TRACES\n\n" +
+            "WHAT HAPPENS: The correction FVU will contain the original ₹30,000 of entries PLUS the new ₹20,000 entries, " +
+            "all under the ₹50,000 challan. Total entries now = ₹50,000 = challan amount. T-FV-3169 reconciliation will pass.\n\n" +
+            "NOTE ON 'DUPLICATE-LOOKING' ENTRIES: Two entries for the same deductee, same amount, same section are valid " +
+            "if they represent two separate payments/transactions. CDeTDS allows this — there is no restriction. " +
+            "Just ensure each entry has the correct payment date of that specific transaction."),
+
+        ("Returns & FVU", "Original return filed with no default. Now I realise some entries and a challan were missed — how to correct?",
+            "This is a C3 correction — you are ADDING a challan and entries that were completely absent from the original return.\n\n" +
+            "STEP 1 — Import the original data from TRACES:\n" +
+            "• Excel Import/Export → Import Data → TRACES Conso File\n" +
+            "• This brings in what was actually filed, so CDeTDS has the full picture\n\n" +
+            "STEP 2 — Add the missing data:\n" +
+            "• Go to Challans → Add the missed challan (BSR code, challan no, date, amount)\n" +
+            "• Go to TDS Entries → Add the missed entries → link them to the new challan\n\n" +
+            "STEP 3 — Generate C3 correction:\n" +
+            "• Returns / FVU → tick Correction Return → select C3 (Add/delete challan or entry)\n" +
+            "• Previous PRN = PRN of the original filing (from IT Portal or Filing History)\n" +
+            "• Original PRN = same PRN (it is the first correction on the original)\n" +
+            "• Click Generate .txt → Validate FVU → Upload to TRACES\n\n" +
+            "IMPORTANT: The correction FVU file will contain ALL challans and entries (original ones + the new ones you added). " +
+            "This is correct — NSDL replaces the entire return when it processes a correction. Do NOT delete the original entries " +
+            "before generating. The full combined return is what NSDL expects.\n\n" +
+            "After TRACES accepts the correction and issues a new PRN, save it in Filing History (pencil icon) for future reference."),
+
+        ("Returns & FVU", "Can I file a correction for a return originally filed using RPU or another software?",
+            "Yes. CDeTDS can file corrections for returns filed with any tool — NSDL RPU, third-party software, or CDeTDS itself. " +
+            "The key is to import the original return data from TRACES first so CDeTDS has the exact data that was filed.\n\n" +
+            "STEP-BY-STEP:\n" +
+            "1. Log in to TRACES → Statements / Payments → Request for Conso File\n" +
+            "2. Select Form Type (24Q or 26Q), FY and Quarter → Submit → Download the .zip Conso file\n" +
+            "3. In CDeTDS → Excel Import/Export → Import Data → TRACES Conso File\n" +
+            "4. Select the downloaded .zip file → enter password (format: TAN_RequestNumber e.g. DELI99999B_1234567)\n" +
+            "5. CDeTDS imports all challans and TDS entries from the original return\n" +
+            "6. Make your corrections in TDS Entries / Challans / Payroll as needed\n" +
+            "7. Go to Returns / FVU → select Form Type + Quarter → tick Correction Return → select C1/C2/C3\n" +
+            "8. Enter the PRN manually: find it at IT Portal → e-File → Income Tax Forms → View Filed Returns\n" +
+            "9. Generate .txt → Validate FVU → Upload to TRACES\n\n" +
+            "NOTE: The PRN fields will NOT be auto-filled from Filing History if the original was filed outside CDeTDS. " +
+            "You must enter the PRN manually. After filing, save the new PRN in the Filing History panel (pencil icon) " +
+            "so future corrections can auto-fill from it."),
+
+        ("Returns & FVU", "How do I file correction returns for both 24Q and 26Q?",
+            "24Q and 26Q are separate returns — each has its own PRN and must be corrected independently. Step-by-step:\n\n" +
+            "FOR 24Q CORRECTION:\n" +
+            "1. Go to Returns / FVU → select Form Type = 24Q → select Quarter\n" +
+            "2. Tick 'Correction Return' → choose C1/C2/C3\n" +
+            "3. Enter the 24Q Previous PRN (from IT Portal or Filing History panel)\n" +
+            "4. Fix the data in TDS Entries / Payroll / Challans as needed\n" +
+            "5. Click Generate .txt → Generate & Validate (FVU) → upload to TRACES\n" +
+            "6. Save the new 24Q PRN in Filing History (pencil icon)\n\n" +
+            "FOR 26Q CORRECTION:\n" +
+            "1. Go to Returns / FVU → select Form Type = 26Q → same Quarter\n" +
+            "2. Tick 'Correction Return' → choose C1/C2/C3\n" +
+            "3. Enter the 26Q Previous PRN (different from 24Q — each form has its own PRN)\n" +
+            "4. Click Generate .txt → Generate & Validate (FVU) → upload to TRACES\n" +
+            "5. Save the new 26Q PRN in Filing History\n\n" +
+            "KEY POINT: 24Q and 26Q PRNs are completely separate. Never mix PRNs between the two forms. The correction type (C1/C2/C3) is also tracked separately per form type."),
+
+        ("Returns & FVU", "Some entries are not linked to any challan — what do I do?", "Go to Challans page. An amber warning banner shows the count of unlinked entries per quarter with a 'Link N in Q1' button. Click it to open the challan dialog with unlinked entries pre-loaded — check the entries you want to link and click Save."),
+
+        // Form 16
+        ("Form 16", "How do I generate Form 16 for employees?",   "Go to Form 16 → Form 16 (Salary) tab → select FY → select employee → Preview. Review and click Print or Export. For all employees at once, use Bulk Generate."),
+        ("Form 16", "How do I generate Form 16A for vendors?",    "Go to Form 16 → Form 16A tab → select deductee → select FY and quarter → Generate. Form 16A is issued to vendors/contractors for non-salary TDS deductions."),
+        ("Form 16", "When should I issue Form 16 and 16A?",       "Form 16 (salary): by 15th June of the assessment year. Form 16A (non-salary): within 15 days of the due date for filing the TDS return for that quarter."),
+
+        // Reports
+        ("Reports", "What reports are available?",                "5 reports: Quarter Summary (TDS by quarter), Deductee-wise (TDS per party), Section-wise (TDS by section code), Challan Reconciliation (entries vs payments), and Payroll Year Summary. All exportable to Excel."),
+        ("Reports", "How do I download a report to Excel?",       "Each report tab has a Download Excel button (top-right). The file is saved to your Downloads folder and opens automatically in Excel."),
+        ("Reports", "What is Challan Reconciliation?",            "Compares total TDS in entries vs total amount in challans. If they differ by more than ₹1, it shows a mismatch — fix it before filing to avoid FVU error T-FV-3169."),
+
+        // Settings
+        ("Settings", "Where do I configure Java and FVU?",        "Java 8 and FVU 9.4 are bundled with CDeTDS — no separate download or configuration needed. The paths are set automatically during installation. If you ever need to use a different FVU version, go to Settings → FVU / Java tab to update the paths."),
+        ("Settings", "How do I change the base data folder?",     "Go to Settings → General tab → Base Folder. Change the folder where CDeTDS stores all company data and FVU files. Default is Documents\\TDSPro\\."),
+        ("Settings", "How do I backup and restore data?",         "Settings → Backup & Restore. Click Backup Now to create an instant backup. To restore, click Restore and select a backup file. Always backup before major changes or upgrades."),
+
+        // TDS Filing Issues
+        ("TDS Filing Issues", "Deductee PAN is wrong or missing — FVU rejects it",
+            "FVU throws E-series errors for invalid PANs. Fix: verify PAN from the deductee's PAN card or TRACES. Use 'PANNOTAVBL' only when PAN is genuinely unavailable — TDS will be deducted at 20% u/s 206AA. Update PAN in Deductees before regenerating the return."),
+        ("TDS Filing Issues", "Challan BSR code / date / serial does not match OLTAS",
+            "FVU error T-FV-3169 or challan mismatch. Fix: log in to eportal.incometax.gov.in → e-Pay Tax → Payment History → verify exact BSR code, date and challan serial number. Update the challan in CDeTDS to match exactly. Download fresh CSI file after correction."),
+        ("TDS Filing Issues", "Wrong TDS section code used (e.g. 194C instead of 194J)",
+            "FVU may pass but IT dept can raise a demand later. Fix: check the nature of payment — 194C for contractors, 194J for professional/technical services, 194I for rent, etc. Correct the section in TDS Entries. If return already filed, file a C1 correction return."),
+        ("TDS Filing Issues", "FVU utility won't run — Java error",
+            "Java 8 and FVU 9.4 are bundled with CDeTDS. If you see a Java error: go to Settings → FVU/Java tab and verify the Java path points to {InstallFolder}\\jre\\bin\\java.exe and the FVU path points to {InstallFolder}\\FVU\\TDS_STANDALONE_FVU_9.4.jar. Click Test to verify. Do not delete the jre or FVU folders from the install directory."),
+        ("TDS Filing Issues", "CSI file not downloaded — FVU fails challan validation",
+            "FVU needs the CSI file to confirm challans are registered with IT Dept. Fix: download from eportal.incometax.gov.in → e-Pay Tax → Payment History → Download CSI. Save the .csi file to the CSI folder shown on the Returns page. Wait 3–4 days after challan payment before downloading."),
+        ("TDS Filing Issues", "FVU .jar version is outdated — utility rejects the file",
+            "NSDL updates the FVU tool quarterly. Using an old version causes immediate rejection. CDeTDS ships with FVU 9.4. If NSDL releases a newer version, download it from Protean eGov Technologies (tin.tin.nsdl.com → FVU → Standalone FVU), save the new .jar, and update the path in Settings → FVU/Java."),
+        ("TDS Filing Issues", "Wrong correction type selected (C1 / C2 / C3)",
+            "Selecting C2 when you mean C1 (or vice versa) causes portal rejection. Fix: C1 = corrects deductee/entry data only. C2 = corrects challan data (BSR, date, serial, amount). C3 = adds or deletes a challan or deductee record. Each correction requires the PRN of the immediately preceding filing. Check Filing History panel to confirm which correction number you are on. Never file the next correction before the previous one is accepted on the portal."),
+        ("TDS Filing Issues", "PRN of original filing lost — cannot file correction",
+            "PRN is needed for C2/C3 correction. Fix: log in to IT Portal → e-File → Income Tax Forms → View Filed Returns — the PRN is shown there. Alternatively check your email for the NSDL acknowledgement. Enter the PRN in CDeTDS's Filing History (pencil icon) so it is saved for future."),
+        ("TDS Filing Issues", "IT Portal or TRACES is down near deadline",
+            "Portal outages near July 31 (Q1) or May 31 (Q4) are common. Fix: file at least 2–3 days before deadline. If portal is down on the deadline, keep a screenshot and note the error — CBDT sometimes extends deadlines in such cases. Check cbic.gov.in or incometax.gov.in for notifications."),
+        ("TDS Filing Issues", "TAN not registered for the form type being filed",
+            "Portal rejects upload if TAN is not activated for 26Q or 24Q. Fix: log in to tin-nsdl.com or IT Portal, verify TAN registration, and if needed submit Form 49B to activate. Allow 3–5 working days for activation."),
+        ("TDS Filing Issues", "Late filing fee u/s 234E accumulating",
+            "₹200 per day penalty from due date until filing date (max = TDS amount). Due dates: Q1 July 31, Q2 Oct 31, Q3 Jan 31, Q4 May 31 (company) / May 15 (non-company). Fix: file as early as possible. The fee is auto-calculated by the portal and must be paid before the return is accepted. Enter paid late fee in the Challan (Late Fee field)."),
+        ("TDS Filing Issues", "NIL return not filed — penalty u/s 272A",
+            "Even if no TDS was deducted, a NIL return is mandatory every quarter. Penalty: ₹100 per day (max ₹1 lakh). Fix: use the NIL Return button on the Returns page → generate and upload to portal even if there are no transactions."),
+        ("TDS Filing Issues", "Form 16 / 16A not matching because return was corrected",
+            "Form 16/16A is generated from the last accepted return data. Fix: always regenerate Form 16/16A after a correction return is accepted on TRACES. Go to Form 16 page → regenerate. Old certificates issued to employees/vendors should be cancelled and reissued."),
+
+        // Calculator
+        ("Calculator", "What is the TDS Interest & Late Fee Calculator?",
+            "Go to the Calculator page (accessible from the sidebar). Enter TDS amount, date of deduction, date of deposit to government, return due date and actual filing date. Click Calculate to get the exact interest u/s 234A, 234B and late filing fee u/s 234E."),
+        ("Calculator", "What is Section 234A interest?",
+            "234A: 1% per month (or part thereof) on TDS amount for delay in deduction from the deductee. Runs from the date deduction was due to the date it was actually deducted."),
+        ("Calculator", "What is Section 234B interest?",
+            "234B: 1.5% per month (or part thereof) on TDS amount for delay in depositing TDS to the government. Runs from the due date of deposit (7th of next month, or March TDS by 30 April) to actual deposit date. Part of a month counts as a full month."),
+        ("Calculator", "What is Section 234E late fee?",
+            "234E: ₹200 per day from the return due date to actual filing date. Maximum capped at the total TDS amount. Due dates: Q1=July 31, Q2=Oct 31, Q3=Jan 31, Q4=May 31 (companies) or May 15 (others). This must be paid before the return will be accepted by the portal."),
+
+        // TDS Rules
+        ("TDS Rules", "What is the TDS Rules page?",
+            "Go to TDS Rules in the sidebar. It shows a Live Calculator (enter section, amount, deductee type → get TDS instantly), a full Rate Table for all sections under the current FY, and a Due Dates reference. Useful for quick lookups without leaving the app."),
+        ("TDS Rules", "How do I calculate TDS for a specific section quickly?",
+            "Go to TDS Rules → Live Calculator tab. Select section, enter amount, select deductee type (Individual / Company / etc.), tick PAN Available if applicable. CDeTDS shows TDS amount, effective rate and applicable rule instantly."),
+        ("TDS Rules", "What happened to Section 206AB from FY 2025-26?",
+            "Section 206AB (higher TDS for ITR non-filers) was removed by Finance Act 2025 with effect from 1-Apr-2025. From FY 2025-26 onwards, the higher-rate provision no longer applies. The checkbox in TDS Rules is shown but disabled to reflect this."),
+
+        // Audit Log
+        ("Audit Log", "What is the Audit Log?",
+            "Every action in CDeTDS (login, add/edit/delete deductee, generate FVU, settings change, etc.) is logged with username, timestamp and details. Go to Audit Log in the sidebar to review. You can filter by user, module, date range and search keywords."),
+        ("Audit Log", "How do I export the Audit Log?",
+            "Go to Audit Log → click Export CSV (top-right). The full filtered log is saved as a CSV file. Useful for compliance reviews or sharing with auditors."),
+
+        // Portals
+        ("Portals", "What does the Portals page do?",
+            "Go to Portals in the sidebar. It stores your TRACES, IT Portal and TIN-NSDL login credentials (AES-encrypted). Use the Open button on each card to launch the portal in your browser. Credentials are never sent to any server — they are stored only on your machine."),
+        ("Portals", "How do I open TRACES or IT Portal quickly?",
+            "Go to Portals → click the browser icon on the TRACES or IT Portal card. It opens the portal URL in your default browser. Your saved credentials are shown so you can copy-paste them."),
+        ("Portals", "What is the TRACES Downloads folder?",
+            "The TRACES Downloads folder is where CDeTDS looks for Conso files, Form 16A text files, and other downloads from TRACES. Click 'Downloads Folder' on the TRACES card to open it directly. Save all TRACES exports here for easy import."),
+
+        // Excel Import / Export
+        ("Excel Import", "What can I import from Excel?",
+            "Go to Excel Import/Export → Import Data tab. You can bulk-import: TDS Entries, Deductee Master, Challans (ITNS 281), Employee Master (for 24Q payroll), and TRACES Conso File. Download the sample template first, fill it, then upload."),
+        ("Excel Import", "How do I export data to Excel or Tally?",
+            "Go to Excel Import/Export → Export Data tab. Export TDS Entries, Deductees, Challans, Employees, or Tally-format CSV. Each section has a Download button. Files are saved to the Export Folder shown at the bottom (can be changed)."),
+        ("Excel Import", "What is Year-End Transfer?",
+            "Go to Excel Import/Export → Year-End Transfer tab. At the end of a financial year, use this to carry forward deductee and employee master data to the new FY, while archiving entries and challans of the old FY. Run this once after all Q4 returns are filed."),
+        ("Excel Import", "How do I import a TRACES Conso file?",
+            "Go to Excel Import/Export → Import Data → TRACES Conso File. Select the .tds ZIP file downloaded from TRACES and enter the password (format: TAN_RequestNumber). CDeTDS imports all challans and deductee entries for correction purposes."),
+
+        // Dashboard
+        ("Dashboard", "What does the Dashboard show?",
+            "The Dashboard shows: TDS summary for the current FY (total deducted, paid, pending), payroll summary for the current month, quarterly TDS chart, filing status per quarter (pending/filed), and recent TDS entries. Switch FY from the top bar to view a different year."),
+        ("Dashboard", "What is Filing Status on the Dashboard?",
+            "The Filing Status panel shows Q1–Q4 for both 26Q and 24Q — whether each quarter is Pending, .txt Generated, FVU Generated, or Filed (PRN saved). It gives a quick compliance health check without going to the Returns page."),
+
+        // Settings (additional)
+        ("Settings", "What is the Due Dates tab in Settings?",
+            "Settings → Due Dates tab shows upcoming TDS return due dates and payment due dates for all quarters. You can enable desktop reminders so CDeTDS alerts you before a deadline."),
+        ("Settings", "What does the About tab show?",
+            "Settings → About shows the CDeTDS version, license tier, machine ID, and a Check for Updates button. Use the machine ID when contacting support or requesting a license transfer."),
+
+        // General
+        ("General", "How do I backup my data?",                   "Settings → Backup & Restore → Backup Now. The database is saved with a timestamp to Documents\\TDSPro\\Backup\\. CDeTDS also takes an automatic daily backup (keeps last 30)."),
+        ("General", "How do I change my password?",               "Settings → General → Change Password. Enter current password, new password and confirm. Minimum 6 characters."),
+        ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. Change your password immediately after first login from Settings → General."),
+        ("General", "How do I add more users?",                   "Go to Users → Add User. Assign role (Admin = full access, User = restricted). Each user gets their own login and all actions are logged in the Audit Log."),
+        ("General", "Where is my data stored?",                   "All data is stored locally: %AppData%\\TDSPro\\tds_pro.db. Company files (FVU files, salary slips, reports) are in Documents\\TDSPro\\. No data is ever sent to any server."),
+        ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. This is shown on the login screen. Change your password immediately after first login from Settings → General → Change Password."),
+        ("General", "How do I import data from Excel?",           "Go to Excel Import/Export. Download the sample template, fill it in, then upload. Supports bulk import of deductees, TDS entries and challans."),
+        ("General", "How do I import a TRACES conso file?",       "Go to Excel Import/Export → Import Data → TRACES Conso File. Select the .tds ZIP file downloaded from TRACES and enter the password (format: TAN_RequestNumber). CDeTDS imports all challans and entries for correction purposes."),
+    ];
+
+    private string _faqCategory = "Returns & FVU";
+
+    void ToggleHelp() => _helpOpen = !_helpOpen;
+    void ToggleFaq(string q) => _openFaq = _openFaq == q ? "" : q;
+    void RecoverError() => _errorBoundary?.Recover();
+
+    void SendFeedback()
+    {
+        var machineId = CDeTDS.DAL.LicenseService.GetMachineId();
+        var subject   = Uri.EscapeDataString($"CDeTDS v{AppConstants.AppVersion} — Feedback / Bug Report");
+        var body      = Uri.EscapeDataString(
+            $"CDeTDS v{AppConstants.AppVersion}\n" +
+            $"Machine ID: {machineId}\n" +
+            $"FY: {AppState.CurrentFY}\n\n" +
+            "--- Describe your feedback or bug ---\n\n");
+        var uri = $"mailto:admin@capitaldesk.co.in?subject={subject}&body={body}";
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri) { UseShellExecute = true }); }
+        catch { Snackbar.Add("Please email feedback to: admin@capitaldesk.co.in", Severity.Info); }
+    }
+
+    async Task CheckForUpdates()
+    {
+        _updateMsg = "Checking...";
+        StateHasChanged();
+        var info = await UpdateSvc.CheckAsync(forceCheck: true);
+        if (info != null)
+        {
+            _updateMsg = $"v{info.Version} available — {info.ReleaseDate}";
+            ShowUpdateSnackbar(info);
+        }
+        else
+        {
+            _updateMsg = $"✅ You are on the latest version (v{AppConstants.AppVersion}).";
+        }
+        StateHasChanged();
+    }
+
+    void ShowUpdateSnackbar(UpdateInfo info)
+    {
+        Snackbar.Add(
+            $"CDeTDS v{info.Version} is available! {info.Notes}",
+            Severity.Info,
+            cfg =>
+            {
+                cfg.ActionColor      = Color.Warning;
+                cfg.Action           = "Download";
+                cfg.ActionVariant    = Variant.Filled;
+                cfg.Onclick          = _ =>
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(
+                            new System.Diagnostics.ProcessStartInfo(info.DownloadUrl)
+                            { UseShellExecute = true });
+                    }
+                    catch { }
+                    return Task.CompletedTask;
+                };
+                cfg.VisibleStateDuration = 12000;
+            });
+    }
+
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += OnStateChanged;
+        Nav.LocationChanged += OnLocationChanged;
+        if (!AppState.IsLoggedIn)
+            Nav.NavigateTo("/login");
+        else
+            EnforceExpiry();
+        _clock = DateTime.Now.ToString("ddd dd-MMM HH:mm");
+        _timer = new System.Threading.Timer(_ =>
+        {
+            _clock = DateTime.Now.ToString("ddd dd-MMM HH:mm");
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !AppState.IsLoggedIn) return;
+        // Background update check — shows snackbar if newer version found
+        var info = await UpdateSvc.CheckAsync();
+        if (info != null) ShowUpdateSnackbar(info);
+    }
+
+    void OnStateChanged() { EnforceExpiry(); StateHasChanged(); }
+
+    void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        EnforceExpiry();
+        JS.InvokeVoidAsync("window.tdspro.scrollToTop");
+    }
+
+    void EnforceExpiry()
+    {
+        if (!AppState.IsLoggedIn) return;
+        if (!AppState.CurrentLicense.IsExpired) return;
+        var uri = Nav.ToBaseRelativePath(Nav.Uri);
+        if (uri != "activate")
+            Nav.NavigateTo("/activate", forceLoad: false);
+    }
+
+    async Task GoBack() => await JS.InvokeVoidAsync("history.back");
+
+    void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    void OnFYChanged(string fy) => AppState.SetFY(fy);
+
+    async Task OpenCompanySelector()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        await DialogSvc.ShowAsync<CompanySelector>("", options);
+    }
+
+    void Logout()
+    {
+        AppState.Logout();
+        Nav.NavigateTo("/login", forceLoad: false);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnChange -= OnStateChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+        _timer?.Dispose();
+    }
+}

@@ -1,0 +1,24 @@
+@inject AppStateService AppState
+@inject NavigationManager Nav
+
+@{
+    var lic = AppState.CurrentLicense;
+}
+
+@if (lic.IsExpired)
+{
+    <MudAlert Severity="Severity.Error" Dense="true" Class="mb-0" Style="border-radius:0;cursor:pointer"
+              @onclick='() => Nav.NavigateTo("/activate")'>
+        <strong>License expired</strong> — Your license expired on @lic.ExpiryDate.ToString("dd-MMM-yyyy"). All write operations are blocked.
+        <MudLink Href="/activate" Style="color:white;font-weight:700;margin-left:8px">Activate Pro →</MudLink>
+    </MudAlert>
+}
+else if (lic.IsTrial && lic.DaysLeft <= 14)
+{
+    <MudAlert Severity="@(lic.DaysLeft <= 7 ? Severity.Warning : Severity.Info)"
+              Dense="true" Class="mb-0" Style="border-radius:0;cursor:pointer"
+              @onclick='() => Nav.NavigateTo("/activate")'>
+        @lic.Message
+        <MudLink Href="/activate" Style="margin-left:8px;font-weight:700">Activate Pro →</MudLink>
+    </MudAlert>
+}

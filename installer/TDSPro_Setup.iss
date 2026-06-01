@@ -70,15 +70,15 @@ Source: "..\CHANGELOG.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourced
 Source: "..\LICENSE.txt";   DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Dirs]
-Name: "{userappdata}\TDSPro";        Permissions: users-full
-Name: "{userappdata}\TDSPro\Backup"; Permissions: users-full
-Name: "{userappdata}\TDSPro\Logs";   Permissions: users-full
+Name: "{userappdata}\CDeTDS";        Permissions: users-full
+Name: "{userappdata}\CDeTDS\Backup"; Permissions: users-full
+Name: "{userappdata}\CDeTDS\Logs";   Permissions: users-full
 
 [Registry]
-Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "InstallPath";    ValueData: "{app}";                Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "Version";        ValueData: "{#AppVersion}"
-Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "FvuPath";        ValueData: "{app}\FVU\TDS_STANDALONE_FVU_9.4.jar"
-Root: HKCU; Subkey: "Software\TDSPro"; ValueType: string; ValueName: "JavaPath";       ValueData: "{app}\jre\bin\java.exe"
+Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "InstallPath";    ValueData: "{app}";                Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "Version";        ValueData: "{#AppVersion}"
+Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "FvuPath";        ValueData: "{app}\FVU\TDS_STANDALONE_FVU_9.4.jar"
+Root: HKCU; Subkey: "Software\CDeTDS"; ValueType: string; ValueName: "JavaPath";       ValueData: "{app}\jre\bin\java.exe"
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Comment: "TDS Compliance Software"
@@ -119,7 +119,7 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    DataPath := ExpandConstant('{userappdata}\TDSPro');
+    DataPath := ExpandConstant('{userappdata}\CDeTDS');
     if DirExists(DataPath) then
     begin
       if MsgBox(

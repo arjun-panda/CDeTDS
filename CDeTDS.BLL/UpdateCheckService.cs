@@ -1,0 +1,83 @@
+using System.Net.Http;
+using System.Text.Json;
+using CDeTDS.Common;
+using CDeTDS.DAL;
+
+namespace CDeTDS.BLL
+{
+    public class UpdateInfo
+    {
+        public string Version          { get; set; } = "";
+        public string ReleaseDate      { get; set; } = "";
+        public string DownloadUrl      { get; set; } = "";
+        public string Notes            { get; set; } = "";
+        public bool   IsNewer          { get; set; }
+        public string FvuLatestVersion { get; set; } = "";
+        public string FvuDownloadUrl   { get; set; } = "";
+    }
+
+    public class UpdateCheckService
+    {
+        private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };
+
+        /// <summary>
+        /// Checks capitaldesk.co.in/version.json. Returns null if offline or already up-to-date.
+        /// Only checks once per day (cached in app_settings).
+        /// </summary>
+        public async Task<UpdateInfo?> CheckAsync(bool forceCheck = false)
+        {
+            try
+            {
+                // Rate-limit: once per day (bypass when user manually triggers)
+                if (!forceCheck)
+                {
+                    var lastCheck = Database.GetSetting("UPDATE_LAST_CHECK", "");
+                    if (lastCheck == DateTime.Today.ToString("yyyy-MM-dd"))
+                        return null;
+                }
+
+                var json = await _http.GetStringAsync(AppConstants.VersionCheckUrl);
+                Database.SetSetting("UPDATE_LAST_CHECK", DateTime.Today.ToString("yyyy-MM-dd"));
+
+                using var doc  = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var latest = root.GetProperty("version").GetString() ?? "";
+                var fvuLatest = root.TryGetProperty("fvuLatestVersion", out var fv) ? fv.GetString() ?? "" : "";
+                var info   = new UpdateInfo
+                {
+                    Version          = latest,
+                    ReleaseDate      = root.TryGetProperty("releaseDate", out var rd) ? rd.GetString() ?? "" : "",
+                    DownloadUrl      = root.TryGetProperty("downloadUrl", out var du) ? du.GetString() ?? "" : "",
+                    Notes            = root.TryGetProperty("notes",       out var n)  ? n.GetString()  ?? "" : "",
+                    IsNewer          = IsNewerVersion(latest, AppConstants.AppVersion),
+                    FvuLatestVersion = fvuLatest,
+                    FvuDownloadUrl   = root.TryGetProperty("fvuDownloadUrl", out var fd) ? fd.GetString() ?? "" : "",
+                };
+
+                // Return if app update available OR FVU is outdated — always useful info
+                var fvuOutdated = !string.IsNullOrEmpty(fvuLatest) &&
+                                  IsNewerFvuVersion(fvuLatest, FvuUtilityRunner.GetLocalFvuVersion());
+                return (info.IsNewer || fvuOutdated) ? info : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool IsNewerVersion(string remote, string local)
+        {
+            try { return Version.Parse(remote) > Version.Parse(local); }
+            catch { return false; }
+        }
+
+        // FVU versions are like "9.4" or "9.5" — compare as System.Version
+        private static bool IsNewerFvuVersion(string remote, string local)
+        {
+            if (string.IsNullOrEmpty(local)) return false;
+            try { return Version.Parse(remote) > Version.Parse(local); }
+            catch { return false; }
+        }
+    }
+}

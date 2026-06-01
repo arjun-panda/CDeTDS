@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CDeTDS.DAL\CDeTDS.DAL.csproj" Private="false" />
+    <ProjectReference Include="..\CDeTDS.Common\CDeTDS.Common.csproj" Private="false" />
+  </ItemGroup>
+</Project>

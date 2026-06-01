@@ -1,0 +1,233 @@
+﻿@page "/challan/print"
+@inject AppStateService AppState
+@inject ChallanService ChallanSvc
+@inject DeductorService DeductorSvc
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<div class="d-flex align-center gap-3 mb-4 no-print">
+    <MudText Typo="Typo.h5">Challan 281 Print</MudText>
+    <MudSpacer />
+    <MudSelect T="int" Value="_challanId" Label="Select Challan"
+               Variant="Variant.Outlined" Style="min-width:280px"
+               AnchorOrigin="Origin.BottomCenter"
+               ValueChanged="OnChallanSelected">
+        @foreach (var c in _challans)
+        {
+            <MudSelectItem Value="@c.Id">
+                @c.ChallanNo — ₹@c.TotalAmount.ToString("N0") (@c.ChallanDate.ToString("dd-MMM-yyyy"))
+            </MudSelectItem>
+        }
+    </MudSelect>
+    @if (_selected != null)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Print"
+                   OnClick="PrintChallan">Print</MudButton>
+    }
+</div>
+
+@if (_selected != null && _deductor != null)
+{
+    <div id="challan-print-area" style="font-family:'Times New Roman',serif; max-width:740px; margin:0 auto; border:2px solid #000; padding:0;">
+
+        @* â”€â”€ HEADER â”€â”€ *@
+        <div style="background:#003087;color:#fff;text-align:center;padding:10px 0;">
+            <div style="font-size:18px;font-weight:bold;letter-spacing:2px;">CHALLAN NO. 281</div>
+            <div style="font-size:11px;margin-top:2px;">ITNS 281 — TDS / TCS Payable by Taxpayer</div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            @* â”€â”€ DEDUCTOR DETAILS â”€â”€ *@
+            <tr>
+                <td colspan="4" style="background:#e8eef7;font-weight:bold;padding:5px 8px;border-bottom:1px solid #000;">
+                    DEDUCTOR DETAILS
+                </td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">TAN</td>
+                <td style="@_tdValue">@_deductor.Tan</td>
+                <td style="@_tdLabel">PAN</td>
+                <td style="@_tdValue">@_deductor.Pan</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Name</td>
+                <td colspan="3" style="@_tdValue">@_deductor.CompanyName</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Address</td>
+                <td colspan="3" style="@_tdValue">@_deductor.Address</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">City / State</td>
+                <td style="@_tdValue">@_deductor.City</td>
+                <td style="@_tdLabel">Pin Code</td>
+                <td style="@_tdValue">@_deductor.Pincode</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Financial Year</td>
+                <td style="@_tdValue">@_selected.FinancialYear</td>
+                <td style="@_tdLabel">Assessment Year</td>
+                <td style="@_tdValue">@GetAY(_selected.FinancialYear)</td>
+            </tr>
+
+            @* â”€â”€ CHALLAN DETAILS â”€â”€ *@
+            <tr>
+                <td colspan="4" style="background:#e8eef7;font-weight:bold;padding:5px 8px;border-top:1px solid #000;border-bottom:1px solid #000;">
+                    CHALLAN DETAILS
+                </td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Challan Number</td>
+                <td style="@_tdValue">@_selected.ChallanNo</td>
+                <td style="@_tdLabel">BSR Code</td>
+                <td style="@_tdValue">@_selected.BsrCode</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Date of Payment</td>
+                <td style="@_tdValue">@_selected.ChallanDate.ToString("dd-MMM-yyyy")</td>
+                <td style="@_tdLabel">Section</td>
+                <td style="@_tdValue">@_selected.Section</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Bank Name</td>
+                <td style="@_tdValue">@_selected.BankName</td>
+                <td style="@_tdLabel">Quarter</td>
+                <td style="@_tdValue">@_selected.Quarter</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Ack. No.</td>
+                <td colspan="3" style="@_tdValue">@_selected.AckNo</td>
+            </tr>
+
+            @* â”€â”€ AMOUNT DETAILS â”€â”€ *@
+            <tr>
+                <td colspan="4" style="background:#e8eef7;font-weight:bold;padding:5px 8px;border-top:1px solid #000;border-bottom:1px solid #000;">
+                    AMOUNT DETAILS
+                </td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">TDS Amount</td>
+                <td style="@_tdValue">₹ @_selected.TdsAmount.ToString("N0")</td>
+                <td style="@_tdLabel">Surcharge</td>
+                <td style="@_tdValue">₹ @_selected.Surcharge.ToString("N0")</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Education Cess</td>
+                <td style="@_tdValue">₹ @_selected.Cess.ToString("N0")</td>
+                <td style="@_tdLabel">Interest</td>
+                <td style="@_tdValue">₹ @_selected.Interest.ToString("N0")</td>
+            </tr>
+            <tr>
+                <td style="@_tdLabel">Late Fee</td>
+                <td style="@_tdValue">₹ @_selected.LateFee.ToString("N0")</td>
+                <td style="@_tdLabel">Other Amount</td>
+                <td style="@_tdValue">₹ @_selected.Amount.ToString("N0")</td>
+            </tr>
+            <tr>
+                <td colspan="2" style="background:#003087;color:#fff;font-weight:bold;font-size:14px;padding:8px;text-align:right;border-top:2px solid #000;">
+                    TOTAL AMOUNT PAID
+                </td>
+                <td colspan="2" style="background:#003087;color:#fff;font-weight:bold;font-size:16px;padding:8px;border-top:2px solid #000;">
+                    ₹ @_selected.TotalAmount.ToString("N0")
+                </td>
+            </tr>
+
+            @* â”€â”€ REMARKS â”€â”€ *@
+            @if (!string.IsNullOrWhiteSpace(_selected.Remarks))
+            {
+                <tr>
+                    <td style="@_tdLabel">Remarks</td>
+                    <td colspan="3" style="@_tdValue">@_selected.Remarks</td>
+                </tr>
+            }
+
+            @* â”€â”€ SIGNATURE â”€â”€ *@
+            <tr>
+                <td colspan="4" style="padding:24px 8px 8px;border-top:1px solid #ccc;">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;">
+                        <div>
+                            <div style="margin-bottom:30px;">Date: _______________</div>
+                            <div style="font-weight:bold;">Seal</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="margin-bottom:30px;">&nbsp;</div>
+                            <div style="font-weight:bold;">Signature of the Person Responsible for Deduction of Tax</div>
+                            <div>@_deductor.CompanyName</div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+
+            @* â”€â”€ FOOTER NOTE â”€â”€ *@
+            <tr>
+                <td colspan="4" style="font-size:9px;color:#666;padding:6px 8px;border-top:1px solid #ccc;text-align:center;">
+                    This challan is computer-generated. Please retain for records. CDeTDS v@AppConstants.AppVersion — @DateTime.Today.Year
+                </td>
+            </tr>
+        </table>
+    </div>
+}
+else if (_challans.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">No challans found for the current company and financial year.</MudAlert>
+}
+
+<style>
+    @@media print {
+        .no-print { display: none !important; }
+        #challan-print-area { border: 2px solid #000 !important; }
+    }
+</style>
+
+@code {
+    private List<Challan> _challans = new();
+    private int      _challanId;
+    private Challan? _selected;
+    private Deductor? _deductor;
+
+    private const string _tdLabel = "padding:5px 8px;font-weight:bold;width:22%;border-right:1px solid #ccc;border-bottom:1px solid #eee;background:#f5f7fa;";
+    private const string _tdValue = "padding:5px 8px;width:28%;border-right:1px solid #ccc;border-bottom:1px solid #eee;";
+
+    protected override void OnInitialized()
+    {
+        _challans = ChallanSvc.GetAll(AppState.CurrentDeductorId, AppState.CurrentFY);
+        // Accept ?id=NNN from the Challans list Print button
+        var uri = new Uri(Nav.Uri);
+        var qs  = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        if (int.TryParse(qs["id"], out var qid) && _challans.Any(c => c.Id == qid))
+            _challanId = qid;
+        else if (_challans.Count > 0)
+            _challanId = _challans[0].Id;
+        if (_challanId > 0) LoadSelected();
+    }
+
+    void OnChallanSelected(int id)
+    {
+        _challanId = id;
+        LoadSelected();
+    }
+
+    void LoadSelected()
+    {
+        _selected = _challans.FirstOrDefault(c => c.Id == _challanId);
+        try
+        {
+            var deductors = DeductorSvc.GetAll();
+            _deductor = deductors.FirstOrDefault(d => d.Id == AppState.CurrentDeductorId);
+        }
+        catch { _deductor = null; }
+    }
+
+    async Task PrintChallan()
+    {
+        await JS.InvokeVoidAsync("window.tdspro.printElement", "challan-print-area");
+    }
+
+    static string GetAY(string fy)
+    {
+        if (fy.Length >= 7 && int.TryParse(fy[5..], out var end))
+            return $"{end}-{end + 1}";
+        return fy;
+    }
+}

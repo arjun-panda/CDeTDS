@@ -1,0 +1,80 @@
+@* Reusable PAN input — uppercase, monospace, 10-char max, 4th-char entity decode *@
+
+<MudTextField Value="@Value"
+              Label="@Label"
+              Variant="Variant.Outlined"
+              Placeholder="ABCDE1234F"
+              MaxLength="10"
+              Class="@($"pan-field {Class}")"
+              Immediate="true"
+              Style="text-transform:uppercase;font-family:monospace;letter-spacing:1px"
+              HelperText="@_helper"
+              Error="@_error"
+              ErrorText="Invalid PAN format (AAAAA9999A)"
+              Disabled="@Disabled"
+              ValueChanged="@((string v) => OnChanged(v))" />
+
+@code {
+    [Parameter] public string Value       { get; set; } = "";
+    [Parameter] public string Label       { get; set; } = "PAN";
+    [Parameter] public string Class       { get; set; } = "";
+    [Parameter] public bool   Disabled    { get; set; }
+    [Parameter] public bool   ShowType    { get; set; } = true;  // show entity type hint
+    [Parameter] public EventCallback<string>      ValueChanged    { get; set; }
+    [Parameter] public EventCallback<string>      TypeChanged     { get; set; }  // fires when 4th char resolves type
+    [Parameter] public EventCallback<bool>        ValidChanged    { get; set; }
+
+    private string _helper = "10 characters · auto-uppercased";
+    private bool   _error  = false;
+
+    protected override void OnParametersSet()
+    {
+        // Sync helper when value set externally (e.g. OpenEdit)
+        if (!string.IsNullOrEmpty(Value) && Value.Length == 10)
+        {
+            _error  = !Validators.IsValidPan(Value);
+            _helper = _error ? "Invalid PAN format (AAAAA9999A)"
+                             : (ShowType ? $"✓ {Validators.GetPanEntityType(Value)}" : "✓ Valid");
+        }
+    }
+
+    private async Task OnChanged(string raw)
+    {
+        var pan = (raw ?? "").Trim().ToUpper();
+        _error = false;
+
+        if (pan.Length == 0)
+        {
+            _helper = "10 characters · auto-uppercased";
+            await ValueChanged.InvokeAsync(pan);
+            await ValidChanged.InvokeAsync(false);
+            return;
+        }
+
+        // Auto-resolve deductee type from 4th char (fires as soon as 4 chars entered)
+        if (pan.Length >= 4)
+        {
+            var dtype = Validators.PanToDeducteeType(pan);
+            if (!string.IsNullOrEmpty(dtype))
+                await TypeChanged.InvokeAsync(dtype);
+        }
+
+        if (pan.Length < 10)
+        {
+            _helper = $"{pan.Length} / 10";
+            await ValueChanged.InvokeAsync(pan);
+            await ValidChanged.InvokeAsync(false);
+            return;
+        }
+
+        // Exactly 10
+        var valid = Validators.IsValidPan(pan);
+        _error  = !valid;
+        _helper = valid
+            ? (ShowType ? $"✓ {Validators.GetPanEntityType(pan)}" : "✓ Valid")
+            : "Invalid PAN format (AAAAA9999A)";
+
+        await ValueChanged.InvokeAsync(pan);
+        await ValidChanged.InvokeAsync(valid);
+    }
+}

@@ -1,0 +1,57 @@
+@* Reusable TAN input — uppercase, monospace, 10-char max, format AAAA99999A *@
+
+<MudTextField Value="@Value"
+              Label="@Label"
+              Variant="Variant.Outlined"
+              Placeholder="ABCD12345E"
+              MaxLength="10"
+              Class="@($"tan-field {Class}")"
+              Immediate="true"
+              Style="text-transform:uppercase;font-family:monospace;letter-spacing:1px"
+              HelperText="@_helper"
+              Error="@_error"
+              ErrorText="Invalid TAN format (AAAA99999A)"
+              Disabled="@Disabled"
+              ValueChanged="@((string v) => OnChanged(v))" />
+
+@code {
+    [Parameter] public string Value    { get; set; } = "";
+    [Parameter] public string Label    { get; set; } = "TAN";
+    [Parameter] public string Class    { get; set; } = "";
+    [Parameter] public bool   Disabled { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged  { get; set; }
+    [Parameter] public EventCallback<bool>   ValidChanged  { get; set; }
+
+    private string _helper = "10 characters · AAAA99999A format";
+    private bool   _error  = false;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrEmpty(Value) && Value.Length == 10)
+        {
+            _error  = !Validators.IsValidTan(Value);
+            _helper = _error ? "Invalid TAN format (AAAA99999A)" : "✓ Valid TAN";
+        }
+    }
+
+    private async Task OnChanged(string raw)
+    {
+        var tan = (raw ?? "").Trim().ToUpper();
+        _error = false;
+
+        if (tan.Length < 10)
+        {
+            _helper = tan.Length == 0 ? "10 characters · AAAA99999A format" : $"{tan.Length} / 10";
+            await ValueChanged.InvokeAsync(tan);
+            await ValidChanged.InvokeAsync(false);
+            return;
+        }
+
+        var valid = Validators.IsValidTan(tan);
+        _error  = !valid;
+        _helper = valid ? "✓ Valid TAN" : "Invalid TAN format (AAAA99999A)";
+
+        await ValueChanged.InvokeAsync(tan);
+        await ValidChanged.InvokeAsync(valid);
+    }
+}
