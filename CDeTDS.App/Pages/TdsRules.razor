@@ -121,8 +121,7 @@
 
     @* ── Tab 2: Rules Reference ── *@
     <MudTabPanel Text="Rules Reference" Icon="@Icons.Material.Filled.TableChart">
-    <div style="display:flex;flex-direction:column;height:100%">
-        <div class="d-flex gap-2 mb-3 align-center" style="flex-shrink:0">
+        <div class="d-flex gap-2 mb-3 align-center">
             <MudTextField @bind-Value="_rulesSearch" Placeholder="Search section or nature..."
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           Immediate="true" Style="max-width:320px" Variant="Variant.Outlined" />
@@ -134,13 +133,13 @@
             </MudButton>
         </div>
 
-        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
+        <div style="height:calc(100vh - 260px);overflow-y:auto">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="100%">
+                     FixedHeader="true" Height="calc(100vh - 260px)">
             <Columns>
-                <PropertyColumn Property="x => x.SectionCode"     Title="Section"  CellStyle="width:80px" />
+                <PropertyColumn Property="x => x.SectionCode"     Title="Section" />
                 <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
-                <PropertyColumn Property="x => x.DeducteeType"    Title="Type"     CellStyle="width:90px" />
+                <PropertyColumn Property="x => x.DeducteeType"    Title="Type" />
                 <TemplateColumn Title="Threshold (₹)">
                     <CellTemplate>@context.Item.ThresholdLimit.ToString("N0")</CellTemplate>
                 </TemplateColumn>
@@ -153,8 +152,8 @@
                 <TemplateColumn Title="Cess %">
                     <CellTemplate>@context.Item.CessRate.ToString("N2")</CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.ReferenceAct"   Title="Act Reference" CellStyle="width:180px" />
-                <TemplateColumn Title="Effective" CellStyle="width:160px">
+                <PropertyColumn Property="x => x.ReferenceAct"   Title="Act Reference" />
+                <TemplateColumn Title="Effective">
                     <CellTemplate>
                         @context.Item.EffectiveFrom.ToString("dd-MMM-yyyy")
                         @if (context.Item.EffectiveTo.HasValue)
@@ -182,16 +181,14 @@
             </Columns>
         </MudDataGrid>
         </div>
-    </div>
     </MudTabPanel>
 
     @* ── Tab 3: Section Quick Reference ── *@
     <MudTabPanel Text="Section Guide" Icon="@Icons.Material.Filled.MenuBook">
-    <div style="display:flex;flex-direction:column;height:100%">
-        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3" style="flex-shrink:0">
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
             Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
         </MudAlert>
-        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
+        <div style="height:calc(100vh - 310px);overflow-y:auto">
         <MudSimpleTable Dense="true" Striped="true" Hover="true">
             <thead>
                 <tr>
@@ -234,7 +231,6 @@
             </tbody>
         </MudSimpleTable>
         </div>
-    </div>
     </MudTabPanel>
 
     @* ── Tab 4: Finance Act / Rules Status ── *@
