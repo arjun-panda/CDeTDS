@@ -3,6 +3,9 @@
 @inject ISnackbar Snackbar
 @inject AppStateService AppState
 
+<div style="display:flex;flex-direction:column;height:100%">
+
+<div style="flex-shrink:0">
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">Audit Log</MudText>
     <MudSpacer />
@@ -42,10 +45,11 @@
 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
     Showing @FilteredItems.Count() of @_items.Count entries
 </MudText>
+</div>
 
-<div style="height:calc(100vh - 190px);overflow-y:auto">
+<div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
 <MudDataGrid T="LogEntry" Items="FilteredItems" Hover="true" Striped="true" Dense="true"
-             SortMode="SortMode.Single" FixedHeader="true" Height="calc(100vh - 190px)">
+             SortMode="SortMode.Single" FixedHeader="true" Height="100%">
     <Columns>
         <PropertyColumn Property="x => x.CreatedAt" Title="Timestamp" Format="dd-MMM-yyyy HH:mm:ss" />
         <PropertyColumn Property="x => x.Username"  Title="User" />
@@ -54,6 +58,8 @@
         <PropertyColumn Property="x => x.Details"   Title="Details" />
     </Columns>
 </MudDataGrid>
+</div>
+
 </div>
 
 @code {

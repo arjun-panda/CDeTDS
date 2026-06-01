@@ -3,14 +3,17 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogSvc
 
-<MudText Typo="Typo.h5" Class="mb-4">User Management</MudText>
+<div style="display:flex;flex-direction:column;height:100%">
 
+<div style="flex-shrink:0">
+<MudText Typo="Typo.h5" Class="mb-4">User Management</MudText>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
            OnClick="OpenAdd" Class="mb-4">Add User</MudButton>
+</div>
 
-<div style="height:calc(100vh - 160px);overflow-y:auto">
+<div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
 <MudDataGrid T="AppUser" Items="_items" Hover="true" Striped="true" Dense="true"
-             FixedHeader="true" Height="calc(100vh - 160px)">
+             FixedHeader="true" Height="100%">
     <Columns>
         <PropertyColumn Property="x => x.Username"  Title="Username" />
         <PropertyColumn Property="x => x.FullName"  Title="Full Name" />
@@ -26,6 +29,8 @@
         </TemplateColumn>
     </Columns>
 </MudDataGrid>
+</div>
+
 </div>
 
 <MudDialog @bind-Visible="_dialogOpen" Options="_dialogOptions">
