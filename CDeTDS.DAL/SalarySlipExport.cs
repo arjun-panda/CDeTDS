@@ -4,6 +4,7 @@ using System.Linq;
 using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
+using CDeTDS.Common;
 using CDeTDS.DAL.Models;
 
 namespace CDeTDS.DAL
@@ -68,7 +69,7 @@ namespace CDeTDS.DAL
 
             // ── Deduction rows — only non-zero ───────────────────────────────
             int    htmlLopDays   = entry.LopDays;
-            double htmlLopAmount = htmlLopDays > 0 ? Math.Round(entry.GrossPayment * htmlLopDays / 30.0, 0) : 0;
+            double htmlLopAmount = htmlLopDays > 0 ? Math.Round(entry.GrossPayment * htmlLopDays / AppConstants.StandardPayrollDays, 0) : 0;
             int    htmlDim       = DateTime.DaysInMonth(entry.Year, entry.Month);
             int    htmlDaysPaid  = entry.DaysWorked > 0 ? entry.DaysWorked : htmlDim;
 
@@ -306,7 +307,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             earnings = earnings.Where(x => x.Amount != 0 || x.Label == "Basic Salary").ToList();
 
             int lopDays       = entry.LopDays;
-            double lopAmount  = lopDays > 0 ? Math.Round(entry.GrossPayment * lopDays / 30.0, 0) : 0;
+            double lopAmount  = lopDays > 0 ? Math.Round(entry.GrossPayment * lopDays / AppConstants.StandardPayrollDays, 0) : 0;
 
             var deductionsList = new List<(string Label, double Amount)>
             {
@@ -615,7 +616,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#eee;print-color-adjust
             // ── Rows 12+: Side-by-side earnings / deductions ─────────────────
             entry.RecalcGross();
             int    xlLopDays   = entry.LopDays;
-            double xlLopAmount = xlLopDays > 0 ? Math.Round(entry.GrossPayment * xlLopDays / 30.0, 0) : 0;
+            double xlLopAmount = xlLopDays > 0 ? Math.Round(entry.GrossPayment * xlLopDays / AppConstants.StandardPayrollDays, 0) : 0;
             double ded   = xlLopAmount + entry.PfEmployee + entry.VPF + entry.ProfessionalTax
                          + entry.EsiEmployee + entry.VarDedTotal + entry.TdsDeducted;
 

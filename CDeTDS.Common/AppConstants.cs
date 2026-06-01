@@ -8,6 +8,7 @@ namespace CDeTDS.Common
     public static class AppConstants
     {
         public const string AppName    = "CDeTDS";
+        public const int    StandardPayrollDays = 30;   // Indian payroll standard divisor for LOP/pro-rata
         // Read from assembly so bumping <Version> in CDeTDS.App.csproj is the only required change.
         public static string AppVersion =>
             System.Reflection.Assembly.GetEntryAssembly()

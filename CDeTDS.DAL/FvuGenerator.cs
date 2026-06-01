@@ -293,6 +293,15 @@ namespace CDeTDS.DAL
                 }
             }
 
+            // Deductees whose ChallanNo doesn't match any challan — treat as unlinked
+            // (stale link after challan was deleted or renamed). Prevents silent drop from FVU.
+            var validChallanNos = new HashSet<string>(
+                data.Challans.Select(c => c.ChallanNo ?? ""),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var d in data.Deductees)
+                if (!string.IsNullOrEmpty(d.ChallanNo) && !validChallanNos.Contains(d.ChallanNo))
+                    d.ChallanNo = "";   // reassign to unlinked pool
+
             bool unlinkedAssigned = false;
             foreach (var ch in data.Challans)
             {

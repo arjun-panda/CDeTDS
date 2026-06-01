@@ -466,4 +466,79 @@ public class SalaryComputationTests
         int result = SalaryService.MonthsRemaining("2025-26", 10);
         Assert.Equal(6, result);
     }
+
+    // ── LOP calculation tests ────────────────────────────────────────────────
+
+    [Fact]
+    public void RecalcGross_LopDays_ReducesNetByGrossRatio()
+    {
+        // 50,000 gross, 15 LOP days → deduction = 50000 × 15 / 30 = 25,000
+        var e = new MonthlySalaryEntry
+        {
+            Basic = 30000, HRA = 12000, SpecialAllowance = 8000,
+            LopDays = 15, Month = 3, FinancialYear = "2025-26"
+        };
+        e.RecalcGross();
+        Assert.Equal(50000, e.GrossPayment);
+        double expectedLop = Math.Round(50000 * 15.0 / AppConstants.StandardPayrollDays, 0);
+        Assert.Equal(25000, expectedLop);
+        Assert.Equal(50000 - 25000, e.NetSalary); // no PF/TDS for simplicity
+    }
+
+    [Fact]
+    public void RecalcGross_ZeroLop_NoDeduction()
+    {
+        var e = new MonthlySalaryEntry { Basic = 40000, HRA = 10000, LopDays = 0 };
+        e.RecalcGross();
+        Assert.Equal(50000, e.NetSalary);
+    }
+
+    // ── Deduction schedule balance tests ────────────────────────────────────
+
+    [Fact]
+    public void DeductionSchedule_Balance_EqualsTotal_Minus_Recovered()
+    {
+        var s = new CDeTDS.DAL.Models.DeductionSchedule
+        {
+            TotalAmount = 60000, RecoveredAmt = 10000, IsActive = true,
+            InstallmentAmt = 5000, StartFy = "2025-26", StartMonth = 4
+        };
+        Assert.Equal(50000, s.Balance);
+    }
+
+    [Fact]
+    public void DeductionSchedule_IsDue_SameMonthAlreadyPosted_ReturnsFalse()
+    {
+        var s = new CDeTDS.DAL.Models.DeductionSchedule
+        {
+            TotalAmount = 60000, RecoveredAmt = 5000, IsActive = true,
+            InstallmentAmt = 5000, StartFy = "2025-26", StartMonth = 4,
+            LastPostedFy = "2025-26", LastPostedMonth = 5   // already posted May
+        };
+        // IsDue no longer blocks re-posting; UpdateRecovered handles replacement.
+        // Balance > 0 and schedule started, so IsDue = true even if same month.
+        Assert.True(s.IsDue("2025-26", 5));
+    }
+
+    [Fact]
+    public void DeductionSchedule_Balance_Zero_IsDueFalse()
+    {
+        var s = new CDeTDS.DAL.Models.DeductionSchedule
+        {
+            TotalAmount = 10000, RecoveredAmt = 10000, IsActive = true,
+            InstallmentAmt = 5000, StartFy = "2025-26", StartMonth = 4
+        };
+        Assert.False(s.IsDue("2025-26", 5)); // Balance = 0
+    }
+
+    [Fact]
+    public void DeductionSchedule_FutureStartFy_IsDueFalse()
+    {
+        var s = new CDeTDS.DAL.Models.DeductionSchedule
+        {
+            TotalAmount = 10000, RecoveredAmt = 0, IsActive = true,
+            InstallmentAmt = 5000, StartFy = "2026-27", StartMonth = 4
+        };
+        Assert.False(s.IsDue("2025-26", 12)); // starts next FY
+    }
 }
