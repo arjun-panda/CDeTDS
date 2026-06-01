@@ -1,7 +1,7 @@
-TDS Pro Software License Agreement
+CDeTDS Software License Agreement
 ====================================
 
-Copyright (c) 2026 TDS Pro Software. All rights reserved.
+Copyright (c) 2026 CDeTDS Software. All rights reserved.
 
 This software is proprietary and confidential.
 
@@ -23,8 +23,8 @@ You may not:
 
 DISCLAIMER
 This software is provided "as is" without warranty of any kind.
-TDS Pro Software shall not be liable for any direct, indirect,
+CDeTDS Software shall not be liable for any direct, indirect,
 incidental, or consequential damages arising from its use.
 
-For licensing: license@capitaldesk.co.in
-For support  : support@capitaldesk.co.in
+For licensing: admin@capitaldesk.co.in
+For support  : admin@capitaldesk.co.in
