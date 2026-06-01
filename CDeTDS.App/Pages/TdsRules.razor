@@ -137,17 +137,17 @@
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
                      FixedHeader="true" Height="calc(100vh - 170px)">
             <Columns>
-                <TemplateColumn Title="Section"  SortBy="x => x.SectionCode"    HeaderStyle="width:80px"  CellStyle="width:80px">
+                <TemplateColumn Title="Section"  SortBy="x => x.SectionCode"    HeaderStyle="width:70px"  CellStyle="width:70px">
                     <CellTemplate>@context.Item.SectionCode</CellTemplate>
                 </TemplateColumn>
                 <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
                 <TemplateColumn Title="Type"     SortBy="x => x.DeducteeType"   HeaderStyle="width:85px"  CellStyle="width:85px">
                     <CellTemplate>@context.Item.DeducteeType</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Threshold (₹)"             HeaderStyle="width:90px" CellStyle="width:90px;text-align:right">
+                <TemplateColumn Title="Threshold (₹)"             HeaderStyle="width:85px" CellStyle="width:85px;text-align:right">
                     <CellTemplate>@context.Item.ThresholdLimit.ToString("N0")</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Rate %"                    HeaderStyle="width:65px" CellStyle="width:65px;text-align:right">
+                <TemplateColumn Title="Rate %"                    HeaderStyle="width:60px" CellStyle="width:60px;text-align:right">
                     <CellTemplate><b>@context.Item.TdsRate.ToString("N2")</b></CellTemplate>
                 </TemplateColumn>
                 <TemplateColumn Title="SC %"                      HeaderStyle="width:55px" CellStyle="width:55px;text-align:right">
@@ -159,7 +159,7 @@
                 <TemplateColumn Title="Act Ref"  SortBy="x => x.ReferenceAct"   HeaderStyle="width:160px" CellStyle="width:160px;font-size:12px">
                     <CellTemplate>@context.Item.ReferenceAct</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Eff. From"                 HeaderStyle="width:95px" CellStyle="width:95px;font-size:12px">
+                <TemplateColumn Title="Eff. From"                 HeaderStyle="width:105px" CellStyle="width:105px;font-size:12px">
                     <CellTemplate>
                         @context.Item.EffectiveFrom.ToString("dd-MMM-yyyy")
                         @if (context.Item.EffectiveTo.HasValue)
