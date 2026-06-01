@@ -8,7 +8,7 @@
 #define AppDesc      "TDS Compliance Software - Income-tax Act 2025"
 #define SourceDir    "publish_out"
 #define FvuDir       "TDS_STANDALONE_FVU_9.4"
-#define JreDir       "bundled_jre"
+#define JreDir       "installer\bundled_jre"
 #define BuildStamp   GetDateTimeString('yyyymmdd_hhnnss', '', '')
 
 [Setup]

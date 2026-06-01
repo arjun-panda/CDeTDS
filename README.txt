@@ -1,10 +1,10 @@
-TDS Pro v1.0.0 — TDS Compliance Software
+CDeTDS v1.0.1 — TDS Compliance Software
 =========================================
 Income-tax Act 1961 | NSDL FVU 9.4 | FY 2025-26
 
 QUICK START
 ───────────
-1. Launch TDS Pro from the Desktop or Start Menu
+1. Launch CDeTDS from the Desktop or Start Menu
 2. Default login: admin / admin@123  (change in Users page immediately)
 3. Select or add your company (Deductor) from the top toolbar
 4. Add employees/vendors under Deductees
@@ -22,10 +22,10 @@ WHAT'S INCLUDED
 
 DATA LOCATION
 ─────────────
-Database : %APPDATA%\TDSPro\tds_pro.db
-Backups  : %APPDATA%\TDSPro\Backup\
-Returns  : Documents\TDSPro\{FY}\Returns\
-Logs     : %APPDATA%\TDSPro\Logs\
+Database : %APPDATA%\CDeTDS\tds_pro.db
+Backups  : %APPDATA%\CDeTDS\Backup\
+Returns  : Documents\CDeTDS\{FY}\Returns\
+Logs     : %APPDATA%\CDeTDS\Logs\
 
 PAGES
 ─────
