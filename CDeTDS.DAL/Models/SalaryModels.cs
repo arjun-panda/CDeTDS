@@ -103,7 +103,8 @@ namespace CDeTDS.DAL.Models
             // LeaveEncExempted is the leave encashment Sec 10(10AA) exemption
             GrossTaxableSalary = GrossPayment - PerqExempted - LeaveEncExempted;
 
-            NetSalary = GrossPayment - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted - VarDedTotal;
+            double lopDeduction = LopDays > 0 ? Math.Round(GrossPayment * LopDays / 30.0, 0) : 0;
+            NetSalary = GrossPayment - lopDeduction - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted - VarDedTotal;
         }
     }
 

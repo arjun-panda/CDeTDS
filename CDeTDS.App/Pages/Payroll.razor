@@ -904,7 +904,7 @@
                 .Sum(r => r.Amount);
             var _sdVarTotal   = _sdBonus + _sdCommission + _sdAdvance + _sdArrears + (_sdLeaveEnc - _sdLeaveEncEx) + _sdDynVarTotal;
             var _sdGrossTotal = _sdFixedTotal + _sdVarTotal;
-            var _sdLopAmount     = _sdLopDays > 0 ? Math.Round(_sdBasic * _sdLopDays / 30.0) : 0;
+            var _sdLopAmount     = _sdLopDays > 0 ? Math.Round(_sdGrossTotal * _sdLopDays / 30.0) : 0;
             var _sdFixedDedTotal = _sdLopAmount + _sdPf + _sdVpf + _sdEsi + _sdPt + _sdTds;
             var _sdVarDedTotal   = _sdVarDedRows.Sum(r => r.Amount);
             var _sdTotalDed = _sdFixedDedTotal + _sdVarDedTotal;
@@ -1743,7 +1743,7 @@
                                 var isSkip   = row.Status == "Skip";
                                 var editable = _sdBulkEdit && !isSkip;
                                 var rowBg    = sel ? "#f0f9ff" : isSkip ? "#fefce8" : "#fff";
-                                var lopAmt   = row.LopDays > 0 ? Math.Round(row.Basic * row.LopDays / 30.0) : 0;
+                                var lopAmt   = row.LopDays > 0 ? Math.Round(row.Gross * row.LopDays / 30.0) : 0;
                                 <tr @key="@($"{row.EmployeeId}_{row.LopDays}_{(int)row.Gross}_{(int)row.Tds}")"
                                     style="background:@rowBg;border-bottom:1px solid #f1f5f9">
                                     @* Checkbox *@
