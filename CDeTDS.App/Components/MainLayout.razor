@@ -273,7 +273,7 @@ else
         ("Deductor", "How do I add a new deductor?",              "Click the company name in the top bar → company selector dialog opens. Use Create to add a new deductor. Enter TAN, PAN, address, responsible person details and GSTIN."),
         ("Deductor", "Can I manage multiple companies?",          "Yes. CDeTDS supports unlimited deductors. Each company has its own separate challans, entries, payroll and return files. Use the company selector in the top bar to switch."),
         ("Deductor", "Where do I enter TRACES / portal credentials?", "Go to Portals page. Each portal card (IT Portal, TRACES, TIN-NSDL) has a credential button. Credentials are AES-encrypted and stored locally."),
-        ("Deductor", "Where are company files saved?",            "Each company gets its own folder: Documents\\TDSPro\\Companies\\{TAN}_{Name}\\. FVU files go into {FY}\\Returns\\{FormType}\\{Quarter}\\."),
+        ("Deductor", "Where are company files saved?",            "Each company gets its own folder: Documents\\CDeTDS\\Companies\\{TAN}_{Name}\\. FVU files go into {FY}\\Returns\\{FormType}\\{Quarter}\\."),
 
         // Deductee
         ("Deductee", "How do I add a deductee?",                  "Go to Deductees → click Add. Enter name, PAN, type (Company/Individual), default TDS section and rate. The system auto-fills the default rate from the TDS Rules table."),
@@ -296,12 +296,12 @@ else
         // Payroll
         ("Payroll", "How does the payroll module work?",          "Go to Payroll → Employee Master to add employees with salary structure. Each month, go to Monthly Run → select month → Compute. CDeTDS calculates salary, HRA, deductions and TDS under Old or New tax regime (Income-tax Act 1961)."),
         ("Payroll", "How is salary TDS calculated?",              "Annual projected tax is computed, then spread monthly (Annual Tax ÷ remaining months). Accounts for HRA exemption, standard deduction ₹75,000, Section 80C/D, Chapter VI-A and Rebate u/s 87A."),
-        ("Payroll", "What is pro-rata salary?",                   "For employees joining or leaving mid-month, enter Days Worked in Monthly Run. CDeTDS calculates salary as (Days Worked ÷ Total Days) × Gross."),
-        ("Payroll", "How do I generate salary slips?",            "Go to Payroll → select an employee and month → click Export / Print Slip. Salary slips can be saved as Excel or printed."),
+        ("Payroll", "What is pro-rata salary?",                   "For employees joining or leaving mid-month, enter Days Worked in Monthly Run. CDeTDS pro-rates earnings by Days Worked / 30. For Loss of Pay (LOP), enter LOP days in the LOP column — CDeTDS deducts Gross × LOP Days / 30 from net salary."),
+        ("Payroll", "How do I generate salary slips?",            "Go to Payroll → Salary Slips tab (auto-syncs to the current month after Save). Click Download HTML or Download Excel for any employee."),
         ("Payroll", "What is a Tax Declaration?",                 "Employees submit investment proofs (HRA receipts, 80C, 80D, etc.) at the start of the year. Go to Payroll → Tax Declaration → enter declared amounts per employee to reduce monthly TDS."),
         ("Payroll", "How does payroll feed into the TDS return?", "Every time you save a month's salary in Salary Data, CDeTDS automatically creates or updates a Section 192 TDS entry for that employee. These appear in TDS Entries and are included in the 24Q FVU return. Link them to a salary challan before generating the return."),
         ("Payroll", "How do I save salary data? Is there a Lock step?", "Just click Save. There is no Lock/Unlock step. When you save, CDeTDS immediately updates the Section 192 TDS entry for that employee. Copy Forward copies the current month's structure forward to all remaining months and saves them automatically."),
-        ("Payroll", "What is a Deduction Schedule (Loan / Advance Recovery)?", "Go to Payroll → Salary Data → Deduction Schedules section. Add a schedule for loan or advance recovery — enter total amount, monthly installment, and start month. CDeTDS auto-posts the installment as a variable deduction each month until the balance reaches zero."),
+        ("Payroll", "What is a Deduction Schedule (Loan / Advance Recovery)?", "Go to Payroll → Salary Data → Deduction Schedules section. Add a schedule for loan or advance recovery — enter total amount, monthly installment, and start month. CDeTDS auto-posts the installment as a variable deduction each month until the balance reaches zero. To repay extra in a month, edit the deduction amount in Salary Data — CDeTDS uses the actual amount deducted, not the fixed installment."),
 
         // Returns & FVU
         ("Returns & FVU", "How do I generate a FVU file?",        "Returns / FVU → select Form Type (26Q for non-salary, 24Q for salary) → select Quarter → click Generate .txt. Then click Generate & Validate (FVU) to run the NSDL validator. Java and FVU are bundled — no separate installation needed."),
@@ -316,7 +316,7 @@ else
         ("Returns & FVU", "What is a PRN?",                       "PRN (Provisional Receipt Number) is a 15-digit token issued by the IT Portal after successful upload of a return. You must enter this in CDeTDS's Filing History (click the pencil icon) to enable future corrections."),
         ("Returns & FVU", "What is the Filing History panel?",    "The Filing History panel on the Returns page shows all returns filed for the selected form/quarter. It tracks the filing date, PRN, and correction type. Use the pencil icon to enter the PRN after uploading to the portal."),
         ("Returns & FVU", "What is a CSI file and where do I get it?", "CSI (Challan Status Inquiry) confirms your challans are registered with the IT Department. Download from eportal.incometax.gov.in → e-Pay Tax → Payment History. Save the .csi file to the CSI folder shown on the Returns page. FVU picks it up automatically."),
-        ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\TDSPro\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
+        ("Returns & FVU", "Where are FVU files saved?",           "FVU files are saved in: Documents\\CDeTDS\\Companies\\{TAN}\\{FY}\\Returns\\{FormType}\\{Quarter}\\. For example: DELI12345A\\2025-26\\Returns\\26Q\\Q1\\. Click 'Open .fvu File Folder' after generation."),
         ("Returns & FVU", "What is a Paper Return?",              "Paper Return generates a printable HTML copy of exactly what was filed — Annexure I (deductee details) and, for 24Q Q4, Annexure II (annual salary breakup per employee). Click Paper Return → it opens in your browser → use Ctrl+P to save as PDF. Useful for internal records, CA review, or employee reference."),
         ("Returns & FVU", "Excess challan amount in original return — adding new entries to utilise it via correction",
             "Scenario: Original return has a challan of e.g. ₹50,000 but only ₹30,000 worth of entries were filed. " +
@@ -406,7 +406,7 @@ else
 
         // Settings
         ("Settings", "Where do I configure Java and FVU?",        "Java 8 and FVU 9.4 are bundled with CDeTDS — no separate download or configuration needed. The paths are set automatically during installation. If you ever need to use a different FVU version, go to Settings → FVU / Java tab to update the paths."),
-        ("Settings", "How do I change the base data folder?",     "Go to Settings → General tab → Base Folder. Change the folder where CDeTDS stores all company data and FVU files. Default is Documents\\TDSPro\\."),
+        ("Settings", "How do I change the base data folder?",     "Go to Settings → General tab → Base Folder. Change the folder where CDeTDS stores all company data and FVU files. Default is Documents\\CDeTDS\\."),
         ("Settings", "How do I backup and restore data?",         "Settings → Backup & Restore. Click Backup Now to create an instant backup. To restore, click Restore and select a backup file. Always backup before major changes or upgrades."),
 
         // TDS Filing Issues
@@ -492,11 +492,11 @@ else
             "Settings → About shows the CDeTDS version, license tier, machine ID, and a Check for Updates button. Use the machine ID when contacting support or requesting a license transfer."),
 
         // General
-        ("General", "How do I backup my data?",                   "Settings → Backup & Restore → Backup Now. The database is saved with a timestamp to Documents\\TDSPro\\Backup\\. CDeTDS also takes an automatic daily backup (keeps last 30)."),
+        ("General", "How do I backup my data?",                   "Settings → Backup & Restore → Backup Now. The database is saved with a timestamp to Documents\\CDeTDS\\Backup\\. CDeTDS also takes an automatic daily backup (keeps last 30)."),
         ("General", "How do I change my password?",               "Settings → General → Change Password. Enter current password, new password and confirm. Minimum 6 characters."),
         ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. Change your password immediately after first login from Settings → General."),
         ("General", "How do I add more users?",                   "Go to Users → Add User. Assign role (Admin = full access, User = restricted). Each user gets their own login and all actions are logged in the Audit Log."),
-        ("General", "Where is my data stored?",                   "All data is stored locally: %AppData%\\TDSPro\\tds_pro.db. Company files (FVU files, salary slips, reports) are in Documents\\TDSPro\\. No data is ever sent to any server."),
+        ("General", "Where is my data stored?",                   "All data is stored locally: %AppData%\\CDeTDS\\tds_pro.db. Company files (FVU files, salary slips, reports) are in Documents\\CDeTDS\\. No data is ever sent to any server."),
         ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. This is shown on the login screen. Change your password immediately after first login from Settings → General → Change Password."),
         ("General", "How do I import data from Excel?",           "Go to Excel Import/Export. Download the sample template, fill it in, then upload. Supports bulk import of deductees, TDS entries and challans."),
         ("General", "How do I import a TRACES conso file?",       "Go to Excel Import/Export → Import Data → TRACES Conso File. Select the .tds ZIP file downloaded from TRACES and enter the password (format: TAN_RequestNumber). CDeTDS imports all challans and entries for correction purposes."),
