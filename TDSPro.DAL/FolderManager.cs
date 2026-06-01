@@ -1,9 +1,9 @@
-using TDSPro.Common;
+﻿using TDSPro.Common;
 
 namespace TDSPro.DAL
 {
     /// <summary>
-    /// Manages the TDS Pro file/folder structure.
+    /// Manages the CDeTDS file/folder structure.
     ///
     /// Structure:
     ///   BasePath\

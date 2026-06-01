@@ -23,10 +23,10 @@
     <TieredPGO>true</TieredPGO>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
-    <Product>TDS Pro</Product>
-    <Company>TDS Pro</Company>
-    <Description>TDS Compliance Software â€” Income-tax Act 2025</Description>
-    <Copyright>Copyright 2026 TDS Pro</Copyright>
+    <Product>CDeTDS</Product>
+    <Company>CDeTDS Software</Company>
+    <Description>TDS Compliance Software – Income-tax Act 2025</Description>
+    <Copyright>Copyright 2026 CDeTDS Software</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

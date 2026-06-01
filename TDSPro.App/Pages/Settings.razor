@@ -178,7 +178,7 @@
                 <MudItem xs="8">
                     <MudTextField @bind-Value="_fvuPath" Label="NSDL FVU Utility Path (.jar)"
                                   Variant="Variant.Outlined" Margin="Margin.Dense"
-                                  Placeholder="C:\Program Files\TDS Pro\FVU\TDS_STANDALONE_FVU_9.4.jar"
+                                  Placeholder="C:\Program Files\CDeTDS\FVU\TDS_STANDALONE_FVU_9.4.jar"
                                   HelperText="Full path to the main FVU jar (not VersionValidator.jar)" />
                 </MudItem>
                 <MudItem xs="2" Class="d-flex align-center">
@@ -421,7 +421,7 @@
                 <div class="d-flex flex-column align-center pa-4">
                     <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Primary"
                              Style="font-size:56px" Class="mb-3" />
-                    <MudText Typo="Typo.h4" Style="font-weight:700;color:#1565C0">TDS Pro</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight:700;color:#1565C0">CDeTDS</MudText>
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-3">
                         TDS Compliance Software — Income-tax Act 2025
                     </MudText>
@@ -694,7 +694,7 @@
             }
 
             var rawBody =
-                $"TDS Pro v{AppConstants.AppVersion}\n" +
+                $"CDeTDS v{AppConstants.AppVersion}\n" +
                 $"Machine ID: {_machineId}\n" +
                 $"Date: {DateTime.Now:dd-MMM-yyyy HH:mm}\n\n" +
                 $"--- LOG EXCERPT ---\n{logs}";
@@ -703,7 +703,7 @@
             if (rawBody.Length > 900) rawBody = rawBody[..900] + "\n...(truncated — attach full log from folder above)";
 
             var body    = Uri.EscapeDataString(rawBody);
-            var subject = Uri.EscapeDataString($"TDS Pro Support Log — v{AppConstants.AppVersion}");
+            var subject = Uri.EscapeDataString($"CDeTDS Support Log — v{AppConstants.AppVersion}");
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
                 $"mailto:admin@capitaldesk.co.in?subject={subject}&body={body}")
                 { UseShellExecute = true });
@@ -948,8 +948,8 @@
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var searchDirs = new[]
         {
-            @"C:\Program Files\TDS Pro\FVU",
-            @"C:\Program Files (x86)\TDS Pro\FVU",
+            @"C:\Program Files\CDeTDS\FVU",
+            @"C:\Program Files (x86)\CDeTDS\FVU",
             @"C:\TDSPro\FVU",
             Path.Combine(profile, "Downloads"),
             Path.Combine(profile, "OneDrive", "Downloads"),
@@ -1022,7 +1022,7 @@
 
         var (ok, msg) = await Task.Run(async () =>
         {
-            const string fvuInstallDir = @"C:\Program Files\TDS Pro\FVU";
+            const string fvuInstallDir = @"C:\Program Files\CDeTDS\FVU";
             const string directUrl     = "https://tinpan.proteantech.in/downloads/e-tds/download/TDS_STANDALONE_FVU_9.4.zip";
 
             // ── Step 1: Remove any corrupt jar (< 50 KB is suspicious) ────────

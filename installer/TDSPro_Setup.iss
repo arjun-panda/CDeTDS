@@ -1,8 +1,8 @@
-; TDS Pro — Inno Setup 6 Installer Script
+﻿; CDeTDS — Inno Setup 6 Installer Script
 ; Build: .\installer\build_installer.ps1
 ; Output: installer\Output\TDSPro_Setup_v1.0.0.exe
 
-#define AppName        "TDS Pro"
+#define AppName        "CDeTDS"
 #define AppVersion     "1.0.0"
 #define AppPublisher   "CapitalDesk"
 #define AppURL         "https://capitaldesk.co.in"
@@ -123,7 +123,7 @@ begin
     if DirExists(DataPath) then
     begin
       if MsgBox(
-        'Would you like to delete your TDS Pro data (database, backups, logs)?' + #13#10 + #13#10 +
+        'Would you like to delete your CDeTDS data (database, backups, logs)?' + #13#10 + #13#10 +
         'Location: ' + DataPath + #13#10 + #13#10 +
         'Click Yes to delete all data, or No to keep it.',
         mbConfirmation, MB_YESNO) = IDYES then

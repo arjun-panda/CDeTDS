@@ -1,6 +1,8 @@
-#define AppName      "TDS Pro"
-#define AppVersion   "3.1.0"
-#define AppPublisher "TDS Pro Software"
+#define AppName      "CDeTDS"
+#ifndef AppVersion
+#define AppVersion   "1.0.1"
+#endif
+#define AppPublisher "CDeTDS Software"
 #define AppURL       "https://capitaldesk.co.in"
 #define AppExeName   "TDSPro.exe"
 #define AppDesc      "TDS Compliance Software - Income-tax Act 2025"
@@ -18,7 +20,7 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}/support
 AppUpdatesURL={#AppURL}/updates
-AppCopyright=Copyright 2026 TDS Pro Software
+AppCopyright=Copyright 2026 CDeTDS Software
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=no
@@ -55,7 +57,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 
 [Files]
 ; ── Main application (self-contained .NET 8) ─────────────────────────────────
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "publish\*;*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ── Bundled JRE (Eclipse Temurin / OpenJDK 8 x64) ───────────────────────────
 ; Place the extracted JRE folder as "bundled_jre\" next to this script before building.
@@ -143,7 +145,7 @@ begin
     if DirExists(DataPath) then
     begin
       DeleteData := MsgBox(
-        'Do you want to DELETE your TDS Pro data?' + #13#10#13#10 +
+        'Do you want to DELETE your CDeTDS data?' + #13#10#13#10 +
         'Location: ' + DataPath + #13#10#13#10 +
         'This includes your database, all TDS entries, challans and backups.' + #13#10 +
         'THIS CANNOT BE UNDONE.' + #13#10#13#10 +
@@ -172,10 +174,10 @@ begin
     if not HasJre then
     begin
       MsgBox(
-        'TDS Pro installed successfully.' + #13#10#13#10 +
+        'CDeTDS installed successfully.' + #13#10#13#10 +
         'NOTE: Bundled Java Runtime was not found in the installer.' + #13#10 +
         'FVU return generation requires Java.' + #13#10#13#10 +
-        'You can configure Java later in TDS Pro → Settings → FVU & Java.' + #13#10 +
+        'You can configure Java later in CDeTDS → Settings → FVU & Java.' + #13#10 +
         'Or download Java from: https://www.java.com/download/',
         mbInformation, MB_OK);
     end;

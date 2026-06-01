@@ -7,7 +7,7 @@ namespace TDSPro.Common
     /// </summary>
     public static class AppConstants
     {
-        public const string AppName    = "TDS Pro";
+        public const string AppName    = "CDeTDS";
         // Read from assembly so bumping <Version> in TDSPro.App.csproj is the only required change.
         public static string AppVersion =>
             System.Reflection.Assembly.GetEntryAssembly()

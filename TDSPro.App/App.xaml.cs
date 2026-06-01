@@ -26,10 +26,10 @@ namespace TDSPro.App
                 TryCrashLog(msg);
                 if (e.IsTerminating)
                     MessageBox.Show(
-                        "TDS Pro encountered a fatal error and must close.\n\n" +
+                        "CDeTDS encountered a fatal error and must close.\n\n" +
                         "A crash log has been saved to:\n" + CrashLogPath() + "\n\n" +
                         "Please send this file to admin@capitaldesk.co.in for support.",
-                        "TDS Pro — Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        "CDeTDS — Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
             };
             DispatcherUnhandledException += (s, e) =>
             {
@@ -37,9 +37,9 @@ namespace TDSPro.App
                 TryCrashLog(e.Exception?.ToString() ?? "");
                 MessageBox.Show(
                     "An error occurred:\n\n" + e.Exception?.Message + "\n\n" +
-                    "The application will try to continue. If this persists, restart TDS Pro.\n" +
+                    "The application will try to continue. If this persists, restart CDeTDS.\n" +
                     "Crash log: " + CrashLogPath(),
-                    "TDS Pro — Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    "CDeTDS — Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 e.Handled = true;
             };
 
@@ -52,7 +52,7 @@ namespace TDSPro.App
             catch (Exception ex)
             {
                 TryLog("DI BUILD FAILED: " + ex);
-                MessageBox.Show("Failed to initialise services:\n\n" + ex.Message, "TDS Pro", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Failed to initialise services:\n\n" + ex.Message, "CDeTDS", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
             }
         }
@@ -156,9 +156,9 @@ namespace TDSPro.App
                         {
                             var result = MessageBox.Show(
                                 "Microsoft Edge WebView2 Runtime is not installed.\n\n" +
-                                "TDS Pro requires WebView2 to display its interface.\n\n" +
-                                "Click OK to open the download page, then re-launch TDS Pro after installing.",
-                                "TDS Pro — Missing Component",
+                                "CDeTDS requires WebView2 to display its interface.\n\n" +
+                                "Click OK to open the download page, then re-launch CDeTDS after installing.",
+                                "CDeTDS — Missing Component",
                                 MessageBoxButton.OKCancel,
                                 MessageBoxImage.Warning);
                             if (result == MessageBoxResult.OK)
@@ -198,7 +198,7 @@ namespace TDSPro.App
             {
                 TryLog("STARTUP FAILED: " + ex);
                 MessageBox.Show("Startup failed:\n\n" + ex.Message + "\n\n" + ex.InnerException?.Message,
-                    "TDS Pro", MessageBoxButton.OK, MessageBoxImage.Error);
+                    "CDeTDS", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
             }
         }
@@ -322,7 +322,7 @@ namespace TDSPro.App
                 var path = CrashLogPath();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.AppendAllText(path,
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] TDS Pro v{TDSPro.Common.AppConstants.AppVersion}\n{msg}\n\n");
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CDeTDS v{TDSPro.Common.AppConstants.AppVersion}\n{msg}\n\n");
             }
             catch { }
         }

@@ -73,7 +73,7 @@
                     @* ── Correction type wizard — 2 questions auto-derive C1/C2/C3 ── *@
                     <MudItem xs="12">
                         <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px">
-                            <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">What did you change? (TDS Pro will select the right correction type)</div>
+                            <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">What did you change? (CDeTDS will select the right correction type)</div>
                             <div style="display:flex;flex-direction:column;gap:6px">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#374151">
                                     <input type="checkbox" checked="@_corrChgChallan"
@@ -1054,7 +1054,7 @@
         if (string.IsNullOrWhiteSpace(_quarter))
             { Snackbar.Add("Select a quarter before generating.", Severity.Warning); return false; }
         if (AppState.CurrentLicense.IsExpired)
-            { Snackbar.Add("Your TDS Pro license has expired. Renew to generate and file returns.", Severity.Error); return false; }
+            { Snackbar.Add("Your CDeTDS license has expired. Renew to generate and file returns.", Severity.Error); return false; }
         if (_isCorrection && string.IsNullOrWhiteSpace(_prevPrn))
             { Snackbar.Add("Previous PRN is required for a correction return.", Severity.Warning); return false; }
         return true;

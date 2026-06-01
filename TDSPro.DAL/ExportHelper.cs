@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TDSPro.DAL.Models;
 
 namespace TDSPro.DAL
@@ -82,7 +82,7 @@ namespace TDSPro.DAL
             var lin = new string('-', 100);
 
             sb.AppendLine(sep);
-            sb.AppendLine($"  TDS Pro — {h.FormType} Return Summary");
+            sb.AppendLine($"  CDeTDS — {h.FormType} Return Summary");
             sb.AppendLine($"  Deductor : {h.DeductorName}  |  TAN: {h.TanOfDeductor}  |  PAN: {h.PanOfDeductor}");
             sb.AppendLine($"  FY       : {h.FinancialYear}  |  Quarter: {h.Quarter}");
             sb.AppendLine($"  Generated: {DateTime.Now:dd-MMM-yyyy HH:mm}");

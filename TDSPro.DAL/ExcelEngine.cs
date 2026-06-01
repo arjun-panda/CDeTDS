@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using TDSPro.Common;
 using TDSPro.DAL.Models;
 
@@ -126,7 +126,7 @@ namespace TDSPro.DAL
             ws.Columns().AdjustToContents(8, 40);
 
             // Metadata
-            wb.Properties.Author  = "TDS Pro";
+            wb.Properties.Author  = "CDeTDS";
             wb.Properties.Subject = $"TDS Entries Export — {DateTime.Today:dd-MMM-yyyy}";
 
             wb.SaveAs(path);
@@ -309,7 +309,7 @@ namespace TDSPro.DAL
 
             ws.SheetView.FreezeRows(1);
             ws.Columns().AdjustToContents(8, 40);
-            wb.Properties.Author = "TDS Pro";
+            wb.Properties.Author = "CDeTDS";
             wb.SaveAs(path);
         }
 
@@ -1796,7 +1796,7 @@ namespace TDSPro.DAL
             ws.Columns().AdjustToContents(8, 40);
             ws.Column(2).Width = 25;
 
-            wb.Properties.Author  = "TDS Pro";
+            wb.Properties.Author  = "CDeTDS";
             wb.Properties.Subject = $"Year Summary {fy}";
 
             string path;

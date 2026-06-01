@@ -1,5 +1,5 @@
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║  TDS Pro — License Key Generator  (Admin Tool — DO NOT DISTRIBUTE)      ║
+﻿// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  CDeTDS — License Key Generator  (Admin Tool — DO NOT DISTRIBUTE)      ║
 // ║  Private key lives here only. Never ship this tool to customers.         ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 using System.Security.Cryptography;
@@ -94,7 +94,7 @@ public class KeyGenForm : Form
 
     public KeyGenForm()
     {
-        Text            = "TDS Pro  ·  License Key Generator  [ADMIN — DO NOT DISTRIBUTE]";
+        Text            = "CDeTDS  ·  License Key Generator  [ADMIN — DO NOT DISTRIBUTE]";
         Size            = new Size(1000, 760);
         MinimumSize     = new Size(900, 680);
         StartPosition   = FormStartPosition.CenterScreen;

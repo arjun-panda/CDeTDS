@@ -225,9 +225,9 @@ async Task CopyMachineId()
 
     void EmailForKey()
     {
-        var subject = Uri.EscapeDataString("TDS Pro — Request Pro License Key");
+        var subject = Uri.EscapeDataString("CDeTDS — Request Pro License Key");
         var body    = Uri.EscapeDataString(
-            $"Hello,\n\nI would like to purchase a Pro license for TDS Pro.\n\n" +
+            $"Hello,\n\nI would like to purchase a Pro license for CDeTDS.\n\n" +
             $"Machine ID : {_machineId}\n" +
             $"User       : {AppState.CurrentUser}\n\n" +
             $"Please send me pricing and a license key.\n\nRegards");
