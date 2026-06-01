@@ -406,7 +406,8 @@ namespace CDeTDS.BLL
             // annualOtherExempts = bills-reimbursement exempts ("other" cat) — exempt in BOTH regimes u/s 10(14)(i)
             // newRegimeAddBack = perq exempts — taxable in new regime, so do NOT deduct them here
             // ltaExemption u/s 10(5) applies in BOTH regimes
-            double taxableNew = Math.Max(0, trueAnnualGross - annualOtherExempts - ltaExemption - stdDedNew - nps80CCD2New + decl.IncomeOtherSources);
+            // annualPt (Professional Tax) u/s 16(iii) deductible in BOTH regimes — CBDT Circular 04/2022
+            double taxableNew = Math.Max(0, trueAnnualGross - annualOtherExempts - ltaExemption - stdDedNew - annualPt - nps80CCD2New + decl.IncomeOtherSources);
 
             var newR = BuildRegime("New Regime", taxableNew, trueAnnualGross, stdDedNew, 0, 0, 0, nps80CCD2New, decl.IncomeOtherSources, true, fy, CDeTDS.Common.AgeCategory.Below60, 0, sec10Items);
 

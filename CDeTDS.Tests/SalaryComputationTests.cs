@@ -467,6 +467,51 @@ public class SalaryComputationTests
         Assert.Equal(6, result);
     }
 
+    // ── Professional Tax (Section 16(iii)) — deductible in BOTH regimes ─────
+    // CBDT Circular 04/2022: PT deductible regardless of regime choice
+
+    [Fact]
+    public void ProfessionalTax_DeductedInNewRegime()
+    {
+        // Gross = 50,000 × 12 = 6,00,000
+        // New regime taxable = 6,00,000 − 75,000 (std) − 2,400 (PT) = 5,22,600
+        // Slab: 4L→8L @ 5% → (5,22,600 − 4,00,000) × 5% = 6,130; rebate wipes (≤12L) → tax = 0
+        var emp = Emp("New");
+        emp.Salary = new CDeTDS.DAL.Models.SalaryStructure { Basic = 40000, Hra = 10000, PtState = "Maharashtra" };
+        var entries = Enumerable.Range(4, 12).Select(m => new MonthlySalaryEntry
+        {
+            EmployeeId = 1, Month = m <= 12 ? m : m - 12, Year = m <= 12 ? 2025 : 2026,
+            FinancialYear = FY, Basic = 40000, HRA = 10000,
+            ProfessionalTax = 200,   // Maharashtra: ₹200/month
+            DaysWorked = 30,
+        }).ToList();
+        var r = Svc().ComputeAnnual(entries, emp, FY,
+            new TaxDeclaration { EmployeeId = 1, FinancialYear = FY }, 4,
+            reimbShortfallOverride: 0, ytdTdsOverride: 0);
+        // PT ₹2,400/yr should be deducted: taxable = 6,00,000 − 75,000 − 2,400 = 5,22,600
+        Assert.Equal(522600, r.NewRegime.TotalIncome);
+    }
+
+    [Fact]
+    public void ProfessionalTax_DeductedInOldRegime()
+    {
+        // Gross = 50,000 × 12 = 6,00,000
+        // Old regime taxable = 6,00,000 − 50,000 (std) − 2,400 (PT) = 5,47,600
+        var emp = Emp("Old");
+        emp.Salary = new CDeTDS.DAL.Models.SalaryStructure { Basic = 40000, Hra = 10000, PtState = "Maharashtra" };
+        var entries = Enumerable.Range(4, 12).Select(m => new MonthlySalaryEntry
+        {
+            EmployeeId = 1, Month = m <= 12 ? m : m - 12, Year = m <= 12 ? 2025 : 2026,
+            FinancialYear = FY, Basic = 40000, HRA = 10000,
+            ProfessionalTax = 200,
+            DaysWorked = 30,
+        }).ToList();
+        var r = Svc().ComputeAnnual(entries, emp, FY,
+            new TaxDeclaration { EmployeeId = 1, FinancialYear = FY }, 4,
+            reimbShortfallOverride: 0, ytdTdsOverride: 0);
+        Assert.Equal(547600, r.OldRegime.TotalIncome);
+    }
+
     // ── LOP calculation tests ────────────────────────────────────────────────
 
     [Fact]

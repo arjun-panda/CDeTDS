@@ -226,6 +226,7 @@ namespace CDeTDS.BLL
             double npsEmployerNew = Math.Min(decl.Sec80CCD_Employer, annualBasic * nps80CCD2RateNew);
             double taxableNew = annualGross
                               - stdDedNew
+                              - annualPt                           // Professional Tax u/s 16(iii) — deductible in both regimes (CBDT Circular 04/2022)
                               - npsEmployerNew
                               - decl.LtaExemption                  // LTA u/s 10(5) exempt in both regimes
                               - annualComponentsPaid               // bills reimbursements exempt both regimes u/s 10(14)(i)
