@@ -425,8 +425,9 @@
 <MudDialog @bind-Visible="_nilDialogOpen" Options='new DialogOptions { MaxWidth=MaxWidth.Small, FullWidth=true }'>
     <TitleContent>Generate NIL Return</TitleContent>
     <DialogContent>
-        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-            NIL returns must be filed even when no TDS/TCS was deducted/collected in a quarter.
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+            NIL returns must be filed every quarter even when no TDS/TCS was deducted.
+            Failure to file attracts a penalty of <b>₹100 per day</b> u/s 234E (max ₹1,00,000).
             For 27EQ (TCS), select Form Type 27EQ below.
         </MudAlert>
         <MudGrid>

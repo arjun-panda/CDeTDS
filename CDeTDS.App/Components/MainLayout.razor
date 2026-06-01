@@ -119,7 +119,12 @@ else
                 <span style="font-weight:700;font-size:16px">Help & Support</span>
                 <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" Size="Size.Small" OnClick="ToggleHelp" />
             </div>
-            <div style="overflow-y:auto;height:calc(100vh - 64px);padding:16px 20px">
+            <div style="padding:8px 16px;background:#f0f4ff;border-bottom:1px solid #e0e0e0">
+                <MudTextField @bind-Value="_helpSearch" Placeholder="Search help topics…" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Style="background:white" Clearable="true" />
+            </div>
+            <div style="overflow-y:auto;height:calc(100vh - 120px);padding:16px 20px">
 
                 <!-- Quick Start -->
                 <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:8px">🚀 Quick Start</div>
@@ -136,7 +141,9 @@ else
 
                 <!-- FAQ -->
                 <div style="font-weight:700;color:#1565C0;font-size:14px;margin-bottom:10px">❓ Help Topics</div>
-                <!-- Category pills -->
+                <!-- Category pills — hidden during search -->
+                @if (string.IsNullOrWhiteSpace(_helpSearch))
+                {
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
                     @foreach (var cat in _faqs.Select(f => f.Category).Distinct())
                     {
@@ -148,7 +155,14 @@ else
                         </span>
                     }
                 </div>
-                @foreach (var (cat, q, a) in _faqs.Where(f => f.Category == _faqCategory))
+                }
+                else
+                {
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">
+                    @FilteredFaqs.Count() result(s) for "@_helpSearch"
+                </div>
+                }
+                @foreach (var (cat, q, a) in FilteredFaqs)
                 {
                     <div style="margin-bottom:8px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
                         <div style="font-size:12px;font-weight:600;color:#1e293b;cursor:pointer;padding:8px 12px;background:@(_openFaq==q?"#eff6ff":"#f8fafc")"
@@ -503,8 +517,16 @@ else
     ];
 
     private string _faqCategory = "Returns & FVU";
+    private string _helpSearch  = "";
 
-    void ToggleHelp() => _helpOpen = !_helpOpen;
+    IEnumerable<(string Category, string Q, string A)> FilteredFaqs =>
+        string.IsNullOrWhiteSpace(_helpSearch)
+            ? _faqs.Where(f => f.Category == _faqCategory)
+            : _faqs.Where(f =>
+                f.Q.Contains(_helpSearch, StringComparison.OrdinalIgnoreCase) ||
+                f.A.Contains(_helpSearch, StringComparison.OrdinalIgnoreCase));
+
+    void ToggleHelp() { _helpOpen = !_helpOpen; _helpSearch = ""; }
     void ToggleFaq(string q) => _openFaq = _openFaq == q ? "" : q;
     void RecoverError() => _errorBoundary?.Recover();
 

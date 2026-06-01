@@ -334,9 +334,10 @@
     <MudTabPanel Text="FY Rollover" Icon="@Icons.Material.Filled.FastForward">
         <MudText Typo="Typo.subtitle1" Class="mb-2">Year-End Rollover</MudText>
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-            Copies each employee's HRA/city settings to the new FY and seeds April salary as Draft.
+            <b>Run this once in April</b> after the financial year ends to prepare payroll for the new FY.
+            Copies each employee's salary structure and HRA settings to the new FY and seeds April salary as Draft.
             Investment declarations (80C, 80D etc.) are reset to zero — employees re-submit Form 12BB.
-            Existing entries are never overwritten.
+            Old entries, challans, and returns are never touched — they remain accessible via the FY selector.
         </MudAlert>
         <MudGrid>
             <MudItem xs="4">

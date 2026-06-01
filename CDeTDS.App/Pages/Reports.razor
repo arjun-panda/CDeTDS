@@ -162,6 +162,15 @@
                     }
                 </div>
             </div>
+            @if (!_recon.IsReconciled)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                    <b>How to fix:</b> Check that all TDS entries are linked to a challan (Challans page → Link).
+                    If entries exceed challan: add a new challan or increase the challan amount.
+                    If challan exceeds entries: add the missing TDS entries or reduce the challan amount.
+                    Then re-run this report.
+                </MudAlert>
+            }
             @if (_reconDetailOpen && _recon.SectionBreakdown.Any())
             {
                 var _qtrs = _recon.SectionBreakdown.GroupBy(r => r.Quarter).OrderBy(g => g.Key).ToList();
