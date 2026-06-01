@@ -133,9 +133,9 @@
             </MudButton>
         </div>
 
-        <div style="height:calc(100vh - 260px);overflow-y:auto">
+        <div style="height:calc(100vh - 200px);overflow-y:auto">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="calc(100vh - 260px)">
+                     FixedHeader="true" Height="calc(100vh - 200px)">
             <Columns>
                 <PropertyColumn Property="x => x.SectionCode"     Title="Section" />
                 <PropertyColumn Property="x => x.NatureOfPayment" Title="Nature of Payment" />
@@ -188,7 +188,7 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
             Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
         </MudAlert>
-        <div style="height:calc(100vh - 310px);overflow-y:auto">
+        <div style="height:calc(100vh - 240px);overflow-y:auto">
         <MudSimpleTable Dense="true" Striped="true" Hover="true">
             <thead>
                 <tr>
