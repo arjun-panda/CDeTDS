@@ -43,7 +43,7 @@
     Showing @FilteredItems.Count() of @_items.Count entries
 </MudText>
 
-<div style="height:calc(100vh - 270px);overflow:hidden">
+<div style="height:calc(100vh - 270px);overflow-y:auto">
 <MudDataGrid T="LogEntry" Items="FilteredItems" Hover="true" Striped="true" Dense="true"
              SortMode="SortMode.Single" FixedHeader="true" Height="calc(100vh - 270px)">
     <Columns>
