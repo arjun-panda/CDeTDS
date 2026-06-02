@@ -3729,7 +3729,14 @@
         row.Status     = row.DaysWorked == 0 ? "Skip" : "Draft";
         var savedTds   = row.TdsManualOverride ? row.Tds : -1;
         try { McSvc.Compute(row, AppState.CurrentDeductorId); } catch { }
-        if (savedTds >= 0) { row.Tds = savedTds; row.NetPay = row.Gross - row.Pf - row.Esi - row.Recovery - row.Tds; }
+        if (savedTds >= 0)
+        {
+            row.Tds = savedTds;
+            var saved = SalarySvc.Get(row.EmployeeId, AppState.CurrentFY, row.Month);
+            double vpf = saved?.VPF ?? 0;
+            double pt  = saved?.ProfessionalTax ?? 0;
+            row.NetPay = row.Gross - row.Pf - vpf - pt - row.Esi - row.Recovery - row.Tds;
+        }
         StateHasChanged();
     }
 
@@ -3739,7 +3746,10 @@
         t = Math.Max(0, t);
         row.Tds              = t;
         row.TdsManualOverride = true;
-        row.NetPay           = row.Gross - row.Pf - row.Esi - row.Recovery - row.Tds;
+        var saved2 = SalarySvc.Get(row.EmployeeId, AppState.CurrentFY, row.Month);
+        double vpf2 = saved2?.VPF ?? 0;
+        double pt2  = saved2?.ProfessionalTax ?? 0;
+        row.NetPay = row.Gross - row.Pf - vpf2 - pt2 - row.Esi - row.Recovery - row.Tds;
         StateHasChanged();
     }
 
@@ -3954,7 +3964,7 @@
             EmployeeId = _sdEmpId, DeductorId = AppState.CurrentDeductorId, EmployeeName = emp.Name, Pan = emp.Pan,
             Month = _sdMonth, Year = yr, FinancialYear = AppState.CurrentFY,
             Basic = _sdBasic, GradePay = _sdGradePay, HRA = _sdHra, DaAmount = _sdDaAmt,
-            SpecialAllowance = _sdSpecial, MedicalAllowance = 0, Lta = _sdLta,
+            SpecialAllowance = _sdSpecial, MedicalAllowance = _sdCurEntry?.MedicalAllowance ?? 0, Lta = _sdLta,
             Bonus = _sdBonus, Commission = _sdCommission, AdvanceSalary = _sdAdvance,
             Arrears = _sdArrears, OtherAllowances = _sdOther + varEarnTaxable + otherLinesTotal, NpsEmployer = _sdNpsEmployer,
             PerqTotal = perqLinesTotal,

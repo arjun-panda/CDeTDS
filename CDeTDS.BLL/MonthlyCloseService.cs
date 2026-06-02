@@ -246,8 +246,11 @@ namespace CDeTDS.BLL
         public (bool ok, string msg) SaveAndSync(MonthlySalaryEntry entry, Employee emp, int deductorId)
         {
             entry.RecalcGross();   // ensure NetSalary is correct before persisting
-            entry.Status   = string.IsNullOrEmpty(entry.Status) || entry.Status == "Locked" ? "Draft" : entry.Status;
-            entry.IsLocked = false;
+            if (!entry.IsLocked)
+            {
+                entry.Status   = string.IsNullOrEmpty(entry.Status) ? "Draft" : entry.Status;
+                entry.IsLocked = false;
+            }
             _salRepo.Save(entry);
 
             var r = _salSvc.UpsertSec192Entry(entry, emp, deductorId);

@@ -111,7 +111,7 @@ namespace CDeTDS.DAL.Models
             bool earningsProRated = DaysWorked > 0 && DaysWorked < AppConstants.StandardPayrollDays;
             double lopDeduction = (!earningsProRated && LopDays > 0)
                 ? Math.Round(GrossPayment * LopDays / AppConstants.StandardPayrollDays, 0) : 0;
-            NetSalary = GrossPayment - lopDeduction - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted - VarDedTotal;
+            NetSalary = GrossPayment - lopDeduction - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted - VarDedTotal - NpsEmployer;
         }
     }
 
