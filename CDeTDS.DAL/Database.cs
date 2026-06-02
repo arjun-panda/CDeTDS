@@ -43,6 +43,11 @@ namespace CDeTDS.DAL
 
                 void Add(string table, string col, string def)
                 {
+                    // Skip if table doesn't exist yet — RunMigrations will create it
+                    using var tbl = conn.CreateCommand();
+                    tbl.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}'";
+                    if (Convert.ToInt32(tbl.ExecuteScalar()) == 0) return;
+
                     using var chk = conn.CreateCommand();
                     chk.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{col}'";
                     if (Convert.ToInt32(chk.ExecuteScalar()) == 0)
