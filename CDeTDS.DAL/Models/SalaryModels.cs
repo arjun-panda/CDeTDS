@@ -105,7 +105,12 @@ namespace CDeTDS.DAL.Models
             // LeaveEncExempted is the leave encashment Sec 10(10AA) exemption
             GrossTaxableSalary = GrossPayment - PerqExempted - LeaveEncExempted;
 
-            double lopDeduction = LopDays > 0 ? Math.Round(GrossPayment * LopDays / AppConstants.StandardPayrollDays, 0) : 0;
+            // LOP deduction applies only when earnings are NOT already pro-rated via DaysWorked.
+            // When DaysWorked < 30, MonthlyCloseService already scaled earnings by DaysWorked/30,
+            // so applying LOP again would double-deduct. Use LOP only in Salary Data tab (DaysWorked=0).
+            bool earningsProRated = DaysWorked > 0 && DaysWorked < AppConstants.StandardPayrollDays;
+            double lopDeduction = (!earningsProRated && LopDays > 0)
+                ? Math.Round(GrossPayment * LopDays / AppConstants.StandardPayrollDays, 0) : 0;
             NetSalary = GrossPayment - lopDeduction - PfEmployee - VPF - ProfessionalTax - EsiEmployee - TdsDeducted - VarDedTotal;
         }
     }

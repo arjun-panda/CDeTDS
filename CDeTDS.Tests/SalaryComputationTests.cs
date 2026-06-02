@@ -531,6 +531,21 @@ public class SalaryComputationTests
     }
 
     [Fact]
+    public void RecalcGross_LopDays_NotDoubleDeducted_WhenProRated()
+    {
+        // When DaysWorked=15 (pro-rated earnings), LOP deduction must NOT apply again.
+        // Gross already = 50000 × 15/30 = 25000. Net should be 25000 (no separate LOP deduction).
+        var e = new MonthlySalaryEntry
+        {
+            Basic = 15000, HRA = 6000, SpecialAllowance = 4000,  // = 25000 (already half)
+            LopDays = 15, DaysWorked = 15, Month = 3, FinancialYear = "2025-26"
+        };
+        e.RecalcGross();
+        Assert.Equal(25000, e.GrossPayment);
+        Assert.Equal(25000, e.NetSalary); // no separate LOP deduction
+    }
+
+    [Fact]
     public void RecalcGross_ZeroLop_NoDeduction()
     {
         var e = new MonthlySalaryEntry { Basic = 40000, HRA = 10000, LopDays = 0 };
