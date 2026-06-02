@@ -237,15 +237,6 @@ else
                     <span><b>Viewing FY @AppState.CurrentFY for reference (read-only).</b> You are logged in to FY @AppState.SessionFY — switch back to make changes.</span>
                 </div>
             }
-            @if (!string.IsNullOrEmpty(AppState.FolderAlertMessage))
-            {
-                <div style="background:#fff3e0;border-bottom:2px solid #f57c00;padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:13px;color:#e65100">
-                    <MudIcon Icon="@Icons.Material.Filled.FolderOff" Style="font-size:18px;color:#f57c00" />
-                    <span><b>Drive unavailable:</b> @AppState.FolderAlertMessage</span>
-                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Warning"
-                               OnClick="@(() => Nav.NavigateTo("/settings"))">Open Settings</MudButton>
-                </div>
-            }
             <div class="page-content">
                 <ErrorBoundary @ref="_errorBoundary">
                     <ChildContent>@Body</ChildContent>

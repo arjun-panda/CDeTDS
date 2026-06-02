@@ -31,8 +31,22 @@ namespace CDeTDS.DAL
             get
             {
                 if (!string.IsNullOrEmpty(_basePath)) return _basePath;
-                _basePath = LoadSetting("BASE_FOLDER",
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CDeTDS"));
+                var defaultPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CDeTDS");
+                var stored = LoadSetting("BASE_FOLDER", defaultPath);
+                // If the stored path is on a drive that doesn't exist or isn't ready,
+                // silently fall back to Documents\CDeTDS and persist the reset.
+                try
+                {
+                    var root = Path.GetPathRoot(stored);
+                    if (!string.IsNullOrEmpty(root) && !Directory.Exists(root))
+                    {
+                        stored = defaultPath;
+                        SaveSetting("BASE_FOLDER", stored);
+                    }
+                }
+                catch { stored = defaultPath; }
+                _basePath = stored;
                 return _basePath;
             }
         }
