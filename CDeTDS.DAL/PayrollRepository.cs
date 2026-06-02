@@ -461,8 +461,14 @@ namespace CDeTDS.DAL
             if (string.IsNullOrWhiteSpace(emp.Pan)) return 0;
             using var conn = Database.GetConnection();
 
+            // Look for an existing deductee that matches this employee exactly:
+            // same PAN + auto-created by payroll (section=192, code starts with EMP-)
+            // This prevents reusing a vendor/contractor deductee that happens to share the same PAN.
             using var chk = conn.CreateCommand();
-            chk.CommandText = "SELECT id FROM deductees WHERE pan=@p LIMIT 1";
+            chk.CommandText = @"SELECT id FROM deductees
+                                WHERE pan=@p AND section='192'
+                                AND (deductee_code LIKE 'EMP-%' OR remarks='Auto-created from Payroll module')
+                                LIMIT 1";
             chk.Parameters.AddWithValue("@p", emp.Pan.ToUpper());
             var obj = chk.ExecuteScalar();
             if (obj != null && obj != DBNull.Value) return Convert.ToInt32(obj);
