@@ -1,3 +1,4 @@
+using System.IO;
 using CDeTDS.DAL;
 
 namespace CDeTDS.App
@@ -74,11 +75,19 @@ namespace CDeTDS.App
             CurrentDeductorId   = id;
             CurrentDeductorName = name;
             CurrentDeductorTan  = tan;
-            FolderManager.SetCompany(tan, name);
+            try { FolderManager.SetCompany(tan, name); }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is DirectoryNotFoundException)
+            {
+                // Base folder drive unavailable (e.g. external drive disconnected).
+                // App stays usable — user can change base folder in Settings → General.
+                FolderAlertMessage = $"Company folder unavailable: {ex.Message.Split(':')[0].Trim()}. Go to Settings → General to update the Base Folder.";
+            }
             try { Database.SetSetting("LAST_DEDUCTOR_ID", id.ToString()); } catch { }
             MigrateGlobalCredentials(id);
             NotifyChanged();
         }
+
+        public string? FolderAlertMessage { get; private set; }
 
         // One-time migration: move old global credential keys → per-deductor keys.
         // Runs each time a deductor is selected; no-ops once scoped keys are populated.
