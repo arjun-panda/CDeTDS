@@ -3962,7 +3962,7 @@
             LeaveEncTotal = _sdLeaveEnc, LeaveEncExempted = _sdLeaveEncEx,
             PfEmployee = _sdPf, VPF = _sdVpf, ProfessionalTax = _sdPt,
             EsiEmployee = _sdEsi, TdsDeducted = _sdTds, TaxComputed = _sdTds,
-            DaysWorked  = 30 - _sdLopDays,
+            DaysWorked  = 30,   // Salary Data tab: full month earnings entered; LopDays handles deduction
             LopDays     = _sdLopDays,
             WorkingDays = _sdCurEntry?.WorkingDays > 0 ? _sdCurEntry.WorkingDays : 30,
             IsLocked    = _sdCurEntry?.IsLocked    ?? false,
