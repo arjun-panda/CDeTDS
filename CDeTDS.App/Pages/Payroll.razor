@@ -1743,7 +1743,9 @@
                                 var isSkip   = row.Status == "Skip";
                                 var editable = _sdBulkEdit && !isSkip;
                                 var rowBg    = sel ? "#f0f9ff" : isSkip ? "#fefce8" : "#fff";
-                                var lopAmt   = row.LopDays > 0 ? Math.Round(row.Gross * row.LopDays / AppConstants.StandardPayrollDays) : 0;
+                                // LOP display: only show if earnings NOT already pro-rated (DaysWorked handles it otherwise)
+                                bool rowProRated = row.DaysWorked > 0 && row.DaysWorked < AppConstants.StandardPayrollDays;
+                                var lopAmt   = (!rowProRated && row.LopDays > 0) ? Math.Round(row.Gross * row.LopDays / AppConstants.StandardPayrollDays) : 0;
                                 <tr @key="@($"{row.EmployeeId}_{row.LopDays}_{(int)row.Gross}_{(int)row.Tds}")"
                                     style="background:@rowBg;border-bottom:1px solid #f1f5f9">
                                     @* Checkbox *@
