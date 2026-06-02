@@ -122,6 +122,6 @@ namespace CDeTDS.App
 
         public void NotifyStateChanged() => OnChange?.Invoke();
 
-        private void NotifyChanged() => OnChange?.Invoke();
+        private void NotifyChanged() => NotifyStateChanged();
     }
 }

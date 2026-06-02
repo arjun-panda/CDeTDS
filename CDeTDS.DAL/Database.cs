@@ -134,6 +134,9 @@ namespace CDeTDS.DAL
             if (saved < SchemaVersion)
             {
                 RunMigrations();
+                // Re-run EnsureColumns after migrations — payroll tables now exist so
+                // columns skipped earlier (days_worked, lop_days etc.) will be added.
+                EnsureColumns();
                 SetSetting("SCHEMA_VERSION", SchemaVersion.ToString());
             }
             FolderManager.RunDailyAutoBackup(_dbPath);
