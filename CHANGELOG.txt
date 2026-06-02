@@ -1,38 +1,83 @@
-﻿TDS Pro â€” Changelog
-===================
+CDeTDS — Changelog
+==================
 
+v1.0.2 (June 2026) - Compliance fixes, app rename, UI improvements
+--------------------------------------------------------------------
+COMPLIANCE (CRITICAL)
+  * Fix Section 194H threshold: Rs.15,000 → Rs.20,000 per Finance Act 2025
+  * Fix Section 194I threshold: Rs.6,00,000 annual → Rs.50,000 per month per Finance Act 2025
+  * Add Section 194P (senior citizen 75+ bank TDS, cess=4) to built-in rules
+  * Add Section 206AA (higher TDS when PAN unavailable) to built-in rules
+  * Fix Professional Tax (Section 16(iii)) now deducted in new regime taxable income
+    (CBDT Circular 04/2022 — deductible in both old and new regimes)
+  * TDS rules version bumped to 2026-27-20260601 — auto-corrects all installed DBs on startup
+
+APP RENAME
+  * Renamed from TDS Pro to CDeTDS throughout (display name, namespaces, folders)
+  * AppData path migrated: %AppData%\TDSPro → %AppData%\CDeTDS (auto on first launch)
+  * Documents path: Documents\TDSPro → Documents\CDeTDS
+
+FVU FIXES
+  * Fix T-FV-3070: BH[47] challan total now uses same deductee-assignment as CD[27]
+  * Fix T-FV-1041/6138: auto-upgrade stale FvuPath to 9.4 JAR on startup
+  * Fix FVU version warning on migrated databases
+  * Fix deductee with stale ChallanNo silently dropped from FVU output
+  * CSI Download step now correctly shown before Validate with FVU in Step guide
+
+PAYROLL
+  * Fix LOP calculation: now uses Gross ÷ 30 (was Basic ÷ 30) — standard Indian payroll practice
+  * Fix deduction schedule balance: actual varDed amount used, supports extra repayments per month
+  * Fix salary slips not updating after bulk save or single save
+  * Fix Salary Slips tab auto-syncs to current month on tab switch
+
+DATABASE
+  * Fix DB migrations now run synchronously before window opens (prevented Payroll crash on fresh install)
+  * Add last_posted_amt column to deduction_schedules for idempotent re-posting
+
+UI
+  * Help drawer: full-text search across all FAQ topics
+  * NIL return dialog: show Rs.100/day penalty warning u/s 234E
+  * Challan reconciliation: actionable fix instructions shown on mismatch
+  * FY Rollover: clarify run timing (once in April after year-end)
+  * Login: warn to change default password immediately
+  * Deductee Master, Audit Log, Users: fixed scroll clipping (flex layout)
+  * TDS Rules Reference: column widths optimised, Active+Actions merged
+  * Help topics updated: CDeTDS paths, LOP explanation, salary slips tab sync
+
+INSTALLER
+  * Fix bundled JRE path in installer (was not included in v1.0.1 installer)
+  * Fix FvuPath and JavaPath registry entries now point to correct JAR/exe
+  * Installer renamed: TDSPro_Setup → CDeTDS_Setup
+
+TESTS
+  * 281 tests — added LOP, deduction schedule balance, professional tax tests
+  * All tests pass
 
 v1.0.1 (May 2026) - Fix SD record Sec10/Rebate fields using RPU 5.9 spec
----------------------------------------------------------------------------
-Fix SD record Sec10/Rebate fields using RPU 5.9 spec
+--------------------------------------------------------------------------
+  * Fix SD record Sec10/Rebate fields using RPU 5.9 authoritative spec
+  * Fix T_FV_6354, T-FV-4202, T_FV_6130, T-FV-4023 FVU errors
 
-v1.0.0 (May 2026) - Initial release
---------------------------------------
-Initial release
-
-v1.0.0 (May 2026) - Initial release
---------------------------------------
-Initial release
-v1.0.0 (May 2026) â€” Initial Release (Blazor Edition)
-â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+v1.0.0 (May 2026) — Initial Release (Blazor Edition)
+-----------------------------------------------------
 CORE TDS WORKFLOW
-  + 26Q non-salary TDS return â€” entries, challans, deductees, FVU 9.4
-  + 24Q salary TDS return â€” payroll, monthly close, Form 16
+  + 26Q non-salary TDS return — entries, challans, deductees, FVU 9.4
+  + 24Q salary TDS return — payroll, monthly close, Form 16
   + NIL return filing (CBDT mandatory quarterly filing)
   + Correction returns C1 / C2 / C3 with PRN chain
   + NSDL FVU 9.4 integration with bundled JRE (no Java setup required)
-  + FVU T_FV_6138 fix â€” new-regime 115BAC employees (â‚¹75,000 standard deduction)
-  + TRACES Conso file import (.tds / .txt) â€” auto-creates deductor, challans, entries
+  + FVU T_FV_6138 fix — new-regime 115BAC employees (Rs.75,000 standard deduction)
+  + TRACES Conso file import (.tds / .txt) — auto-creates deductor, challans, entries
   + CSI file integration for challan status verification
 
 PAYROLL (24Q)
   + Employee master with salary structure, designation, department, PAN
-  + Monthly salary entry â€” earnings, deductions, reimbursements, perquisites
-  + TDS computation â€” old regime vs new regime (115BAC) with optimiser
+  + Monthly salary entry — earnings, deductions, reimbursements, perquisites
+  + TDS computation — old regime vs new regime (115BAC) with optimiser
   + Form 16 HTML + PDF generator (Sec 203 compliant)
   + Annual computation of income PDF (CA-style)
   + Salary slip HTML + PDF + Excel export
-  + FY rollover â€” carries forward employees, salary structures, HRA declarations
+  + FY rollover — carries forward employees, salary structures, HRA declarations
   + Excel bulk import for employee master with auto-code generation
 
 MULTI-COMPANY
@@ -42,8 +87,8 @@ MULTI-COMPANY
   + AES-256 encrypted credential storage (machine-specific key)
 
 COMPLIANCE
-  + Dynamic TDS Rules Engine â€” all sections 192 to 206AB (FY 2025-26 rates)
-  + Section 206AA (no PAN â†’ 20%) and 206AB (no ITR â†’ higher rate)
+  + Dynamic TDS Rules Engine — all sections 192 to 206AB (FY 2025-26 rates)
+  + Section 206AA (no PAN → 20%) and 206AB (no ITR → higher rate)
   + Section 197 lower-deduction certificate support
   + Cess: auto-zeroed for non-salary resident sections (Finance Act + CBDT Cir 3/2025)
   + TDS rounding: whole rupees per Section 288B
@@ -71,16 +116,16 @@ INSTALLER & UPDATES
   + EULA screen on first launch with acceptance recording
 
 UX
-  + Blazor/MudBlazor UI â€” sidebar navigation, dark header, responsive layout
-  + Dashboard â€” KPI cards, filing status, due-date alerts
-  + First-run wizard â€” company setup to first FVU in 5 steps
+  + Blazor/MudBlazor UI — sidebar navigation, dark header, responsive layout
+  + Dashboard — KPI cards, filing status, due-date alerts
+  + First-run wizard — company setup to first FVU in 5 steps
   + PAN autocomplete with entity-type detection
   + FVU error display with error code and description
   + Empty-state pages with contextual CTAs
-  + Audit log â€” all user actions recorded with timestamp
-  + Global crash handler â€” crash log saved to %AppData%\TDSPro\Logs\
+  + Audit log — all user actions recorded with timestamp
+  + Global crash handler — crash log saved to %AppData%\CDeTDS\Logs\
 
 LICENSING
-  + ECDSA P-256 signed license keys â€” Trial (30 days) and Pro
+  + ECDSA P-256 signed license keys — Trial (30 days) and Pro
   + Machine-locked and floating license support
   + Trial limits: 1 deductor, 100 entries, 1 user
