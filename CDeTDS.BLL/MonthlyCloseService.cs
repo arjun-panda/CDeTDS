@@ -48,25 +48,12 @@ namespace CDeTDS.BLL
                 var existing = _salRepo.Get(emp.Id, fy, month);
                 if (existing != null)
                 {
+                    // Saved entry exists — use saved values exactly as stored.
+                    // Do NOT refresh from current salary structure; the saved month
+                    // reflects what was actually paid, not the current structure.
+                    // Salary revisions apply only to future months — user must Reset
+                    // a saved month explicitly if they want to re-seed from structure.
                     var row = MonthlyCloseRow.FromEntry(existing, emp);
-                    // Always refresh structure fields (Basic, HRA, DA, Special, LTA, Other, PF, ESI)
-                    // from current salary structure so any salary revision is reflected without manual Reset.
-                    // Month-specific fields (Bonus, Arrears, LOP, TDS, status) are kept from saved entry.
-                    if (emp.Salary != null)
-                    {
-                        var ss2 = emp.Salary;
-                        row.Basic   = ss2.Basic;
-                        row.Hra     = ss2.Hra;
-                        row.Da      = ss2.Da;
-                        row.Special = ss2.SpecialAllowance;
-                        row.Lta     = ss2.Lta;
-                        row.Other   = ss2.ComponentsReceived();
-                        row.Pf      = (ss2.PfFixedAmount > 0 || ss2.PfApplicable)
-                            ? (ss2.PfFixedAmount > 0 ? ss2.PfFixedAmount : Math.Round(ss2.Basic * 0.12))
-                            : 0;
-                        row.Esi     = ss2.EsiApplicable && ss2.GrossSalary <= 21000
-                            ? Math.Round(ss2.GrossSalary * 0.0075) : 0;
-                    }
                     rows.Add(row);
                     continue;
                 }

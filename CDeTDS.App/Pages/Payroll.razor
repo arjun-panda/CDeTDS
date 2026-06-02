@@ -3700,7 +3700,9 @@
     void LoadBulkGrid()
     {
         _bulkRows = McSvc.BuildGrid(AppState.CurrentDeductorId, AppState.CurrentFY, _sdMonth);
-        foreach (var r in _bulkRows.Where(r => r.Status != "Skip"))
+        // Only compute rows that have never been saved (EntryId=0 = fresh seed from structure).
+        // Already-saved rows show their stored values exactly — no silent recompute on open.
+        foreach (var r in _bulkRows.Where(r => r.Status != "Skip" && r.EntryId == 0))
             try { McSvc.Compute(r, AppState.CurrentDeductorId); } catch { }
         _sdBulkSel.Clear();
         foreach (var r in _bulkRows)
