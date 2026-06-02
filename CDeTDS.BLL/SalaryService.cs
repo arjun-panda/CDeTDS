@@ -42,7 +42,8 @@ namespace CDeTDS.BLL
 
             // Look up existing auto-created entry for this (employee, FY, month)
             var tdsRepo = new CDeTDS.DAL.Repositories.TdsEntryRepository();
-            var existing = tdsRepo.GetByRemarksTag(deductorId, tag);
+            var existing = tdsRepo.GetByRemarksTag(deductorId, tag)
+                        ?? tdsRepo.GetSec192ByDeductee(deductorId, deducteeId, entry.FinancialYear, entry.Month);
 
             int dim = DateTime.DaysInMonth(entry.Year, entry.Month);
             var entryDate = new DateTime(entry.Year, entry.Month, dim);   // last day of pay month

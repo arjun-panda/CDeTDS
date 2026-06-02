@@ -380,6 +380,28 @@ namespace CDeTDS.DAL.Repositories
             return r.Read() ? Map(r) : null;
         }
 
+        // Fallback lookup for Sec 192 entries when remarks tag doesn't match (e.g. after data migration)
+        public TdsEntry? GetSec192ByDeductee(int deductorId, int deducteeId, string fy, int month)
+        {
+            using var conn = Database.GetConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"SELECT e.*, d.company_name as deductor_name,
+                                       dd.name as deductee_name, dd.pan as deductee_pan
+                                FROM tds_entries e
+                                LEFT JOIN deductors d  ON e.deductor_id = d.id
+                                LEFT JOIN deductees dd ON e.deductee_id = dd.id
+                                WHERE e.deductor_id=@did AND e.deductee_id=@ddid
+                                  AND e.financial_year=@fy AND e.section='192'
+                                  AND strftime('%m', e.entry_date) = printf('%02d', @month)
+                                ORDER BY e.tds_amount DESC, e.id DESC LIMIT 1";
+            cmd.Parameters.AddWithValue("@did",   deductorId);
+            cmd.Parameters.AddWithValue("@ddid",  deducteeId);
+            cmd.Parameters.AddWithValue("@fy",    fy);
+            cmd.Parameters.AddWithValue("@month", month);
+            using var r = cmd.ExecuteReader();
+            return r.Read() ? Map(r) : null;
+        }
+
         public (bool Ok, string Msg) Delete(int id)
         {
             try
