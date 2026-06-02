@@ -200,6 +200,7 @@ namespace CDeTDS.BLL
             IReadOnlyList<Employee>? employeeCache = null)
         {
             var entry = row.ToEntry(deductorId);
+            entry.RecalcGross();   // ensure NetSalary is correct before persisting
             entry.Status   = row.Status == "Skip" ? "Skip" : "Draft";
             entry.IsLocked = false;
             // Preserve existing line items (perqs/reimbursements entered in Salary Data tab).
@@ -244,6 +245,7 @@ namespace CDeTDS.BLL
         /// </summary>
         public (bool ok, string msg) SaveAndSync(MonthlySalaryEntry entry, Employee emp, int deductorId)
         {
+            entry.RecalcGross();   // ensure NetSalary is correct before persisting
             entry.Status   = string.IsNullOrEmpty(entry.Status) || entry.Status == "Locked" ? "Draft" : entry.Status;
             entry.IsLocked = false;
             _salRepo.Save(entry);
