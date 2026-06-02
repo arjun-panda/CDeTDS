@@ -635,8 +635,8 @@
         new("Add Challans",         "Enter Challan 281 payments in the Challans module."),
         new("Add TDS Entries",      "Record all TDS deductions against deductees with correct sections."),
         new("Generate .txt File",   "Generate the return text file using this wizard."),
-        new("Validate with FVU",    "Run NSDL FVU — validates PAN, challan totals, section codes."),
-        new("Download CSI File",    $"From OLTAS → e-Pay Tax → Payment History. Save .csi file to: {CDeTDS.DAL.FolderManager.CsiFolder}"),
+        new("Download CSI File",    $"Download fresh CSI from OLTAS → e-Pay Tax → Payment History before FVU. Save to: {CDeTDS.DAL.FolderManager.CsiFolder}"),
+        new("Validate with FVU",    "Run NSDL FVU — validates PAN, challan totals, section codes against CSI."),
         new("Upload to IT Portal",  "Login incometax.gov.in with TAN, upload validated .fvu file."),
         new("Download TDS Cert",    "Login TRACES → download Form 16 Part A (salary) or Form 16A (non-salary) → issue to deductees."),
     };
@@ -876,7 +876,7 @@
                     : "";
                 _result         = $"✅  FVU Validated successfully!\n.fvu file: {Path.GetFileName(fvuResult.FvuFile)}\nJava: {fvuResult.JavaVersion}{zipNote}\n\nReady to upload to IT Portal.";
                 _resultSeverity = Severity.Success;
-                _activeStep     = 5;
+                _activeStep     = 6; // next: Upload to IT Portal
                 _logLines.Add($"[{Now()}] ✅ .fvu file created: {Path.GetFileName(fvuResult.FvuFile)}");
             }
             else
