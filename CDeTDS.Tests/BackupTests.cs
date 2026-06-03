@@ -21,13 +21,13 @@ public class BackupTests
     }
 
     [Theory]
-    [InlineData("tds_pro_auto_20260518.db",         true)]
-    [InlineData("tds_pro_manual_20260518-141533.db", false)]
-    [InlineData("TDS_PRO_AUTO_20260518.db",         true)]   // case-insensitive
+    [InlineData("cdetds_auto_20260518.db",         true)]
+    [InlineData("cdetds_manual_20260518-141533.db", false)]
+    [InlineData("CDETDS_AUTO_20260518.db",           true)]   // case-insensitive
     public void BackupInfo_IsAuto_DetectedFromFilename(string fileName, bool expectedAuto)
     {
         // This mirrors the ListBackups detection logic — verify the convention holds
-        bool isAuto = fileName.StartsWith("tds_pro_auto_", StringComparison.OrdinalIgnoreCase);
+        bool isAuto = fileName.StartsWith("cdetds_auto_", StringComparison.OrdinalIgnoreCase);
         Assert.Equal(expectedAuto, isAuto);
     }
 

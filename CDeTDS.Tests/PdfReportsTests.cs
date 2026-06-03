@@ -28,7 +28,7 @@ public class PdfReportsTests
         entry.RecalcGross();
         var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCDE1234F", Designation = "Engineer", BankAccount = "1234567890" };
         var ded = new Deductor { CompanyName = "Acme Corp" };
-        var tmp = Path.Combine(Path.GetTempPath(), "tdspro_test_" + Guid.NewGuid().ToString("N"));
+        var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
         var path = SalarySlipExport.GeneratePdf(entry, new AnnualComputation(), emp, ded, tmp);
         var bytes = File.ReadAllBytes(path);
         // Cleanup
@@ -66,7 +66,7 @@ public class PdfReportsTests
         data.Lines.Add(new IncomeLine { Name = "Basic", Annual = 360000 });
         data.Lines.Add(new IncomeLine { Name = "HRA",   Annual = 180000 });
 
-        var tmp = Path.Combine(Path.GetTempPath(), "tdspro_test_" + Guid.NewGuid().ToString("N"));
+        var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
         var path = IncomeComputationGenerator.SavePdf(data, tmp);
         var bytes = File.ReadAllBytes(path);
         try { File.Delete(path); Directory.Delete(tmp); } catch { }
@@ -99,7 +99,7 @@ public class PdfReportsTests
             TdsDeducted    = 0,
         };
 
-        var tmp = Path.Combine(Path.GetTempPath(), "tdspro_test_" + Guid.NewGuid().ToString("N"));
+        var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
         var path = Form16Generator.SaveForm16SalaryPdf(data, tmp);
         var bytes = File.ReadAllBytes(path);
         try { File.Delete(path); Directory.Delete(tmp); } catch { }

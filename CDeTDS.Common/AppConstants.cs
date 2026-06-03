@@ -16,7 +16,7 @@ namespace CDeTDS.Common
                   ?.ToString(3)   // major.minor.patch only
             ?? "1.0.0";
         public const string VersionCheckUrl = "https://raw.githubusercontent.com/arjun-panda/tdspro-releases/main/version.json";
-        public const string DbFileName = "tds_pro.db";
+        public const string DbFileName = "cdetds.db";
 
         // ── Known section codes (for UI dropdowns only) ───────────────────────
         // Descriptions pulled from DB at runtime; this list is just for validation

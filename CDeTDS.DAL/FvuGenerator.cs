@@ -121,7 +121,7 @@ namespace CDeTDS.DAL
                 "D",          // field 7
                 tanUpper,     // field 8: TAN
                 "1",          // field 9: batch count
-                "TDSPro",     // field 10: RPU identifier (NSDL e-TDS RPU tag)
+                "CDeTDS",     // field 10: RPU identifier (NSDL e-TDS RPU tag)
                 "",           // field 11: reserved
                 "RPUHASH01",  // field 12: p.q — non-empty for all quarters
                 "10000001",   // field 13: p.nb — non-zero for all quarters
@@ -916,7 +916,7 @@ namespace CDeTDS.DAL
             {
                 L(), "FH",
                 nsdlForm == "24Q" ? "SL1" : "NS1",
-                "R", today8, "1", "D", tanUpper, "1", "TDSPro",
+                "R", today8, "1", "D", tanUpper, "1", "CDeTDS",
                 "","","","","","","",
             }) + "^");
 

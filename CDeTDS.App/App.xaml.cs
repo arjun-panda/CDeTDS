@@ -105,8 +105,6 @@ namespace CDeTDS.App
                 var appDataPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "CDeTDS");
-                // One-time migration: move data from old TDSPro AppData folder
-                MigrateAppDataIfNeeded(appDataPath);
                 Directory.CreateDirectory(appDataPath);
                 _logPath = Path.Combine(appDataPath, "blazor_startup.log");
                 TryLog("=== CDeTDS.App STARTUP ===");
@@ -251,38 +249,6 @@ namespace CDeTDS.App
             catch { }
 
             base.OnExit(e);
-        }
-
-        private static void MigrateAppDataIfNeeded(string newPath)
-        {
-            // Copies %AppData%\TDSPro → %AppData%\CDeTDS and
-            //        Documents\TDSPro  → Documents\CDeTDS on first run after rename.
-            // Safe: exits immediately if destination already exists.
-            try
-            {
-                if (!Directory.Exists(newPath))
-                {
-                    var oldAppData = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TDSPro");
-                    if (Directory.Exists(oldAppData))
-                        CopyDirectory(oldAppData, newPath);
-                }
-            }
-            catch { }
-
-            try
-            {
-                var newDocs = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CDeTDS");
-                if (!Directory.Exists(newDocs))
-                {
-                    var oldDocs = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TDSPro");
-                    if (Directory.Exists(oldDocs))
-                        CopyDirectory(oldDocs, newDocs);
-                }
-            }
-            catch { }
         }
 
         private static void CopyDirectory(string src, string dest)

@@ -261,7 +261,7 @@ namespace CDeTDS.DAL
             {
                 Directory.CreateDirectory(BackupFolder);
                 var today      = DateTime.Today.ToString("yyyyMMdd");
-                var backupFile = Path.Combine(BackupFolder, $"tds_pro_auto_{today}.db");
+                var backupFile = Path.Combine(BackupFolder, $"cdetds_auto_{today}.db");
 
                 // Only backup once per day
                 if (File.Exists(backupFile)) return;
@@ -269,7 +269,7 @@ namespace CDeTDS.DAL
                 File.Copy(dbPath, backupFile, overwrite: true);
 
                 // Prune old backups — keep last `keepDays`
-                var backups = Directory.GetFiles(BackupFolder, "tds_pro_auto_*.db")
+                var backups = Directory.GetFiles(BackupFolder, "cdetds_auto_*.db")
                                        .OrderByDescending(f => f)
                                        .Skip(keepDays)
                                        .ToArray();
@@ -289,7 +289,7 @@ namespace CDeTDS.DAL
             {
                 Directory.CreateDirectory(BackupFolder);
                 var stamp      = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-                var backupFile = Path.Combine(BackupFolder, $"tds_pro_manual_{stamp}.db");
+                var backupFile = Path.Combine(BackupFolder, $"cdetds_manual_{stamp}.db");
                 File.Copy(dbPath, backupFile, overwrite: false);
                 Database.LogAction("user", "MANUAL_BACKUP", "Backup", $"Saved: {backupFile}");
                 return backupFile;
@@ -303,7 +303,7 @@ namespace CDeTDS.DAL
             try
             {
                 Directory.CreateDirectory(BackupFolder);
-                return Directory.GetFiles(BackupFolder, "tds_pro_*.db")
+                return Directory.GetFiles(BackupFolder, "cdetds_*.db")
                     .Select(p => new FileInfo(p))
                     .OrderByDescending(f => f.LastWriteTime)
                     .Select(f => new BackupInfo
@@ -312,7 +312,7 @@ namespace CDeTDS.DAL
                         FileName   = f.Name,
                         CreatedAt  = f.LastWriteTime,
                         SizeBytes  = f.Length,
-                        IsAuto     = f.Name.StartsWith("tds_pro_auto_", StringComparison.OrdinalIgnoreCase),
+                        IsAuto     = f.Name.StartsWith("cdetds_auto_", StringComparison.OrdinalIgnoreCase),
                     })
                     .ToList();
             }

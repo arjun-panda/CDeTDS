@@ -13,12 +13,12 @@ namespace CDeTDS.DAL
         // 256-bit key derived via PBKDF2 (100,000 iterations) from machine + app seed.
         // Changing this breaks existing encrypted values — users must re-enter credentials.
         private static readonly byte[] _key  = DeriveKey();
-        private static readonly byte[] _salt = Encoding.UTF8.GetBytes("TDSPro_v3_AES_Salt_2026!");
+        private static readonly byte[] _salt = Encoding.UTF8.GetBytes("CDeTDS_v3_AES_Salt_2026!");
 
         private static byte[] DeriveKey()
         {
-            var seed = $"TDSPro|{Environment.MachineName}|{Environment.UserName}|IT_Act_2026";
-            var saltBytes = Encoding.UTF8.GetBytes("TDSPro_PBKDF2_Salt_v2!");
+            var seed = $"CDeTDS|{Environment.MachineName}|{Environment.UserName}|IT_Act_2026";
+            var saltBytes = Encoding.UTF8.GetBytes("CDeTDS_PBKDF2_Salt_v2!");
             using var pbkdf2 = new Rfc2898DeriveBytes(seed, saltBytes, 100_000, HashAlgorithmName.SHA256);
             return pbkdf2.GetBytes(32); // 256-bit key
         }
