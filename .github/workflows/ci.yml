@@ -20,10 +20,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore TDSPro.sln
+        run: dotnet restore CDeTDS.sln
 
       - name: Build (Release)
-        run: dotnet build TDSPro.sln --configuration Release --no-restore --nologo
+        run: dotnet build CDeTDS.sln --configuration Release --no-restore --nologo
 
       - name: Test
-        run: dotnet test TDSPro.Tests/TDSPro.Tests.csproj --configuration Release --no-build --nologo --logger "console;verbosity=normal"
+        run: dotnet test CDeTDS.Tests/CDeTDS.Tests.csproj --configuration Release --no-build --nologo --logger "console;verbosity=normal"

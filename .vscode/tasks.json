@@ -2,12 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build TDSPro.App",
+            "label": "build CDeTDS.App",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/TDSPro.App/TDSPro.App.csproj",
+                "${workspaceFolder}/CDeTDS.App/CDeTDS.App.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -18,30 +18,18 @@
             }
         },
         {
-            "label": "publish TDSPro.App (win-x64)",
+            "label": "publish CDeTDS.App (win-x64)",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/TDSPro.App/TDSPro.App.csproj",
+                "${workspaceFolder}/CDeTDS.App/CDeTDS.App.csproj",
                 "-c", "Release",
                 "-r", "win-x64",
                 "--self-contained", "true",
-                "-o", "${workspaceFolder}/TDSPro.App/publish/win-x64",
+                "-o", "${workspaceFolder}/CDeTDS.App/publish/win-x64",
                 "-p:PublishReadyToRun=true",
                 "-p:PublishTrimmed=false"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "build TDSPro.UI (legacy)",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/TDSPro.UI/TDSPro.UI.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
         }

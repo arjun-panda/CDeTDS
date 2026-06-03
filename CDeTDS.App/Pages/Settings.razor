@@ -767,7 +767,7 @@
         _itPortalUserId   = Database.GetSetting($"ItPortalUserId_{_did}", "");
         _itPortalPassword = _did > 0 ? AesEncryption.LoadCredential($"ItPortalPassword_{_did}") : "";
         _dueSoonDays  = int.TryParse(Database.GetSetting("DueSoonDays", "7"), out var d) ? d : 7;
-        _dbPath       = Path.Combine(AppState.AppDataPath, "TDSPro.db");
+        _dbPath       = Path.Combine(AppState.AppDataPath, AppConstants.DbFileName);
         LoadBackupFiles();
         // Auto-detect on open
         if (string.IsNullOrEmpty(_javaPath)) AutoDetectJava();
@@ -1034,7 +1034,7 @@
             {
                 using var http = new System.Net.Http.HttpClient();
                 http.Timeout = TimeSpan.FromSeconds(120);
-                http.DefaultRequestHeaders.Add("User-Agent", "TDSPro/2.0");
+                http.DefaultRequestHeaders.Add("User-Agent", "CDeTDS/2.0");
 
                 // Report progress via return tuple — update msg inline
                 using var response = await http.GetAsync(directUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
@@ -1081,7 +1081,7 @@
             }
 
             // ── Step 3: Extract zip ────────────────────────────────────────────
-            var tempExtract = Path.Combine(Path.GetTempPath(), "TDSProFVU_" + Guid.NewGuid().ToString("N")[..6]);
+            var tempExtract = Path.Combine(Path.GetTempPath(), "CDeTDS_FVU_" + Guid.NewGuid().ToString("N")[..6]);
             try
             {
                 System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, tempExtract, overwriteFiles: true);

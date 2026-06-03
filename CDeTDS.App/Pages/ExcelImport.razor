@@ -531,7 +531,7 @@
         {
             var folder = FolderManager.TemplatesFolder;
             Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, $"TDSPro_Template_{type}.xlsx");
+            var path = Path.Combine(folder, $"CDeTDS_Template_{type}.xlsx");
             ExcelEngine.ExportImportTemplate(path, type);
             FolderManager.OpenFolder(folder);
             Snackbar.Add($"Template saved: {Path.GetFileName(path)}", Severity.Success);
