@@ -1,12 +1,12 @@
 ﻿; CDeTDS — Inno Setup 6 Installer Script
 ; Build: .\installer\build_installer.ps1
-; Output: installer\Output\TDSPro_Setup_v1.0.0.exe
+; Output: installer\Output\CDeTDS_Setup_v1.0.0.exe
 
 #define AppName        "CDeTDS"
 #define AppVersion     "1.0.0"
 #define AppPublisher   "CapitalDesk"
 #define AppURL         "https://capitaldesk.co.in"
-#define AppExeName     "TDSPro.exe"
+#define AppExeName     "CDeTDS.exe"
 #define AppId          "{{A3F7B2E1-4C8D-4F5A-9B6E-1D2C3E4F5A6B}"
 #define AppFiles       "AppFiles"
 #define FvuDir         "..\TDS_STANDALONE_FVU_9.4"
@@ -21,11 +21,11 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL=mailto:support@capitaldesk.co.in
 AppUpdatesURL={#AppURL}
-DefaultDirName={autopf}\TDSPro
+DefaultDirName={autopf}\CDeTDS
 DefaultGroupName={#AppName}
 AllowNoIcons=no
 OutputDir=Output
-OutputBaseFilename=TDSPro_Setup_v{#AppVersion}
+OutputBaseFilename=CDeTDS_Setup_v{#AppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

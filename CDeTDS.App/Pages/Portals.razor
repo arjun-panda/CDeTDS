@@ -341,7 +341,7 @@
         }
         catch
         {
-            try { await JS.InvokeAsync<bool>("window.tdspro.copyToClipboard", text); }
+            try { await JS.InvokeAsync<bool>("window.cdetds.copyToClipboard", text); }
             catch { }
             Snackbar.Add("Copied to clipboard!", Severity.Success);
         }

@@ -806,7 +806,7 @@
         {
             Directory.CreateDirectory(_basePath);
             // Write test to confirm path is writable
-            var testFile = Path.Combine(_basePath, ".tdspro_write_test");
+            var testFile = Path.Combine(_basePath, ".cdetds_write_test");
             File.WriteAllText(testFile, "ok");
             File.Delete(testFile);
             FolderManager.SetBasePath(_basePath);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TDS Pro</title>
+    <title>CDeTDS</title>
     <base href="/" />
     <style>
         /* Roboto subset — inline so no internet required on first load */
@@ -25,18 +25,18 @@
             },
             reconnectionHandler: {
                 onConnectionDown: function (options, error) {
-                    console.warn('[TDSPro] Blazor connection lost. Reconnecting...', error);
+                    console.warn('[CDeTDS] Blazor connection lost. Reconnecting...', error);
                     var el = document.getElementById('blazor-reconnect-banner');
                     if (!el) {
                         el = document.createElement('div');
                         el.id = 'blazor-reconnect-banner';
                         el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#e53935;color:white;text-align:center;padding:8px;font-weight:600;z-index:99999;font-size:14px';
-                        el.textContent = 'Reconnecting to TDS Pro...';
+                        el.textContent = 'Reconnecting to CDeTDS...';
                         document.body.appendChild(el);
                     }
                 },
                 onConnectionUp: function () {
-                    console.info('[TDSPro] Blazor connection restored.');
+                    console.info('[CDeTDS] Blazor connection restored.');
                     var el = document.getElementById('blazor-reconnect-banner');
                     if (el) el.remove();
                 },
@@ -44,14 +44,14 @@
                     var el = document.getElementById('blazor-reconnect-banner');
                     if (el) {
                         el.style.background = '#b71c1c';
-                        el.innerHTML = 'TDS Pro connection lost. <a href="/" style="color:white;text-decoration:underline">Click here to reload</a>.';
+                        el.innerHTML = 'CDeTDS connection lost. <a href="/" style="color:white;text-decoration:underline">Click here to reload</a>.';
                     }
                 }
             }
         });
     </script>
     <script>
-        window.tdspro = {
+        window.cdetds = {
             copyToClipboard: function (text) {
                 // navigator.clipboard is blocked in WebView2 without permissions policy.
                 // Use execCommand fallback which works reliably in WebView2.

@@ -1181,7 +1181,7 @@
         catch
         {
             // Fallback to JS if WPF clipboard fails
-            try { await JS.InvokeAsync<bool>("window.tdspro.copyToClipboard", text); }
+            try { await JS.InvokeAsync<bool>("window.cdetds.copyToClipboard", text); }
             catch { }
             Snackbar.Add("Copied!", Severity.Success);
         }

@@ -212,7 +212,7 @@ async Task CopyMachineId()
     {
         try
         {
-            var ok = await JS.InvokeAsync<bool>("window.tdspro.copyToClipboard", _machineId);
+            var ok = await JS.InvokeAsync<bool>("window.cdetds.copyToClipboard", _machineId);
             if (!ok) throw new Exception();
         }
         catch

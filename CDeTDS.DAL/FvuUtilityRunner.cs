@@ -350,7 +350,7 @@ namespace CDeTDS.DAL
             // FVU requires: input filename ≤ 12 chars (incl .txt), no special chars, no path separators.
             // We copy the input to a temp dir with a short name, run FVU there, then copy results back.
             var jarDir  = Path.GetDirectoryName(cfg.FvuJarPath) ?? outputDir;
-            var tempDir = Path.Combine(Path.GetTempPath(), "TDSProFVU_" + Guid.NewGuid().ToString("N")[..8]);
+            var tempDir = Path.Combine(Path.GetTempPath(), "CDeTDS_FVU_" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(tempDir);
             Log($"tempDir={tempDir}  jarDir={jarDir}");
 
@@ -1611,7 +1611,7 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;padding:16px;fo
         public string JavaExePath { get; set; } = "";
         public string FvuJarPath  { get; set; } = "";
         public string OutputDir   { get; set; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "TDSPro_FVU");
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CDeTDS_FVU");
     }
 
     public class FvuRunResult

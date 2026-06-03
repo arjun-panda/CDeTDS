@@ -80,7 +80,7 @@ internal static class KeySigner
 public class KeyGenForm : Form
 {
     private static readonly string LogPath = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory, "TDSPro_KeyLog.csv");
+        AppDomain.CurrentDomain.BaseDirectory, "CDeTDS_KeyLog.csv");
 
     private ComboBox      _cmbTier  = null!;
     private NumericUpDown _nudDays  = null!;
@@ -363,7 +363,7 @@ public class KeyGenForm : Form
     private void ExportCsv(object? sender, EventArgs e)
     {
         if (!File.Exists(LogPath)) { MessageBox.Show("No log yet.", "Export"); return; }
-        using var dlg = new SaveFileDialog { Filter = "CSV|*.csv", FileName = $"TDSPro_Keys_{DateTime.Today:yyyyMMdd}.csv" };
+        using var dlg = new SaveFileDialog { Filter = "CSV|*.csv", FileName = $"CDeTDS_Keys_{DateTime.Today:yyyyMMdd}.csv" };
         if (dlg.ShowDialog() == DialogResult.OK) { File.Copy(LogPath, dlg.FileName, true); MessageBox.Show("Exported: " + dlg.FileName); }
     }
 

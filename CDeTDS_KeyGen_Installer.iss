@@ -1,7 +1,7 @@
 ﻿#define AppName      "CDeTDS KeyGen"
 #define AppVersion   "2.0.0"
-#define AppExeName   "TDSPro.KeyGen.exe"
-#define SourceDir    "TDSPro.KeyGen\bin\Release\net8.0-windows\win-x64\publish"
+#define AppExeName   "CDeTDS.KeyGen.exe"
+#define SourceDir    "CDeTDS.KeyGen\bin\Release\net8.0-windows\win-x64\publish"
 
 [Setup]
 AppId={{B4C3D2E1-8F7A-4B6C-A1D2-E3F4G5H6I7J8}
@@ -10,11 +10,11 @@ AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
 AppPublisher=CDeTDS Software
 AppCopyright=Copyright 2026 CDeTDS Software
-DefaultDirName={autopf}\TDSPro_KeyGen
+DefaultDirName={autopf}\CDeTDS_KeyGen
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=installer_output
-OutputBaseFilename=TDSPro_KeyGen_v{#AppVersion}
+OutputBaseFilename=CDeTDS_KeyGen_v{#AppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

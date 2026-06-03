@@ -221,7 +221,7 @@ else if (_challans.Count == 0)
 
     async Task PrintChallan()
     {
-        await JS.InvokeVoidAsync("window.tdspro.printElement", "challan-print-area");
+        await JS.InvokeVoidAsync("window.cdetds.printElement", "challan-print-area");
     }
 
     static string GetAY(string fy)
