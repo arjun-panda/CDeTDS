@@ -914,6 +914,7 @@
         @* ── Top toolbar: month picker + counts + Bulk Actions (single compact line) ── *@
         @{
             var _statusCount = _sdEmpStatus.Values.GroupBy(s => s).ToDictionary(g => g.Key, g => g.Count());
+            _statusCount.TryGetValue("Locked", out var _cntLocked);
             _statusCount.TryGetValue("Draft",  out var _cntDraft);
             _statusCount.TryGetValue("Skip",   out var _cntSkip);
         }
@@ -922,11 +923,12 @@
                 @for (int i = 0; i < _fyMonths.Length; i++)
                 {
                     var mi = i; var m = _fyMonths[i]; var mn = _monthNames[i];
-                    <button class="sd-month-btn @(_sdMonth == m ? "active" : "") @(_sdMonthHasData[mi] ? "has-data" : "")"
-                            @onclick="() => SelectSdMonth(m)">@mn[..3]</button>
+                    <button class="sd-month-btn @(_sdMonth == m ? "active" : "") @(_sdMonthFinalised[mi] ? "finalised" : _sdMonthHasData[mi] ? "has-data" : "")"
+                            @onclick="() => SelectSdMonth(m)" title="@(_sdMonthFinalised[mi] ? "Finalised" : _sdMonthHasData[mi] ? "Draft" : "No data")">@mn[..3]</button>
                 }
             </div>
             <div style="flex:1"></div>
+            <span style="font-size:11px;color:#1565C0;white-space:nowrap">🔒 @_cntLocked</span>
             <span style="font-size:11px;color:#b45309;white-space:nowrap">📝 @_cntDraft</span>
             <span style="font-size:11px;color:#dc2626;white-space:nowrap">⏸ @_cntSkip</span>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
@@ -960,6 +962,7 @@
                     var isActive = _sdEmpId == emp.Id;
                     var (icon, color) = status switch
                     {
+                        "Locked" => ("🔒", "#1565C0"),
                         "Draft"  => ("📝", "#b45309"),
                         "Skip"   => ("⏸",  "#dc2626"),
                         _        => ("○",  "#94a3b8")
@@ -980,6 +983,12 @@
             <div style="overflow-y:auto;overflow-x:hidden;min-height:0;height:100%">
         @if (_sdEmpId > 0)
         {
+            @if (_sdCurEntry?.IsLocked == true)
+            {
+                <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:6px 14px;margin-bottom:8px;font-size:12px;color:#1565C0;display:flex;align-items:center;gap:8px">
+                    🔒 <strong>Finalised</strong> — This month was closed via Monthly Close. Values shown are what was actually paid. Edit via Monthly Close → Bulk Actions.
+                </div>
+            }
             <!-- KPI row -->
             <div class="sd-kpi-row">
                 <div class="sd-kpi sd-kpi-blue"><div class="sd-kpi-label">Gross Earnings</div><div class="sd-kpi-value">₹@_sdGrossTotal.ToString("N0")</div></div>
@@ -2924,7 +2933,8 @@
     private bool _sdDropMonth;  // Monthly Statement dropdown open
     private int    _sdEmpId;
     private int    _sdMonth;
-    private bool[] _sdMonthHasData = new bool[12];
+    private bool[] _sdMonthHasData      = new bool[12];
+    private bool[] _sdMonthFinalised    = new bool[12]; // true = saved via Monthly Close (Gross = actual paid)
     private string _sdEmpSearch    = "";
     // employeeId → status of THIS month ("Locked"/"Draft"/"Skip"/"None")
     private Dictionary<int,string> _sdEmpStatus = new();
@@ -3685,7 +3695,11 @@
         if (_sdEmpId == 0) return;
         var saved = SalarySvc.GetAllForFY(_sdEmpId, AppState.CurrentFY);
         for (int i = 0; i < _fyMonths.Length; i++)
-            _sdMonthHasData[i] = saved.Any(e => e.Month == _fyMonths[i]);
+        {
+            var entry = saved.FirstOrDefault(e => e.Month == _fyMonths[i]);
+            _sdMonthHasData[i]   = entry != null;
+            _sdMonthFinalised[i] = entry?.IsLocked == true;
+        }
     }
 
     void OpenBulkActions()
