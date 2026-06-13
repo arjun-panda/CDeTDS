@@ -1071,7 +1071,7 @@
         if (string.IsNullOrWhiteSpace(AppState.CurrentDeductorTan))
             { Snackbar.Add("Deductor TAN is missing — update company details before filing.", Severity.Error); return false; }
         if (string.IsNullOrWhiteSpace(AppState.CurrentFY))
-            { Snackbar.Add("Financial year is not set.", Severity.Error); return false; }
+            { Snackbar.Add("Year is not set.", Severity.Error); return false; }
         if (string.IsNullOrWhiteSpace(_quarter))
             { Snackbar.Add("Select a quarter before generating.", Severity.Warning); return false; }
         if (AppState.CurrentLicense.IsExpired)

@@ -612,7 +612,7 @@ else
         if (_editing == null) return;
         if (AppState.IsReadOnlyFY)
         {
-            Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year).", Severity.Warning);
+            Snackbar.Add($"{TaxRules.YearLabel(AppState.CurrentFY)} is locked (past year).", Severity.Warning);
             return;
         }
 
@@ -657,7 +657,7 @@ else
     {
         if (AppState.IsReadOnlyFY)
         {
-            Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year).", Severity.Warning);
+            Snackbar.Add($"{TaxRules.YearLabel(AppState.CurrentFY)} is locked (past year).", Severity.Warning);
             return;
         }
         int linkedCount = 0;

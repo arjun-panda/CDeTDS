@@ -587,7 +587,7 @@
         _fyNotice = _editing.FinancialYear != AppState.CurrentFY
             ? $"Trigger date {trigger:dd-MMM-yyyy} (earlier of credit/payment) places this entry in " +
               $"{TaxRules.YearLabel(_editing.FinancialYear)} under the {TaxRules.ActName(_editing.FinancialYear)} — " +
-              $"not the currently open FY {AppState.CurrentFY}. It will be saved there."
+              $"not the currently open {TaxRules.YearLabel(AppState.CurrentFY)}. It will be saved there."
             : "";
     }
 
@@ -672,7 +672,7 @@
         if (_editing == null) return;
         if (AppState.IsReadOnlyFY)
         {
-            Snackbar.Add($"FY {AppState.CurrentFY} is locked (past year). Switch to FY {AppConstants.CurrentFinancialYear} to make changes.", Severity.Warning);
+            Snackbar.Add($"{TaxRules.YearLabel(AppState.CurrentFY)} is locked (past year). Switch to {TaxRules.YearLabel(AppConstants.CurrentFinancialYear)} to make changes.", Severity.Warning);
             return;
         }
 
@@ -752,7 +752,7 @@
         // Allow deleting Pending unlinked entries even in read-only FY (e.g. duplicate cleanup)
         if (AppState.IsReadOnlyFY && (!string.IsNullOrEmpty(e.ChallanNo) || e.Status == "Paid"))
         {
-            Snackbar.Add($"FY {AppState.CurrentFY} is locked — only unlinked Pending entries can be deleted.", Severity.Warning);
+            Snackbar.Add($"{TaxRules.YearLabel(AppState.CurrentFY)} is locked — only unlinked Pending entries can be deleted.", Severity.Warning);
             return;
         }
         // Block deletion if entry is linked to a challan

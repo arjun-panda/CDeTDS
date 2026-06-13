@@ -711,7 +711,7 @@
         if (_yearEndFrom == _yearEndTo) { Snackbar.Add("From and To FY must be different.", Severity.Warning); return; }
         if (!string.IsNullOrEmpty(AppState.SessionFY) && _yearEndTo != AppState.SessionFY)
         {
-            Snackbar.Add($"Transfer target must be your logged-in FY ({AppState.SessionFY}). Log out and log in to FY {_yearEndTo} to import there.", Severity.Warning);
+            Snackbar.Add($"Transfer target must be your logged-in year ({TaxRules.YearLabel(AppState.SessionFY)}). Log out and log in to {TaxRules.YearLabel(_yearEndTo)} to import there.", Severity.Warning);
             return;
         }
         _transferring = true; _yearEndResult = null; StateHasChanged();
@@ -722,7 +722,7 @@
             if (r.Success)
             {
                 AppState.SetFY(_yearEndTo);
-                Snackbar.Add($"Viewing FY {_yearEndTo}. To edit, log out and log in selecting FY {_yearEndTo}.", Severity.Info);
+                Snackbar.Add($"Viewing {TaxRules.YearLabel(_yearEndTo)}. To edit, log out and log in selecting {TaxRules.YearLabel(_yearEndTo)}.", Severity.Info);
             }
             else Snackbar.Add(r.Message, Severity.Error);
         }
