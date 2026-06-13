@@ -7,6 +7,9 @@ publish/
 publish_out/
 publish_output/
 installer_output/
+# Guard: stray project-local publish folders (e.g. CDeTDS.App\publish) that
+# self-nest and poison `dotnet publish -o publish_out` with old binaries.
+**/publish/
 
 # User-specific
 *.user
