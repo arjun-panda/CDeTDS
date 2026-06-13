@@ -1,6 +1,97 @@
 CDeTDS — Changelog
 ==================
 
+v1.0.4 (June 2026) - IT Act 2025 transition audit, payment-code groundwork, UI fixes
+-------------------------------------------------------------------------------------
+TRANSITION CORRECTNESS (CRITICAL — 1961 Act -> 2025 Act)
+  * Trigger-date rule: TDS entry now has a Credit Date (books) field; the governing
+    Act/FY/Quarter is derived from the EARLIER of credit date and payment date,
+    never the session FY. A Mar-2026-credited / Apr-2026-paid entry stays in the
+    old-Act (FY 2025-26) stream as required.
+  * Returns page form dropdown is FY-aware: TY 2026-27+ offers Form 138/140/143
+    (was 24Q/26Q/27EQ); selection re-maps automatically on FY switch.
+  * Mixing validation: generation blocks an old form on a new-act FY (and vice
+    versa) with a friendly message naming the correct form.
+  * Paper return is FY-aware: "FORM NO. 138 (erstwhile Form 24Q)", Income-tax
+    Act 2025 citations (s.392/393/394), "TY" year label, section 395 note.
+  * Assessment Year abolished under Act 2025: top bar / dashboard show "TY 2026-27"
+    (= financial year); AY still shown for FY 2025-26 and earlier.
+  * TDS entry section field shows the Act 2025 reference (e.g. "Files as Section
+    393(1) Sl.6") for new-act FYs while keeping the familiar 194-series code.
+  * Report/certificate footers now cite the correct Act based on the document FY
+    (was hardcoded "Income-tax Act 2025").
+
+IT ACT 2025 PAYMENT CODES (future-ready, OFF by default)
+  * New tds_rules.payment_code column + per-rule editor field + activation switch
+    on Rules Status. Codes staged from Protean RPU v1.0 BETA (1001-1092); files
+    keep the FVU 9.4 interim format until the FINAL new-act FVU/RPU is released
+    and codes are re-verified. Bundled the official FVU/RPU v1.0 (Beta) artifacts.
+
+DATA SAFETY
+  * Single-instance guard (mutex) prevents two app instances corrupting the DB.
+  * Filing snapshots: a record-level copy of each generated statement is stored
+    for future correction statements.
+  * Per-challan reconciliation check in return pre-validation (Sum of linked
+    entries vs challan amount).
+  * Multi-statement DB writes (filing history, FVU config) wrapped in transactions.
+
+TDS RULES
+  * Fixed Act attribution on FY 2025-26 rules (were mislabelled "IT Act 2025";
+    now "IT Act 1961"); installed DBs self-heal on startup.
+  * Fixed 194Q mislabelled "Removed" (it continues; 206AB was removed).
+  * Section Guide and Rules Status are FY-aware (act name, year label, Finance
+    Act year, Act 2025 reference column).
+  * FY aggregate threshold (194C Rs.1,00,000) tracked across the year.
+  * Late-deposit interest warning (s.201(1A)) on entry save.
+
+UI / DOCS
+  * Fixed page content being clipped/unreachable at the bottom (flex-shrink) and
+    restored a thin scrollbar on the main content area.
+  * Help drawer: new "IT Act 2025" category (8 entries) + single-instance entry.
+  * README / FAQ corrections (DB filename, paths, Act references).
+
+TESTS
+  * 311 tests pass (added transition, mixing-validation, paper-return, AY/TY,
+    aggregate-threshold, and report PDF smoke tests).
+
+v1.0.3 (June 2026) - Payroll TDS sync fix, true PDF reports, report corrections
+--------------------------------------------------------------------------------
+PAYROLL (CRITICAL)
+  * Fix Sec 192 TDS entries never updating on salary re-save (SQLite LIKE treated
+    '[' in the auto-tag as a wildcard — lookup always missed; now uses INSTR)
+  * Repaired all existing mismatched Sec 192 TDS entries and challan totals
+  * Fix Clear All Employees: only the first table was actually deleted; now clears
+    salary entries, structures, components, declarations, schedules, claims, runs
+  * Copy Forward now syncs Sec 192 TDS entries (was bypassing the sync)
+  * Fix employees with blank (auto-optimal) tax regime rejected by validation
+  * Audit log now covers all payroll actions: employee create/update/delete,
+    clear-all, declaration save, monthly save, monthly close, copy forward
+
+REPORTS
+  * Annual Tax Computation Excel: itemised Sec 10 exemptions were omitted —
+    Gross-to-Taxable arithmetic now reconciles on the sheet
+  * Monthly statement inside Annual Computation: Std. Deduction showed the annual
+    amount per month and HRA Exemption/Taxable showed blank — now prorated
+    correctly from the chosen regime
+  * Computation and Monthly Statement "PDF" buttons produced HTML files — both
+    now generate true PDFs (computation A-F sections, monthly statement landscape)
+  * Full Year ZIP now contains PDF salary slips (was HTML)
+  * Monthly Salary Statement: new columns — Bonus, Commission, Advance, Arrears,
+    NPS (Employer), Perquisites, Leave Encashment (shown when non-zero)
+  * Excel statement fixes: blue total band no longer bleeds across the sheet,
+    Net Pay no longer shows ####### (explicit column widths)
+  * Report footers now show the correct Act (1961 vs 2025) based on the document FY
+
+UI / DOCS
+  * Help FAQ: fixed wrong database filename (tds_pro.db → cdetds.db), removed
+    duplicate "default login" question
+  * Audit Log page: row cap raised 2,000 → 10,000 with total-count warning
+  * README corrected: database filename, backup locations, returns path, version
+
+TESTS
+  * 284 tests — added Annual Computation PDF and Monthly Statement PDF smoke tests
+  * All tests pass
+
 v1.0.2 (June 2026) - Compliance fixes, app rename, UI improvements
 --------------------------------------------------------------------
 COMPLIANCE (CRITICAL)

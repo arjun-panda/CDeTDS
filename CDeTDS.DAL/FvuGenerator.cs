@@ -14,15 +14,48 @@ namespace CDeTDS.DAL
     ///   BC  — Batch Control        (one per batch — totals)
     ///   FC  — File Control         (one per file  — grand totals)
     ///
-    /// Delimiter: pipe  |  (Protean e-TDS RPU 5.6+ / FVU 9.4 spec)
-    /// Amounts:   in paise (multiply Rs by 100, no decimal point)
+    /// Delimiter: caret ^ (Protean e-TDS RPU 5.6+ / FVU 9.4 spec)
+    /// Amounts:   rupees with ".00" suffix (no paise in the .txt output)
     /// Dates:     dd-MM-yyyy
     /// </summary>
     public static class FvuGenerator
     {
+        // ── IT Act 2025 payment codes (future-ready, data-driven) ────────────
+        // When Protean ships the final new-act FVU/RPU, fill tds_rules.payment_code
+        // from the official data structure document and turn on the setting below.
+        // Until then new-act forms keep the documented FVU 9.4 interim wire format.
+        private static bool _usePayCodes;
+        private static Dictionary<string, string> _payCodes = new(StringComparer.OrdinalIgnoreCase);
+
+        private static void LoadPaymentCodes()
+        {
+            _usePayCodes = false;
+            _payCodes = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                _usePayCodes = Database.GetSetting("FVU_USE_PAYMENT_CODES", "0") == "1";
+                if (!_usePayCodes) return;
+                using var conn = Database.GetConnection();
+                using var cmd  = conn.CreateCommand();
+                cmd.CommandText = "SELECT DISTINCT section_code, payment_code FROM tds_rules WHERE payment_code <> ''";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    _payCodes[r.GetString(0)] = r.GetString(1);
+            }
+            catch { _usePayCodes = false; }   // no DB (tests) → interim format
+        }
+
+        /// <summary>Section value written to new-act files: official 4-digit payment
+        /// code when enabled and mapped; otherwise the 392/393-series interim code.</summary>
+        private static string NewActFileSection(string legacySection)
+            => _usePayCodes && _payCodes.TryGetValue(legacySection ?? "", out var pc) && pc.Length > 0
+                ? pc
+                : MapToNewActSection(legacySection ?? "");
+
         // ── Public entry point ────────────────────────────────────────────────
         public static string Generate(ReturnData data)
         {
+            LoadPaymentCodes();
             return data.Header.FormType.ToUpper() switch
             {
                 "26Q"  => Build(data, "26Q",  false),
@@ -30,7 +63,9 @@ namespace CDeTDS.DAL
                 "27EQ" => Build27EQ(data),
                 "138"  => Build(data, "138",  true),   // IT Act 2025 salary — Form 138 = 24Q equivalent
                 "140"  => Build(data, "140",  true),   // IT Act 2025 non-salary — Form 140 = 26Q equivalent
+                "143"  => Build(data, "143",  true),   // IT Act 2025 TCS — Form 143 = 27EQ equivalent
                 "27Q"  => throw new NotSupportedException("27Q (non-resident TDS) is not yet supported. Coming in a future release."),
+                "144"  => throw new NotSupportedException("Form 144 (non-resident TDS, IT Act 2025) is not yet supported. Coming in a future release."),
                 _      => throw new ArgumentException($"Unknown form type: {data.Header.FormType}")
             };
         }
@@ -44,10 +79,10 @@ namespace CDeTDS.DAL
             var ay    = AssessmentYear(h.FinancialYear);
             var today = DateTime.Today.ToString("dd-MM-yyyy");
 
-            // Normalised form type for NSDL records (138→24Q equivalent, 140→26Q equivalent).
-            // We always target FVU 9.4. IT Act 2025 forms (138/140) reuse the 24Q/26Q wire format
-            // until NSDL publishes a successor FVU; only the section codes change (392/393 vs 192/194).
-            string nsdlForm = formType switch { "138" => "24Q", "140" => "26Q", _ => formType };
+            // Normalised form type for NSDL records (138→24Q, 140→26Q, 143→27EQ equivalents).
+            // We always target FVU 9.4. IT Act 2025 forms (138/140/143) reuse the old wire format
+            // until NSDL publishes a successor FVU; only the section codes change (392/393/394 vs 192/194/206C).
+            string nsdlForm = formType switch { "138" => "24Q", "140" => "26Q", "143" => "27EQ", _ => formType };
 
             // Dedupe SD records by PAN: NSDL allows exactly ONE SD per unique PAN (T-FV-2127).
             // If a caller hands us duplicate PANs, aggregate them into a single row.
@@ -495,7 +530,7 @@ namespace CDeTDS.DAL
             // Section 288B: TDS amounts must be whole rupees (paise ignored)
             string F(double v) => ((long)Math.Round(v, MidpointRounding.AwayFromZero)).ToString() + ".00";
             string F4(double v) => v.ToString("F4");
-            string section = newAct ? MapToNewActSection(d.Section) : d.Section;
+            string section = newAct ? NewActFileSection(d.Section) : d.Section;
             // 192/192A (salary) must never appear in 26Q — data error at source
             if (section == "192" || section == "192A" || section == "392" || section == "392(1)")
                 throw new InvalidOperationException($"Section {d.Section} (salary) found in 26Q return for '{d.Name}' ({d.Pan}). Salary entries belong in 24Q only. Remove this entry from TDS Entries before generating 26Q.");
@@ -590,7 +625,7 @@ namespace CDeTDS.DAL
             double sur = d.Surcharge;
             double cess = d.Cess;
             double total = tds + sur + cess;
-            string section = newAct ? "392(1)" : "92B";
+            string section = newAct ? NewActFileSection("192") : "92B";
             return PipeL(lineNo, "DD",
                 "1",                                        //  [2]: batch no
                 challanSlNo,                                //  [3]: challan sl no
@@ -783,6 +818,23 @@ namespace CDeTDS.DAL
             var errors = new List<FvuValidationError>();
             var h = data.Header;
 
+            // ── Act/form-family mixing check (Income-tax Act 2025 transition) ──
+            // Old form numbers (24Q/26Q/27Q/27EQ) must never carry TY 2026-27+ data;
+            // new form numbers (138/140/143/144) must never carry FY ≤ 2025-26 data.
+            {
+                var formU    = (h.FormType ?? "").ToUpper();
+                bool newForm = CDeTDS.Common.TaxRules.IsNewActForm(formU);
+                bool newFy   = CDeTDS.Common.TaxRules.IsNewAct(h.FinancialYear);
+                if (newFy && !newForm)
+                    errors.Add(new("FORM", "E030",
+                        $"Form {formU} belongs to the Income-tax Act 1961 and cannot be used for {CDeTDS.Common.TaxRules.YearLabel(h.FinancialYear)}. " +
+                        $"Use {CDeTDS.Common.TaxRules.FormTypeForFy(formU, h.FinancialYear)} (Income-tax Act 2025) instead.", true));
+                else if (!newFy && newForm)
+                    errors.Add(new("FORM", "E031",
+                        $"Form {formU} belongs to the Income-tax Act 2025 and cannot be used for FY {h.FinancialYear}. " +
+                        $"Use {CDeTDS.Common.TaxRules.FormTypeForFy(formU, h.FinancialYear)} (Income-tax Act 1961) instead.", true));
+            }
+
             // Deductor checks
             if (!Validators.IsValidTan(h.TanOfDeductor))
                 errors.Add(new("DEDUCTOR", "E001", $"Invalid TAN: '{h.TanOfDeductor}'. Format: AAAA99999A", true));
@@ -859,12 +911,12 @@ namespace CDeTDS.DAL
                 // 192 (salary) is invalid in 26Q
                 if ((formT == "26Q" || formT == "140") && (d.Section == "192" || d.Section == "192A"))
                     errors.Add(new("DEDUCTEE", "W025", $"Deductee '{d.Name}': Section 192 (salary) is invalid in {formT}. Move to 24Q if this is a salary payment.", false));
-                // 27EQ must only contain 206C sections
-                if (formT == "27EQ" && !d.Section.StartsWith("206C", StringComparison.OrdinalIgnoreCase))
-                    errors.Add(new("DEDUCTEE", "W026", $"Collectee '{d.Name}': Section '{d.Section}' is not a TCS section. 27EQ only allows 206C-family sections.", false));
+                // 27EQ/143 must only contain 206C sections
+                if ((formT == "27EQ" || formT == "143") && !d.Section.StartsWith("206C", StringComparison.OrdinalIgnoreCase))
+                    errors.Add(new("DEDUCTEE", "W026", $"Collectee '{d.Name}': Section '{d.Section}' is not a TCS section. {formT} only allows 206C-family sections.", false));
             }
 
-            // Reconciliation check
+            // Reconciliation check — overall
             double totalDeducted  = data.TotalTdsDeducted;
             double totalDeposited = data.Challans.Sum(c => c.TdsDeposited);
             double diff = Math.Abs(totalDeducted - totalDeposited);
@@ -872,6 +924,25 @@ namespace CDeTDS.DAL
                 errors.Add(new("RECONCILIATION", "W001",
                     $"TDS deducted (Rs {totalDeducted:N2}) differs from challan deposited (Rs {totalDeposited:N2}). Difference: Rs {diff:N2}.",
                     false));
+
+            // Reconciliation check — per challan. Each challan's deposit must match the
+            // sum of deductee rows linked to it (this is what FVU/TRACES verifies row by row).
+            foreach (var ch in data.Challans)
+            {
+                var linked = data.Deductees
+                    .Where(x => x.ChallanNo == ch.ChallanNo &&
+                                (string.IsNullOrEmpty(x.BsrCode) || x.BsrCode == ch.BsrCode))
+                    .ToList();
+                if (linked.Count == 0) continue;   // unlinked challans handled by W001 overall check
+                double linkedTds = linked.Sum(x => x.TdsDeducted + x.Surcharge + x.Cess);
+                double chDiff    = Math.Abs(linkedTds - ch.TdsDeposited);
+                if (chDiff > 1.0)
+                    errors.Add(new("RECONCILIATION", "W002",
+                        $"Challan {ch.ChallanNo} ({ch.ChallanDate:dd-MM-yyyy}): linked entries total Rs {linkedTds:N2} " +
+                        $"but challan TDS deposited is Rs {ch.TdsDeposited:N2} (difference Rs {chDiff:N2}). " +
+                        $"Fix the entries or the challan amount before filing — TRACES will flag this mismatch.",
+                        false));
+            }
 
             return errors;
         }
@@ -898,7 +969,7 @@ namespace CDeTDS.DAL
         // NSDL spec: NIL return = BH with 1 challan, CD with NilChallanInd="Y", no DD records.
         public static string GenerateNil(ReturnHeader h)
         {
-            string nsdlForm = h.FormType.ToUpper() switch { "138"=>"24Q","140"=>"26Q",_=>h.FormType.ToUpper() };
+            string nsdlForm = h.FormType.ToUpper() switch { "138"=>"24Q","140"=>"26Q","143"=>"27EQ",_=>h.FormType.ToUpper() };
             var lines = new List<string>();
             int lineNo = 0;
             string L() => (++lineNo).ToString();
@@ -1017,8 +1088,8 @@ namespace CDeTDS.DAL
 
         private static string ChallanSectionCode(string section, string nsdlForm, bool newAct)
         {
-            if (nsdlForm == "24Q") return newAct ? "392(1)" : "192";
-            if (newAct) return MapToNewActSection(section);
+            if (nsdlForm == "24Q") return newAct ? NewActFileSection("192") : "192";
+            if (newAct) return NewActFileSection(section);
             return string.IsNullOrEmpty(section) ? "194C" : section.ToUpper().Trim();
         }
 

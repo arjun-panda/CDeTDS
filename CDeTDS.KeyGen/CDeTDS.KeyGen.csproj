@@ -12,6 +12,6 @@
     <AssemblyTitle>CDeTDS Key Generator (Internal)</AssemblyTitle>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CDeTDS.DAL\CDeTDS.DAL.csproj" />
+    <ProjectReference Include="..\CDeTDS.Common\CDeTDS.Common.csproj" />
   </ItemGroup>
 </Project>

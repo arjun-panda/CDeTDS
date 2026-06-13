@@ -5,7 +5,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using CDeTDS.DAL;
+using CDeTDS.Common;
 
 internal static class EntryPoint
 {
@@ -63,7 +63,7 @@ internal static class KeySigner
         };
 
         var raw = lenBytes.Concat(payloadBytes).Concat(sig).ToArray();
-        var b32 = LicenseService.Base32Encode(raw);
+        var b32 = Base32.Encode(raw);
 
         // Format as TDSPRO-XXXXXX-XXXXXX-...
         var sb = new StringBuilder("TDSPRO");

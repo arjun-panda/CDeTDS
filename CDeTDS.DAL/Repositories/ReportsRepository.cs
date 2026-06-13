@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using CDeTDS.DAL.Models;
 
 namespace CDeTDS.DAL.Repositories
@@ -251,8 +251,8 @@ namespace CDeTDS.DAL.Repositories
 
             // Challans for quarter — filtered by form type
             // 24Q=salary only (192/192A/392), 26Q=non-salary non-TCS, 27EQ=TCS (206C family)
-            bool challanIs24Q  = formType == "24Q";
-            bool challanIs27EQ = formType == "27EQ";
+            bool challanIs24Q  = formType is "24Q" or "138";
+            bool challanIs27EQ = formType is "27EQ" or "143";
             string chSecFilter = challanIs24Q
                 ? "AND (section IN ('192','192A','392','392(1)','392(2)') OR section LIKE '192%' OR section LIKE '392%' OR section IS NULL OR section='')"
                 : challanIs27EQ
@@ -296,8 +296,8 @@ namespace CDeTDS.DAL.Repositories
             // 24Q  = salary only (192, 192A, 392)
             // 26Q  = non-salary, non-TCS
             // 27EQ = TCS only (206C family)
-            bool is24Q  = formType == "24Q";
-            bool is27EQ = formType == "27EQ";
+            bool is24Q  = formType is "24Q" or "138";
+            bool is27EQ = formType is "27EQ" or "143";
             string sectionFilter = is24Q
                 ? "AND (e.section IN ('192','192A','392','392(1)','392(2)') OR e.section LIKE '192%' OR e.section LIKE '392%')"
                 : is27EQ
@@ -391,7 +391,7 @@ namespace CDeTDS.DAL.Repositories
             var data = new ReturnData { Header = header, Challans = challans, Deductees = deductees };
 
             // For 24Q Q4: build Annexure II (SD records) from payroll_runs — annual aggregates per employee
-            if (formType == "24Q" && quarter == "Q4")
+            if ((formType is "24Q" or "138") && quarter == "Q4")
             {
                 data.SalaryDetails = BuildSalaryDetails(conn, deductorId, fy, challans, deductees);
             }

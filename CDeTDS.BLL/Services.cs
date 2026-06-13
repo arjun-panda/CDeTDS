@@ -160,12 +160,15 @@ namespace CDeTDS.BLL
             if (string.IsNullOrWhiteSpace(e.Section)) return (false, "Section is required.");
             if (e.Amount <= 0) return (false, "Amount must be greater than 0.");
 
-            // Only fill rate from rules engine if caller did not supply one
+            // Only fill rate from rules engine if caller did not supply one.
+            // YTD amount feeds the FY aggregate threshold (e.g. 194C ₹1,00,000).
             if (e.Rate <= 0)
             {
                 var rulesSvc  = new TdsRulesService();
+                var ytd       = _repo.GetYtdAmount(e.DeductorId, e.DeducteeId, e.Section, e.FinancialYear, e.Id);
                 var calcResult = rulesSvc.Calculate(e.Section, e.Amount,
-                    deducteeType: "Individual", panAvailable: true, itrFiled: true, txDate: e.EntryDate);
+                    deducteeType: "Individual", panAvailable: true, itrFiled: true, txDate: e.EntryDate,
+                    ytdAmount: ytd);
                 if (calcResult.ApplicableRate > 0)
                     e.Rate = calcResult.ApplicableRate;
             }

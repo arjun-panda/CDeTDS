@@ -43,7 +43,11 @@
 </MudGrid>
 
 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
-    Showing @FilteredItems.Count() of @_items.Count entries
+    Showing @FilteredItems.Count() of @_items.Count loaded
+    @if (_totalRows > _items.Count)
+    {
+        <span style="color:#d97706"> · @_totalRows total in DB (use date filters to narrow down)</span>
+    }
 </MudText>
 </div>
 
@@ -72,12 +76,14 @@
         public DateTime CreatedAt { get; set; }
     }
 
+    private const int PageSize = 10000;
     private List<LogEntry> _items  = new();
     private List<string>     _modules = new();
     private string   _search       = "";
     private string   _moduleFilter = "";
     private DateTime? _fromDate;
     private DateTime? _toDate;
+    private int _totalRows;
 
     private IEnumerable<LogEntry> FilteredItems => _items.Where(e =>
         (string.IsNullOrEmpty(_search) ||
@@ -94,8 +100,14 @@
         try
         {
             using var conn = CDeTDS.DAL.Database.GetConnection();
+            // Count total rows so we can warn if the display cap was hit
+            using (var cnt = conn.CreateCommand())
+            {
+                cnt.CommandText = "SELECT COUNT(*) FROM audit_log";
+                _totalRows = Convert.ToInt32(cnt.ExecuteScalar() ?? 0);
+            }
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = "SELECT username, action, module, details, created_at FROM audit_log ORDER BY created_at DESC LIMIT 2000";
+            cmd.CommandText = $"SELECT username, action, module, details, created_at FROM audit_log ORDER BY created_at DESC LIMIT {PageSize}";
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
             {

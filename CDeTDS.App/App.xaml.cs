@@ -96,9 +96,23 @@ namespace CDeTDS.App
         // Cached once per process — registry reads are slow on some systems
         private static bool? _webView2Installed = null;
 
+        // Held for the app's lifetime — guards against two instances writing the SQLite DB
+        private static System.Threading.Mutex? _singleInstanceMutex;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            // ── Single-instance guard ─────────────────────────────────────────
+            // Two CDeTDS processes writing cdetds.db concurrently risks DB corruption.
+            _singleInstanceMutex = new System.Threading.Mutex(true, @"Local\CDeTDS_SingleInstance", out bool isFirstInstance);
+            if (!isFirstInstance)
+            {
+                MessageBox.Show("CDeTDS is already running. Check the taskbar for the open window.",
+                                "CDeTDS", MessageBoxButton.OK, MessageBoxImage.Information);
+                Shutdown();
+                return;
+            }
 
             try
             {

@@ -28,11 +28,12 @@ namespace CDeTDS.BLL
             bool     isResident    = true,
             bool     panAvailable  = true,
             bool     itrFiled      = true,
-            DateTime? txDate       = null)
+            DateTime? txDate       = null,
+            double   ytdAmount     = 0)
         {
             var date = txDate ?? DateTime.Today;
             return _engine.Calculate(section, amount, deducteeType,
-                isResident, panAvailable, itrFiled, date);
+                isResident, panAvailable, itrFiled, date, ytdAmount: ytdAmount);
         }
 
         /// <summary>

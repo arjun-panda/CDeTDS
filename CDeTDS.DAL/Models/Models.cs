@@ -59,6 +59,15 @@ namespace CDeTDS.DAL.Models
         public int Id { get; set; }
         public string EntryNo { get; set; } = "";
         public DateTime EntryDate { get; set; } = DateTime.Today;
+        /// <summary>Date of credit in books (optional). May differ from EntryDate (payment).</summary>
+        public DateTime? CreditDate { get; set; }
+        /// <summary>
+        /// Trigger date deciding the governing Act and FY: the EARLIER of credit date
+        /// and payment/entry date (Income-tax Act 2025 transition rule).
+        /// </summary>
+        public DateTime TriggerDate =>
+            CreditDate.HasValue && CreditDate.Value.Date < EntryDate.Date
+                ? CreditDate.Value.Date : EntryDate.Date;
         public int DeductorId { get; set; }
         public int DeducteeId { get; set; }
         public string Section { get; set; } = "";

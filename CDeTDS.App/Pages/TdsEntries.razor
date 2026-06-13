@@ -239,6 +239,15 @@
                         @foreach (var s in AppConstants.KnownSections)
                         { <MudSelectItem Value="@s">@s</MudSelectItem> }
                     </MudSelect>
+                    @* Income-tax Act 2025: legacy 194-series codes are renumbered into the
+                       Section 393(1) table — show what this entry actually files under. *@
+                    @if (TaxRules.IsNewAct(_editing.FinancialYear) && !string.IsNullOrEmpty(_editing.Section))
+                    {
+                        var nref = TaxRules.NewActSectionRef(_editing.Section);
+                        <MudText Typo="Typo.caption" Style="color:#065f46;line-height:1.2;display:block;margin-top:2px">
+                            Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref) — IT Act 2025
+                        </MudText>
+                    }
                 </MudItem>
                 <MudItem xs="2">
                     <MudSelect @bind-Value="_editing.Quarter" Label="Qtr" Dense="true"
@@ -248,16 +257,27 @@
                     </MudSelect>
                 </MudItem>
 
-                @* Row 2 — Payment Date + Nature of Payment *@
+                @* Row 2 — Payment Date + Credit Date + Nature of Payment *@
                 <MudItem xs="4">
                     <DateField Value="_paymentDate" ValueChanged="OnDateChanged"
-                               Label="Payment / Credit Date*"
+                               Label="Payment Date*"
                                Variant="Variant.Outlined" Margin="Margin.Dense" Class="date-field" />
                 </MudItem>
-                <MudItem xs="8">
+                <MudItem xs="4">
+                    <DateField Value="_editing.CreditDate" ValueChanged="OnCreditDateChanged"
+                               Label="Credit Date (books)"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="date-field" />
+                </MudItem>
+                <MudItem xs="4">
                     <MudTextField @bind-Value="_editing.PaymentNature" Label="Nature of Payment"
                                   Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
+                @if (_fyNotice.Length > 0)
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.EventNote">@_fyNotice</MudAlert>
+                    </MudItem>
+                }
 
                 @* Row 3 — Amount, Rate, TDS *@
                 <MudItem xs="4">
@@ -365,6 +385,7 @@
     private Deductee? _selectedDeductee;
     private DateTime? _paymentDate;
     private string _saveError = "";
+    private string _fyNotice  = "";   // trigger-date rule notice (entry belongs to another FY)
     private DialogOptions _dialogOptions = new()
         { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
 
@@ -408,7 +429,7 @@
             DeductorId    = AppState.CurrentDeductorId,
             EntryDate     = DateTime.Today,
             FinancialYear = AppState.CurrentFY,
-            Quarter       = AutoQuarter(DateTime.Today),
+            Quarter       = AutoQuarterForFy(),
             Status        = "Pending"
         };
         _paymentDate      = DateTime.Today;
@@ -417,6 +438,7 @@
         _selectedDeductee = null;
         _infoChips        = new();
         _saveError        = "";
+        _fyNotice         = "";
         _dialogOpen       = true;
     }
 
@@ -427,6 +449,7 @@
             Id = e.Id, EntryNo = e.EntryNo, DeductorId = e.DeductorId,
             DeducteeId = e.DeducteeId, Section = e.Section,
             EntryDate = e.PaymentDate ?? e.EntryDate,
+            CreditDate = e.CreditDate,
             Amount = e.Amount, Rate = e.Rate, TdsAmount = e.TdsAmount,
             Surcharge = e.Surcharge, Cess = e.Cess, Interest = e.Interest,
             LateFee = e.LateFee, TotalTds = e.TotalTds, Remarks = e.Remarks,
@@ -440,6 +463,7 @@
         _selectedDeductee = _deductees.FirstOrDefault(x => x.Id == _editing.DeducteeId);
         _infoChips        = BuildInfoChips(_editing);
         _saveError   = "";
+        _fyNotice    = "";
         AutoCalcTds();   // recalculate surcharge/cess from current rules — clears stale DB values
         _dialogOpen  = true;
     }
@@ -541,8 +565,30 @@
         {
             _editing.PaymentDate = d.Value;
             _editing.EntryDate   = d.Value;
-            _editing.Quarter     = AutoQuarter(d.Value);
+            RederiveFyQuarter();
         }
+    }
+
+    void OnCreditDateChanged(DateTime? d)
+    {
+        if (_editing == null) return;
+        _editing.CreditDate = d;
+        RederiveFyQuarter();
+    }
+
+    // Trigger-date rule: FY and Quarter follow the EARLIER of credit date and
+    // payment date — never the session FY. Decides 1961 Act vs 2025 Act stream.
+    void RederiveFyQuarter()
+    {
+        if (_editing == null) return;
+        var trigger = _editing.TriggerDate;
+        _editing.FinancialYear = FolderManager.DetectFY(trigger);
+        _editing.Quarter       = FolderManager.DetectQuarter(trigger);
+        _fyNotice = _editing.FinancialYear != AppState.CurrentFY
+            ? $"Trigger date {trigger:dd-MMM-yyyy} (earlier of credit/payment) places this entry in " +
+              $"{TaxRules.YearLabel(_editing.FinancialYear)} under the {TaxRules.ActName(_editing.FinancialYear)} — " +
+              $"not the currently open FY {AppState.CurrentFY}. It will be saved there."
+            : "";
     }
 
     List<InfoChip> BuildInfoChips(TdsEntry entry)
@@ -613,13 +659,13 @@
         _editing.TotalTds = _editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee;
     }
 
-    static string AutoQuarter(DateTime date)
-    {
-        int m = date.Month;
-        return m >= 4 && m <= 6  ? "Q1" :
-               m >= 7 && m <= 9  ? "Q2" :
-               m >= 10 && m <= 12? "Q3" : "Q4";
-    }
+    static string AutoQuarter(DateTime date) =>
+        date.Month >= 4 && date.Month <= 6  ? "Q1" :
+        date.Month >= 7 && date.Month <= 9  ? "Q2" :
+        date.Month >= 10 && date.Month <= 12? "Q3" : "Q4";
+
+    string AutoQuarterForFy() =>
+        AppStateService.TodayInFyScope(AppState.CurrentFY) ? AutoQuarter(DateTime.Today) : "Q4";
 
     void Save()
     {
@@ -671,8 +717,21 @@
 
         _editing.TotalTds = _editing.TdsAmount + _editing.Surcharge + _editing.Cess + _editing.Interest + _editing.LateFee;
 
+        // Trigger-date rule: FY/Quarter follow earlier-of(credit, payment) — final derivation
+        RederiveFyQuarter();
+        var savedFy = _editing.FinancialYear;
+
         var (ok, msg) = Svc.Save(_editing);
-        if (ok) { _dialogOpen = false; Load(); AppState.NotifyStateChanged(); Snackbar.Add("TDS entry saved.", Severity.Success); }
+        if (ok)
+        {
+            _dialogOpen = false; Load(); AppState.NotifyStateChanged();
+            if (savedFy != AppState.CurrentFY)
+                Snackbar.Add($"TDS entry saved under {TaxRules.YearLabel(savedFy)} (per its credit/payment date). Switch FY to {savedFy} to view it.", Severity.Info);
+            else if (msg.Contains('⚠'))
+                Snackbar.Add(msg, Severity.Warning);   // saved, but late-deposit interest may apply
+            else
+                Snackbar.Add("TDS entry saved.", Severity.Success);
+        }
         else _saveError = msg;
     }
 

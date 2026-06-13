@@ -44,6 +44,13 @@ namespace CDeTDS.BLL
                         EffectiveFrom   = effFrom == default ? new DateTime(2026,4,1) : effFrom,
                         EffectiveTo     = null,
                         ReferenceAct    = rule.ReferenceAct,
+                        // Priority: code on the built-in rule → official RPU v1.0 mapping →
+                        // user-entered code already in DB
+                        PaymentCode     = !string.IsNullOrEmpty(rule.PaymentCode)
+                                            ? rule.PaymentCode
+                                            : BuiltInTdsRules.PaymentCodeFor(rule.SectionCode, rule.NatureOfPayment, rule.DeducteeType)
+                                              is { Length: > 0 } official ? official
+                                            : (match?.PaymentCode ?? ""),
                         Notes           = match?.Notes ?? "",
                         IsActive        = true,
                     };

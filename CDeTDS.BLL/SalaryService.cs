@@ -34,7 +34,7 @@ namespace CDeTDS.BLL
                 return (false, $"Employee {emp.Name} has no PAN — cannot create Sec 192 entry.");
 
             var payRepo = new PayrollRepository();
-            int deducteeId = payRepo.EnsureSalaryDeductee(emp);
+            int deducteeId = payRepo.EnsureSalaryDeductee(emp, deductorId);
             if (deducteeId == 0)
                 return (false, "Failed to resolve deductee for employee.");
 
@@ -44,6 +44,11 @@ namespace CDeTDS.BLL
             var tdsRepo = new CDeTDS.DAL.Repositories.TdsEntryRepository();
             var existing = tdsRepo.GetByRemarksTag(deductorId, tag)
                         ?? tdsRepo.GetSec192ByDeductee(deductorId, deducteeId, entry.FinancialYear, entry.Month);
+
+            // Delete any stale duplicates for this deductee+month (created by the old broken LIKE lookup).
+            // Keep only the one we're about to update; delete the rest.
+            if (existing != null)
+                tdsRepo.DeleteDuplicateSec192(deductorId, deducteeId, entry.FinancialYear, entry.Month, keepId: existing.Id);
 
             int dim = DateTime.DaysInMonth(entry.Year, entry.Month);
             var entryDate = new DateTime(entry.Year, entry.Month, dim);   // last day of pay month
@@ -109,6 +114,79 @@ namespace CDeTDS.BLL
                 return (false, $"Sec 192 entry already linked to challan {match.ChallanNo}. Unlink first.");
             var r = tdsRepo.Delete(match.Id);
             return (r.Ok, r.Ok ? $"Sec 192 entry removed (₹{match.TotalTds:N0})." : r.Msg);
+        }
+
+        /// <summary>
+        /// Build one MonthlySalaryStatRow per saved month for the Monthly Salary Statement report.
+        /// Annual tax figures are prorated equally across 12 months.
+        /// </summary>
+        public List<MonthlySalaryStatRow> BuildMonthlySalaryStatRows(
+            List<MonthlySalaryEntry> entries, Employee emp, string fy, TaxDeclaration decl)
+        {
+            int[] fyM = { 4,5,6,7,8,9,10,11,12,1,2,3 };
+            string[] mn = { "Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar" };
+            var byMonth = entries.ToDictionary(e => e.Month);
+            var rows = new List<MonthlySalaryStatRow>();
+            const double months = 12.0;
+
+            for (int mi = 0; mi < 12; mi++)
+            {
+                int m = fyM[mi];
+                if (!byMonth.TryGetValue(m, out var e)) continue;
+
+                AnnualComputation ann;
+                try { ann = ComputeMonth(e, emp, fy, decl); }
+                catch { ann = new AnnualComputation(); }
+
+                var r = ann.ChosenRegime == "Old" ? ann.OldRegime : ann.NewRegime;
+                var o = ann.OldRegime;
+
+                e.RecalcGross();
+                double gross   = e.GrossPayment;
+                double hraEx   = Math.Round(r.HraExemption / months);
+                double otherEx = Math.Round(r.Sec10Items.Where(x => x.Name != "HRA")
+                    .Sum(x => ann.ChosenRegime == "Old" ? x.OldRegime : x.NewRegime) / months);
+                double totalEx    = hraEx + otherEx;
+                double netTaxSal  = Math.Max(0, gross - totalEx);
+                double stdDed     = Math.Round(r.StandardDeduction / months);
+                double pt         = e.ProfessionalTax;
+                double chap6a     = Math.Round((ann.ChosenRegime == "Old" ? o.Chapter6A : 0) / months);
+                double nps2       = Math.Round(r.NpsEmployer80CCD2 / months);
+                double totalDed   = stdDed + pt + chap6a + nps2;
+                double otherSrc   = Math.Round(r.IncomeOtherSources / months);
+                double nti        = Math.Max(0, netTaxSal - totalDed + otherSrc);
+                double taxOnInc   = Math.Round(r.TaxOnIncome    / months);
+                double rebate87a  = Math.Round(r.Rebate87A      / months);
+                double taxAfReb   = Math.Round(r.TaxAfterRebate / months);
+                double surcharge  = Math.Round(r.Surcharge      / months);
+                double cess       = Math.Round(r.Cess           / months);
+                double totalTax   = Math.Round(r.TotalTax       / months);
+                // Named line items + residual OtherAllowances bucket
+                double varEarnSum   = e.LineItems.Where(l => l.Category == "varEarn").Sum(l => l.Taxable);
+                double otherLineSum = e.LineItems.Where(l => l.Category == "other").Sum(l => l.Taxable + l.Exempt);
+                double otherBalance = Math.Max(0, e.OtherAllowances - varEarnSum - otherLineSum);
+                double otherTotal   = varEarnSum + otherLineSum + otherBalance;  // all unnamed remainder
+
+                rows.Add(new MonthlySalaryStatRow(
+                    MonthLabel: mn[mi],
+                    Basic: e.Basic, Hra: e.HRA, Da: e.DaAmount,
+                    Special: e.SpecialAllowance, Medical: e.MedicalAllowance,
+                    Lta: e.Lta,
+                    Bonus: e.Bonus, Commission: e.Commission,
+                    AdvanceSalary: e.AdvanceSalary, Arrears: e.Arrears,
+                    NpsEmployer: e.NpsEmployer, PerqTaxable: e.PerqTaxable, LeaveEncTaxable: e.LeaveEncTaxable,
+                    Other: otherTotal, GrossTotal: gross,
+                    HraEx: hraEx, OtherEx: otherEx, TotalEx: totalEx,
+                    NetTaxableSalary: netTaxSal,
+                    StdDed: stdDed, ProfTax: pt, Chap6A: chap6a, Nps80CCD2: nps2, TotalDed: totalDed,
+                    OtherSources: otherSrc, NetTaxableIncome: nti,
+                    TaxOnIncome: taxOnInc, Rebate87A: rebate87a, TaxAfterRebate: taxAfReb,
+                    Surcharge: surcharge, Cess: cess, TotalTax: totalTax,
+                    TdsDeducted: e.TdsDeducted,
+                    Pf: e.PfEmployee + e.VPF, Esi: e.EsiEmployee, NetPay: e.NetSalary
+                ));
+            }
+            return rows;
         }
 
         public MonthlySalaryEntry? Get(int empId, string fy, int month) => _repo.Get(empId, fy, month);

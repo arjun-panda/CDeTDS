@@ -1,7 +1,7 @@
 namespace CDeTDS.Common
 {
     // ══════════════════════════════════════════════════════════════════════════
-    // TDSPro Tax Rules — verified against incometax.gov.in, Finance Acts 2020-2026
+    // CDeTDS Tax Rules — verified against incometax.gov.in, Finance Acts 2020-2026
     // Last audit: April 2026
     // Key sources:
     //   incometax.gov.in/iec/foportal/help/individual/return-applicable-1  (Salaried <60)
@@ -418,6 +418,66 @@ namespace CDeTDS.Common
             => IsNewAct(fy) ? "Form 140" : "Form 26Q";
 
         /// <summary>
+        /// Quarterly TCS return form.
+        /// FY ≤ 2025-26 → Form 27EQ   |   FY ≥ 2026-27 → Form 143
+        /// </summary>
+        public static string TcsReturnForm(string fy)
+            => IsNewAct(fy) ? "Form 143" : "Form 27EQ";
+
+        /// <summary>
+        /// Quarterly non-resident TDS return form.
+        /// FY ≤ 2025-26 → Form 27Q   |   FY ≥ 2026-27 → Form 144
+        /// </summary>
+        public static string NonResidentReturnForm(string fy)
+            => IsNewAct(fy) ? "Form 144" : "Form 27Q";
+
+        /// <summary>
+        /// Year prefix label: "FY 2025-26" (old act) vs "TY 2026-27" (new act — Tax Year
+        /// replaces FY/AY under the Income-tax Act 2025).
+        /// </summary>
+        public static string YearLabel(string fy)
+            => (IsNewAct(fy) ? "TY " : "FY ") + fy;
+
+        /// <summary>
+        /// Maps a return form code to the FY-correct code. Old codes upgrade for
+        /// FY ≥ 2026-27 (24Q→138, 26Q→140, 27EQ→143, 27Q→144); new codes downgrade
+        /// for FY ≤ 2025-26. Unknown codes pass through unchanged.
+        /// </summary>
+        public static string FormTypeForFy(string formType, string fy)
+        {
+            var f = (formType ?? "").Trim().ToUpperInvariant();
+            return IsNewAct(fy)
+                ? f switch { "24Q" => "138", "26Q" => "140", "27EQ" => "143", "27Q" => "144", _ => f }
+                : f switch { "138" => "24Q", "140" => "26Q", "143" => "27EQ", "144" => "27Q", _ => f };
+        }
+
+        /// <summary>True if the form code belongs to the Income-tax Act 2025 family.</summary>
+        public static bool IsNewActForm(string formType)
+            => (formType ?? "").Trim() is "138" or "140" or "143" or "144" or "141";
+
+        /// <summary>
+        /// Return form codes selectable for a given FY.
+        /// FY ≤ 2025-26 → 24Q/26Q/27EQ   |   FY ≥ 2026-27 → 138/140/143
+        /// (27Q/144 non-resident returns not yet supported.)
+        /// </summary>
+        public static string[] ReturnFormTypesForFy(string fy)
+            => IsNewAct(fy) ? new[] { "138", "140", "143" } : new[] { "24Q", "26Q", "27EQ" };
+
+        /// <summary>Display label for a return form code, e.g. "138 — Salary (was 24Q)".</summary>
+        public static string ReturnFormLabel(string formType) => (formType ?? "").Trim() switch
+        {
+            "24Q"  => "24Q — Salary",
+            "26Q"  => "26Q — Non-Salary",
+            "27EQ" => "27EQ — TCS",
+            "27Q"  => "27Q — Non-Resident",
+            "138"  => "138 — Salary (was 24Q)",
+            "140"  => "140 — Non-Salary (was 26Q)",
+            "143"  => "143 — TCS (was 27EQ)",
+            "144"  => "144 — Non-Resident (was 27Q)",
+            var f  => f,
+        };
+
+        /// <summary>
         /// Annual Information Statement form.
         /// FY ≤ 2025-26 → Form 26AS   |   FY ≥ 2026-27 → Form 168
         /// </summary>
@@ -439,15 +499,17 @@ namespace CDeTDS.Common
             => IsNewAct(fy) ? "Section 393(1)" : "Section 194";
 
         /// <summary>
-        /// Assessment Year / Tax Year label for display.
-        /// FY 2025-26 → AY 2026-27   |   FY 2026-27 → TY 2027-28
+        /// Assessment Year / Tax Year label for display (prefix included).
+        /// FY 2025-26 → "AY 2026-27".
+        /// FY ≥ 2026-27 → "TY 2026-27": the Income-tax Act 2025 ABOLISHES the
+        /// Assessment Year; the Tax Year equals the financial year itself.
         /// </summary>
         public static string AssessmentYearLabel(string fy)
         {
             if (string.IsNullOrEmpty(fy) || fy.Length < 4) return "";
+            if (IsNewAct(fy)) return $"TY {fy}";
             if (!int.TryParse(fy[..4], out int y)) return "";
-            string range = $"{y+1}-{(y+2).ToString()[^2..]}";
-            return IsNewAct(fy) ? $"TY {range}" : $"AY {range}";
+            return $"AY {y + 1}-{(y + 2).ToString()[^2..]}";
         }
 
         /// <summary>Full act name for display in reports and certificates.</summary>
@@ -489,6 +551,13 @@ namespace CDeTDS.Common
             ["206AB"]  = "Section 397(3) — Higher Rate (ITR not filed)",
             ["206CCA"] = "Section 398(3) — Higher Rate TCS (ITR not filed)",
         };
+
+        /// <summary>
+        /// Income-tax Act 2025 reference for a legacy section code (e.g. "194C" →
+        /// "Section 393(1) Sl.6 — Payment to Contractor"). Empty if unmapped.
+        /// </summary>
+        public static string NewActSectionRef(string sectionCode)
+            => NewActSectionMap.TryGetValue(sectionCode ?? "", out var mapped) ? mapped : "";
 
         /// <summary>
         /// Returns FY-aware section label for display next to section dropdown.

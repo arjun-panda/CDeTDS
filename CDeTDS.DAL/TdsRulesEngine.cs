@@ -89,6 +89,17 @@ namespace CDeTDS.DAL
         }
 
         // ── Full TDS calculation with all 2026 rules applied ─────────────────
+        /// <summary>
+        /// Pure threshold rule (testable): TDS does NOT apply only when the single payment
+        /// is below the single-payment threshold AND, where an FY aggregate limit exists,
+        /// the year-to-date total including this payment stays below the aggregate limit.
+        /// e.g. 194C: ₹30,000 single OR ₹1,00,000 aggregate in the year.
+        /// </summary>
+        public static bool IsBelowThreshold(double singleLimit, double aggregateLimit,
+                                            double grossAmount, double ytdAmount)
+            => singleLimit > 0 && grossAmount < singleLimit
+               && (aggregateLimit <= 0 || ytdAmount + grossAmount < aggregateLimit);
+
         public TdsCalculationResult Calculate(
             string   sectionCode,
             double   grossAmount,
@@ -97,7 +108,8 @@ namespace CDeTDS.DAL
             bool     panAvailable,
             bool     itrFiled,
             DateTime transactionDate,
-            string?  overrideNature = null)
+            string?  overrideNature = null,
+            double   ytdAmount      = 0)
         {
             var result = new TdsCalculationResult
             {
@@ -120,13 +132,24 @@ namespace CDeTDS.DAL
             result.NatureOfPayment = overrideNature ?? rule.NatureOfPayment;
             result.RuleApplied     = $"Rule #{rule.Id} — {rule.ReferenceAct}";
 
-            // ── Step 2: Threshold check ───────────────────────────────────────
-            if (rule.ThresholdLimit > 0 && grossAmount < rule.ThresholdLimit)
+            // ── Step 2: Threshold check (single payment + FY aggregate) ──────
+            if (IsBelowThreshold(rule.ThresholdLimit, rule.AggregateLimit, grossAmount, ytdAmount))
             {
                 result.BelowThreshold = true;
                 result.Warnings.Add($"Amount Rs {grossAmount:N0} is below threshold " +
-                                    $"Rs {rule.ThresholdLimit:N0} for Section {sectionCode}. No TDS applicable.");
+                                    $"Rs {rule.ThresholdLimit:N0} for Section {sectionCode}. No TDS applicable." +
+                                    (rule.AggregateLimit > 0
+                                        ? $" (FY aggregate so far Rs {ytdAmount:N0} of Rs {rule.AggregateLimit:N0} limit.)"
+                                        : ""));
                 return result;
+            }
+            if (rule.ThresholdLimit > 0 && grossAmount < rule.ThresholdLimit
+                && rule.AggregateLimit > 0 && ytdAmount + grossAmount >= rule.AggregateLimit)
+            {
+                result.Warnings.Add(
+                    $"Single payment Rs {grossAmount:N0} is below the Rs {rule.ThresholdLimit:N0} per-payment threshold, " +
+                    $"but FY aggregate Rs {ytdAmount + grossAmount:N0} crosses the Rs {rule.AggregateLimit:N0} aggregate limit " +
+                    $"for Section {sectionCode} — TDS applies on this and subsequent payments.");
             }
 
             // ── Step 3: Determine applicable rate ─────────────────────────────
@@ -226,25 +249,27 @@ namespace CDeTDS.DAL
                 {
                     cmd.CommandText = @"INSERT INTO tds_rules
                         (section_code,nature_of_payment,deductee_type,is_resident,
-                         threshold_limit,tds_rate,surcharge_rate,cess_rate,
+                         threshold_limit,aggregate_limit,payment_code,tds_rate,surcharge_rate,cess_rate,
                          effective_from,effective_to,reference_act,notes,is_active)
-                        VALUES(@sc,@np,@dt,@ir,@th,@tr,@sr,@cr,@ef,@et,@ra,@nt,1)";
+                        VALUES(@sc,@np,@dt,@ir,@th,@agg,@pc,@tr,@sr,@cr,@ef,@et,@ra,@nt,1)";
                 }
                 else
                 {
                     cmd.CommandText = @"UPDATE tds_rules SET
                         section_code=@sc, nature_of_payment=@np, deductee_type=@dt,
-                        is_resident=@ir, threshold_limit=@th, tds_rate=@tr,
+                        is_resident=@ir, threshold_limit=@th, aggregate_limit=@agg, payment_code=@pc, tds_rate=@tr,
                         surcharge_rate=@sr, cess_rate=@cr, effective_from=@ef,
                         effective_to=@et, reference_act=@ra, notes=@nt
                         WHERE id=@id";
                     cmd.Parameters.AddWithValue("@id", rule.Id);
                 }
+                cmd.Parameters.AddWithValue("@pc", rule.PaymentCode ?? "");
                 cmd.Parameters.AddWithValue("@sc", rule.SectionCode.ToUpper());
                 cmd.Parameters.AddWithValue("@np", rule.NatureOfPayment);
                 cmd.Parameters.AddWithValue("@dt", rule.DeducteeType);
                 cmd.Parameters.AddWithValue("@ir", rule.IsResident ? 1 : 0);
                 cmd.Parameters.AddWithValue("@th", rule.ThresholdLimit);
+                cmd.Parameters.AddWithValue("@agg", rule.AggregateLimit);
                 cmd.Parameters.AddWithValue("@tr", rule.TdsRate);
                 cmd.Parameters.AddWithValue("@sr", rule.SurchargeRate);
                 cmd.Parameters.AddWithValue("@cr", rule.CessRate);
@@ -274,6 +299,26 @@ namespace CDeTDS.DAL
         private static bool IsExemptSection(string s) =>
             s is "192" or "192A" or "194B" or "194BB" or "194BA" or "195";
 
+        private static double SafeGetDouble(SqliteDataReader r, string col)
+        {
+            try
+            {
+                int ord = r.GetOrdinal(col);
+                return r.IsDBNull(ord) ? 0 : r.GetDouble(ord);
+            }
+            catch (ArgumentOutOfRangeException) { return 0; }
+        }
+
+        private static string SafeGetString(SqliteDataReader r, string col)
+        {
+            try
+            {
+                int ord = r.GetOrdinal(col);
+                return r.IsDBNull(ord) ? "" : r.GetString(ord);
+            }
+            catch (ArgumentOutOfRangeException) { return ""; }
+        }
+
         private static TdsRule MapRule(SqliteDataReader r) => new()
         {
             Id              = r.GetInt32(r.GetOrdinal("id")),
@@ -282,6 +327,8 @@ namespace CDeTDS.DAL
             DeducteeType    = r.IsDBNull(r.GetOrdinal("deductee_type"))   ? "All" : r.GetString(r.GetOrdinal("deductee_type")),
             IsResident      = r.GetInt32(r.GetOrdinal("is_resident")) == 1,
             ThresholdLimit  = r.IsDBNull(r.GetOrdinal("threshold_limit")) ? 0 : r.GetDouble(r.GetOrdinal("threshold_limit")),
+            AggregateLimit  = SafeGetDouble(r, "aggregate_limit"),
+            PaymentCode     = SafeGetString(r, "payment_code"),
             TdsRate         = r.GetDouble(r.GetOrdinal("tds_rate")),
             SurchargeRate   = r.IsDBNull(r.GetOrdinal("surcharge_rate"))  ? 0 : r.GetDouble(r.GetOrdinal("surcharge_rate")),
             CessRate        = r.IsDBNull(r.GetOrdinal("cess_rate"))       ? 0 : r.GetDouble(r.GetOrdinal("cess_rate")),

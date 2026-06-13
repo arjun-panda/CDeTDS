@@ -66,9 +66,9 @@ namespace CDeTDS.BLL
             if (!string.IsNullOrWhiteSpace(e.PinCode) && !Validators.IsValidPin(e.PinCode))
                 v.AddWarning($"PIN '{e.PinCode}' isn't a valid 6-digit Indian pincode.");
 
-            // Tax regime sanity
-            if (e.TaxRegime != "Old" && e.TaxRegime != "New")
-                v.AddError($"Tax Regime '{e.TaxRegime}' must be Old or New.");
+            // Tax regime sanity — empty string means auto-optimal (pick whichever regime is lower tax)
+            if (!string.IsNullOrEmpty(e.TaxRegime) && e.TaxRegime != "Old" && e.TaxRegime != "New")
+                v.AddError($"Tax Regime '{e.TaxRegime}' must be Old, New, or blank (auto).");
 
             // HRA city type
             if (!string.IsNullOrWhiteSpace(e.HraCityType)

@@ -146,9 +146,11 @@ namespace CDeTDS.DAL.Repositories
             var list = new List<Deductee>();
             using var conn = Database.GetConnection();
             using var cmd = conn.CreateCommand();
+            // source='payroll' rows are auto-created salary deductees — excluded from vendor master
+            // unless explicitly requested (e.g. TDS Entries autocomplete needs both).
             cmd.CommandText = includeEmployees
                 ? "SELECT * FROM deductees ORDER BY name"
-                : "SELECT * FROM deductees WHERE (deductee_code IS NULL OR deductee_code NOT LIKE 'EMP-%') ORDER BY name";
+                : "SELECT * FROM deductees WHERE COALESCE(source,'manual') <> 'payroll' ORDER BY name";
             using var r = cmd.ExecuteReader();
             while (r.Read()) list.Add(Map(r));
             return list;
@@ -300,15 +302,47 @@ namespace CDeTDS.DAL.Repositories
                 }
 
                 // Validate challan_no exists for this deductor (skip if blank or Adjusted)
+                string lateDepositNote = "";
                 if (!string.IsNullOrEmpty(e.ChallanNo) && e.Status != "Adjusted")
                 {
                     using var chkCmd = conn.CreateCommand();
-                    chkCmd.CommandText = "SELECT COUNT(1) FROM challans WHERE challan_no=@cn AND deductor_id=@did";
+                    chkCmd.CommandText = "SELECT challan_date FROM challans WHERE challan_no=@cn AND deductor_id=@did LIMIT 1";
                     chkCmd.Parameters.AddWithValue("@cn",  e.ChallanNo);
                     chkCmd.Parameters.AddWithValue("@did", e.DeductorId);
-                    var exists = (long)(chkCmd.ExecuteScalar() ?? 0L);
-                    if (exists == 0)
+                    var chDateRaw = chkCmd.ExecuteScalar() as string;
+                    if (chDateRaw == null)
                         return (false, $"Challan '{e.ChallanNo}' not found. Add it in Challans first.");
+
+                    // Late-deposit check: deposit due 7th of next month (30 Apr for March deductions)
+                    if (DateTime.TryParse(chDateRaw, out var challanDate))
+                    {
+                        var due = e.DueDate ?? (e.EntryDate.Month == 3
+                            ? new DateTime(e.EntryDate.Year + 1, 4, 30)
+                            : new DateTime(e.EntryDate.Month == 12 ? e.EntryDate.Year + 1 : e.EntryDate.Year,
+                                           e.EntryDate.Month == 12 ? 1 : e.EntryDate.Month + 1, 7));
+                        if (challanDate.Date > due.Date)
+                        {
+                            int lateMonths = (challanDate.Year - due.Year) * 12 + challanDate.Month - due.Month
+                                             + (challanDate.Day > due.Day ? 1 : 0);
+                            lateMonths = Math.Max(1, lateMonths);
+                            lateDepositNote = $" ⚠ Challan {e.ChallanNo} was deposited on {challanDate:dd-MMM-yyyy}, " +
+                                $"after the due date {due:dd-MMM-yyyy} — interest u/s 201(1A) at 1.5%/month " +
+                                $"(~{lateMonths} month(s)) may apply. Use the Interest Calculator to compute it.";
+                        }
+                    }
+                }
+
+                // ── Trigger-date rule (Income-tax Act 2025 transition) ───────────
+                // FY and Quarter are derived from the EARLIER of credit date and
+                // payment/entry date — never from the caller's session. A March-2026
+                // credit paid in April 2026 must stay in the old-Act (1961) stream.
+                var derivedFy = FolderManager.DetectFY(e.TriggerDate);
+                var derivedQt = FolderManager.DetectQuarter(e.TriggerDate);
+                if (e.FinancialYear != derivedFy || e.Quarter != derivedQt)
+                {
+                    TdsLog.Write($"[DAL.Save] FY/Quarter corrected from trigger date {e.TriggerDate:yyyy-MM-dd}: {e.FinancialYear}/{e.Quarter} → {derivedFy}/{derivedQt}");
+                    e.FinancialYear = derivedFy;
+                    e.Quarter       = derivedQt;
                 }
 
                 using var cmd = conn.CreateCommand();
@@ -319,16 +353,16 @@ namespace CDeTDS.DAL.Repositories
                     var cnt = (long)(c2.ExecuteScalar() ?? 0L);
                     e.EntryNo = $"TDS{cnt + 1:D6}";
                     cmd.CommandText = @"INSERT INTO tds_entries
-                        (entry_no,entry_date,deductor_id,deductee_id,section,nature_of_payment,
+                        (entry_no,entry_date,credit_date,deductor_id,deductee_id,section,nature_of_payment,
                          amount,rate,tds_amount,surcharge,cess,total_tds,due_date,payment_date,
                          interest,late_fee,challan_no,remarks,status,financial_year,quarter)
-                        VALUES(@en,@ed,@di,@dei,@s,@pn,@am,@ra,@ta,@su,@ce,@tt,
+                        VALUES(@en,@ed,@crd,@di,@dei,@s,@pn,@am,@ra,@ta,@su,@ce,@tt,
                                @dd,@pd,@in,@lf,@cn,@rm,@st,@fy,@qt)";
                 }
                 else
                 {
                     cmd.CommandText = @"UPDATE tds_entries SET
-                        entry_date=@ed,deductor_id=@di,deductee_id=@dei,section=@s,
+                        entry_date=@ed,credit_date=@crd,deductor_id=@di,deductee_id=@dei,section=@s,
                         nature_of_payment=@pn,amount=@am,rate=@ra,tds_amount=@ta,
                         surcharge=@su,cess=@ce,total_tds=@tt,due_date=@dd,
                         payment_date=@pd,interest=@in,late_fee=@lf,challan_no=@cn,
@@ -338,6 +372,7 @@ namespace CDeTDS.DAL.Repositories
                 }
                 cmd.Parameters.AddWithValue("@en", e.EntryNo);
                 cmd.Parameters.AddWithValue("@ed", e.EntryDate.ToString("yyyy-MM-dd"));
+                cmd.Parameters.AddWithValue("@crd", e.CreditDate?.ToString("yyyy-MM-dd") ?? "");
                 cmd.Parameters.AddWithValue("@di", e.DeductorId);
                 cmd.Parameters.AddWithValue("@dei",e.DeducteeId);
                 cmd.Parameters.AddWithValue("@s",  e.Section);
@@ -359,25 +394,78 @@ namespace CDeTDS.DAL.Repositories
                 cmd.Parameters.AddWithValue("@qt", e.Quarter);
                 cmd.ExecuteNonQuery();
                 TdsLog.Write($"[DAL.Save] Wrote to DB — Id={e.Id} EntryNo={e.EntryNo} Section={e.Section} Amount={e.Amount} Rate={e.Rate} TdsAmount={e.TdsAmount} Surcharge={e.Surcharge} Cess={e.Cess} TotalTds={e.TotalTds} Interest={e.Interest} LateFee={e.LateFee}");
-                return (true, "Entry saved.");
+                return (true, "Entry saved." + lateDepositNote);
             }
             catch (Exception ex) { return (false, ex.Message); }
+        }
+
+        /// <summary>
+        /// Year-to-date gross amount paid to a deductee under a section (for FY aggregate
+        /// threshold checks, e.g. 194C ₹1,00,000). Excludes the entry being edited.
+        /// </summary>
+        public double GetYtdAmount(int deductorId, int deducteeId, string section, string fy, int excludeEntryId = 0)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd  = conn.CreateCommand();
+                cmd.CommandText = @"SELECT COALESCE(SUM(amount),0) FROM tds_entries
+                                    WHERE deductor_id=@did AND deductee_id=@ddid
+                                      AND section=@s AND financial_year=@fy AND id<>@ex";
+                cmd.Parameters.AddWithValue("@did",  deductorId);
+                cmd.Parameters.AddWithValue("@ddid", deducteeId);
+                cmd.Parameters.AddWithValue("@s",    section);
+                cmd.Parameters.AddWithValue("@fy",   fy);
+                cmd.Parameters.AddWithValue("@ex",   excludeEntryId);
+                return Convert.ToDouble(cmd.ExecuteScalar() ?? 0.0);
+            }
+            catch { return 0; }
         }
 
         public TdsEntry? GetByRemarksTag(int deductorId, string tag)
         {
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
+            // Use INSTR (exact substring match) instead of LIKE — the tag contains '[' which
+            // SQLite LIKE treats as a character-class wildcard, so LIKE never matches.
             cmd.CommandText = @"SELECT e.*, d.company_name as deductor_name,
                                        dd.name as deductee_name, dd.pan as deductee_pan
                                 FROM tds_entries e
                                 LEFT JOIN deductors d  ON e.deductor_id = d.id
                                 LEFT JOIN deductees dd ON e.deductee_id = dd.id
-                                WHERE e.deductor_id=@did AND e.remarks LIKE @tag LIMIT 1";
+                                WHERE e.deductor_id=@did AND INSTR(e.remarks, @tag) > 0 LIMIT 1";
             cmd.Parameters.AddWithValue("@did", deductorId);
-            cmd.Parameters.AddWithValue("@tag", $"%{tag}%");
+            cmd.Parameters.AddWithValue("@tag", tag);
             using var r = cmd.ExecuteReader();
             return r.Read() ? Map(r) : null;
+        }
+
+        /// <summary>
+        /// Remove duplicate auto-created Sec 192 entries for the same deductee+month,
+        /// keeping only the row with <paramref name="keepId"/>. Only deletes rows that
+        /// are still Pending and have no challan linked.
+        /// </summary>
+        public void DeleteDuplicateSec192(int deductorId, int deducteeId, string fy, int month, int keepId)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd  = conn.CreateCommand();
+                cmd.CommandText = @"DELETE FROM tds_entries
+                    WHERE deductor_id=@did AND deductee_id=@ddid
+                      AND financial_year=@fy AND section='192'
+                      AND strftime('%m', entry_date) = printf('%02d', @month)
+                      AND id <> @keep
+                      AND (challan_no IS NULL OR challan_no='')
+                      AND status='Pending'";
+                cmd.Parameters.AddWithValue("@did",   deductorId);
+                cmd.Parameters.AddWithValue("@ddid",  deducteeId);
+                cmd.Parameters.AddWithValue("@fy",    fy);
+                cmd.Parameters.AddWithValue("@month", month);
+                cmd.Parameters.AddWithValue("@keep",  keepId);
+                cmd.ExecuteNonQuery();
+            }
+            catch { }
         }
 
         // Fallback lookup for Sec 192 entries when remarks tag doesn't match (e.g. after data migration)
@@ -452,6 +540,7 @@ namespace CDeTDS.DAL.Repositories
                 Id            = r.GetInt32(r.GetOrdinal("id")),
                 EntryNo       = r.GetString(r.GetOrdinal("entry_no")),
                 EntryDate     = DateTime.Parse(r.GetString(r.GetOrdinal("entry_date"))),
+                CreditDate    = DateTime.TryParse(SafeGetString(r, "credit_date"), out var crd) ? crd : null,
                 DeductorId    = r.GetInt32(r.GetOrdinal("deductor_id")),
                 DeducteeId    = r.GetInt32(r.GetOrdinal("deductee_id")),
                 Section       = r.GetString(r.GetOrdinal("section")),

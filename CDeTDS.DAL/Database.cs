@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using CDeTDS.Common;
 
 namespace CDeTDS.DAL
@@ -11,7 +11,7 @@ namespace CDeTDS.DAL
         public static string DbPath => _dbPath;
 
         // Current schema version — bump this when adding new migrations
-        private const int SchemaVersion = 19;
+        private const int SchemaVersion = 21;
 
         /// <summary>
         /// Fast path: creates tables + seeds. Returns immediately so the window can show.
@@ -99,11 +99,64 @@ namespace CDeTDS.DAL
                 Add("tax_declarations", "rent_paid",             "REAL DEFAULT 0");
 
                 // employees
-                Add("employees", "hra_city_type",       "TEXT DEFAULT 'Non-Metro'");
-                Add("employees", "hra_monthly_basis",   "INTEGER DEFAULT 0");
-                Add("employees", "da_for_retirement",   "INTEGER DEFAULT 0");
-                Add("employees", "is_differently_abled","INTEGER DEFAULT 0");
-                Add("employees", "tax_regime",          "TEXT DEFAULT 'New'");
+                Add("employees", "hra_city_type",                "TEXT DEFAULT 'Non-Metro'");
+                Add("employees", "hra_monthly_basis",            "INTEGER DEFAULT 0");
+                Add("employees", "da_for_retirement",            "INTEGER DEFAULT 0");
+                Add("employees", "is_differently_abled",         "INTEGER DEFAULT 0");
+                Add("employees", "tax_regime",                   "TEXT DEFAULT 'New'");
+                Add("employees", "fathers_name",                 "TEXT DEFAULT ''");
+                Add("employees", "date_of_birth",                "TEXT DEFAULT ''");
+                Add("employees", "sex",                          "TEXT DEFAULT 'Male'");
+                Add("employees", "pf_number",                    "TEXT DEFAULT ''");
+                Add("employees", "ward_circle_range",            "TEXT DEFAULT ''");
+                Add("employees", "std_code",                     "TEXT DEFAULT ''");
+                Add("employees", "telephone_no",                 "TEXT DEFAULT ''");
+                Add("employees", "flat_door_block_no",           "TEXT DEFAULT ''");
+                Add("employees", "premises_building_village",    "TEXT DEFAULT ''");
+                Add("employees", "road_street_post_office",      "TEXT DEFAULT ''");
+                Add("employees", "area_locality",                "TEXT DEFAULT ''");
+                Add("employees", "town_city_district",           "TEXT DEFAULT ''");
+                Add("employees", "pin_code",                     "TEXT DEFAULT ''");
+                Add("employees", "state",                        "TEXT DEFAULT ''");
+                Add("employees", "aadhaar_number",               "TEXT DEFAULT ''");
+                Add("employees", "residential_status",           "TEXT DEFAULT 'Resident'");
+                Add("employees", "marital_status",               "TEXT DEFAULT 'Single'");
+                Add("employees", "blood_group",                  "TEXT DEFAULT ''");
+                Add("employees", "employment_type",              "TEXT DEFAULT 'Permanent'");
+                Add("employees", "work_email",                   "TEXT DEFAULT ''");
+                Add("employees", "emergency_contact",            "TEXT DEFAULT ''");
+                Add("employees", "emergency_mobile",             "TEXT DEFAULT ''");
+                Add("employees", "uan",                          "TEXT DEFAULT ''");
+                Add("employees", "esi_ip_number",                "TEXT DEFAULT ''");
+                Add("employees", "bank_name",                    "TEXT DEFAULT ''");
+                Add("employees", "bank_branch",                  "TEXT DEFAULT ''");
+                Add("employees", "bank_account_type",            "TEXT DEFAULT 'Savings'");
+                Add("employees", "prev_employer_name",           "TEXT DEFAULT ''");
+                Add("employees", "prev_employer_income",         "REAL DEFAULT 0");
+                Add("employees", "prev_employer_tds",            "REAL DEFAULT 0");
+
+                // salary_structures
+                Add("salary_structures", "medical_allowance",  "REAL DEFAULT 0");
+                Add("salary_structures", "lta",                "REAL DEFAULT 0");
+                Add("salary_structures", "pf_fixed_amount",    "REAL DEFAULT 0");
+                Add("salary_structures", "reimb_telephone",    "REAL DEFAULT 0");
+                Add("salary_structures", "reimb_fuel",         "REAL DEFAULT 0");
+                Add("salary_structures", "reimb_books",        "REAL DEFAULT 0");
+                Add("salary_structures", "reimb_meal",         "REAL DEFAULT 0");
+                Add("salary_structures", "reimb_uniform",      "REAL DEFAULT 0");
+                Add("salary_structures", "annual_bonus",       "REAL DEFAULT 0");
+                Add("salary_structures", "annual_incentive",   "REAL DEFAULT 0");
+                Add("salary_structures", "employer_insurance", "REAL DEFAULT 0");
+                Add("salary_structures", "employer_nps",       "REAL DEFAULT 0");
+                Add("salary_structures", "target_ctc",         "REAL DEFAULT 0");
+                Add("salary_structures", "include_gratuity",   "INTEGER DEFAULT 1");
+
+                // payroll_runs
+                Add("payroll_runs", "pro_rata_days",  "INTEGER DEFAULT 0");
+                Add("payroll_runs", "pro_rata_total", "INTEGER DEFAULT 0");
+                Add("payroll_runs", "medical",        "REAL DEFAULT 0");
+                Add("payroll_runs", "lta",            "REAL DEFAULT 0");
+                Add("payroll_runs", "rebate87a",      "REAL DEFAULT 0");
 
                 // deduction_schedules (new in v16)
                 Add("deduction_schedules", "type",               "TEXT NOT NULL DEFAULT 'Other'");
@@ -120,6 +173,46 @@ namespace CDeTDS.DAL
                 Add("deduction_schedules", "last_posted_fy",      "TEXT NOT NULL DEFAULT ''");
                 Add("deduction_schedules", "last_posted_month",   "INTEGER NOT NULL DEFAULT 0");
                 Add("deduction_schedules", "last_posted_amt",     "REAL NOT NULL DEFAULT 0");
+
+                // deductees — source column: 'manual' (user-entered) vs 'payroll' (auto-created from employee)
+                Add("deductees", "source", "TEXT NOT NULL DEFAULT 'manual'");
+
+                // tds_entries — date of credit in books (nullable). The governing Act/FY
+                // is decided by the EARLIER of credit date and payment date (trigger-date rule).
+                Add("tds_entries", "credit_date", "TEXT");
+
+                // tds_rules — FY aggregate threshold (e.g. 194C: ₹30,000 single OR ₹1,00,000 aggregate)
+                Add("tds_rules", "aggregate_limit", "REAL DEFAULT 0");
+                // tds_rules — IT Act 2025 payment code (filled from official Protean doc when released)
+                Add("tds_rules", "payment_code", "TEXT DEFAULT ''");
+                using (var agg = conn.CreateCommand())
+                {
+                    // Idempotent seed — CLAUDE.md domain rule: contractor aggregate ₹1,00,000/yr
+                    agg.CommandText = @"UPDATE tds_rules SET aggregate_limit = 100000
+                                        WHERE section_code = '194C'
+                                          AND (aggregate_limit IS NULL OR aggregate_limit = 0)";
+                    agg.ExecuteNonQuery();
+                }
+
+                // Fix act attribution on installed DBs: rules effective before 1-Apr-2026
+                // are governed by the Income-tax Act 1961, not the 2025 Act. Idempotent.
+                using (var act = conn.CreateCommand())
+                {
+                    act.CommandText = @"UPDATE tds_rules
+                                        SET reference_act = REPLACE(reference_act, 'IT Act 2025 s.', 'IT Act 1961 s.')
+                                        WHERE effective_from < '2026-04-01'
+                                          AND reference_act LIKE 'IT Act 2025 s.%'";
+                    act.ExecuteNonQuery();
+                }
+
+                // Back-fill: mark all auto-created salary deductees as source='payroll'
+                // Idempotent — runs every startup, no-op once already set.
+                using var bp = conn.CreateCommand();
+                bp.CommandText = @"UPDATE deductees SET source='payroll'
+                                   WHERE section='192'
+                                     AND (deductee_code LIKE 'EMP-%' OR remarks LIKE '%Auto-created from Payroll%')
+                                     AND (source IS NULL OR source = 'manual')";
+                bp.ExecuteNonQuery();
             }
             catch { }
         }
@@ -372,6 +465,18 @@ namespace CDeTDS.DAL
                 );
                 CREATE INDEX IF NOT EXISTS idx_filing_hist_ded ON tds_filing_history(deductor_id, financial_year, quarter);
 
+                -- ── Filing Snapshots ──────────────────────────────────────────
+                -- Record-level copy of the statement at generation time. Correction
+                -- statements (2-year window) need the ORIGINAL rows even after the
+                -- live tds_entries have been edited.
+                CREATE TABLE IF NOT EXISTS filing_snapshots (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    filing_id     INTEGER NOT NULL UNIQUE,
+                    snapshot_json TEXT    NOT NULL,
+                    created_at    TEXT    DEFAULT (datetime('now','localtime')),
+                    FOREIGN KEY (filing_id) REFERENCES tds_filing_history(id)
+                );
+
                 -- ── Landlord Records (HRA) ─────────────────────────────────────
                 CREATE TABLE IF NOT EXISTS landlord_records (
                     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -423,6 +528,8 @@ namespace CDeTDS.DAL
             AddColumnIfMissing("tds_entries", "tds_rule_id",          "INTEGER");
             AddColumnIfMissing("tds_entries", "challan_id",           "INTEGER");
             AddColumnIfMissing("tds_entries", "nature_of_payment",    "TEXT DEFAULT ''");
+            // credit_date and tds_rules.aggregate_limit are added in EnsureColumns()
+            // (fast path, every startup) so existing v21 databases also receive them.
 
             // deductors — bank defaults
             AddColumnIfMissing("deductors", "default_bsr_code",  "TEXT DEFAULT ''");
@@ -576,16 +683,20 @@ namespace CDeTDS.DAL
 
             // Unique index on salary_structures(employee_id) — one row per employee.
             // ON CONFLICT(employee_id) in imports requires this index to work.
-            using (var cmdSsIdx = conn.CreateCommand()) {
+            // Wrapped in try-catch: on a fresh DB the table is created later in CreateTables,
+            // so if it doesn't exist yet we skip — the index is re-applied after tables exist.
+            try {
+                using var cmdSsIdx = conn.CreateCommand();
                 cmdSsIdx.CommandText = @"
                     CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_structures_employee
                     ON salary_structures(employee_id)";
                 cmdSsIdx.ExecuteNonQuery();
-            }
+            } catch { }
 
             // One-time cleanup: strip time portion and normalize month-name dates.
-            // Pass 1 (SQL): strip " HH:mm:ss" suffix from any date containing a space.
-            using (var cmdDateFix = conn.CreateCommand()) {
+            // SQL pass guarded: employees table may not exist on a fresh DB.
+            try {
+                using var cmdDateFix = conn.CreateCommand();
                 cmdDateFix.CommandText = @"
                     UPDATE employees
                     SET join_date = TRIM(SUBSTR(join_date, 1, INSTR(join_date, ' ') - 1))
@@ -594,11 +705,11 @@ namespace CDeTDS.DAL
                     SET date_of_birth = TRIM(SUBSTR(date_of_birth, 1, INSTR(date_of_birth, ' ') - 1))
                     WHERE INSTR(date_of_birth, ' ') > 0";
                 cmdDateFix.ExecuteNonQuery();
-            }
-            // Pass 2 (C#): normalize "dd-Mon-yyyy" → "dd-MM-yyyy" (SQLite can't do month-name maps).
-            NormalizeDateFields(conn);
+            } catch { }
+            // Pass 2 (C#): normalize "dd-Mon-yyyy" → "dd-MM-yyyy". Runs even if SQL pass was skipped.
+            try { NormalizeDateFields(conn); } catch { }
             // Pass 3: auto-assign employee codes for any rows that are blank.
-            BackfillEmployeeCodes(conn);
+            try { BackfillEmployeeCodes(conn); } catch { }
 
             // Landlord records table
             using (var cmdLl = conn.CreateCommand()) {
@@ -891,6 +1002,82 @@ namespace CDeTDS.DAL
                 pm.ExecuteNonQuery();
             }
             catch { }
+            // Ensure the unique index on salary_structures(employee_id) exists now that the table is guaranteed created.
+            try {
+                using var ssIdxConn = GetConnection();
+                using var ssIdxCmd  = ssIdxConn.CreateCommand();
+                ssIdxCmd.CommandText = @"CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_structures_employee
+                    ON salary_structures(employee_id)";
+                ssIdxCmd.ExecuteNonQuery();
+            } catch { }
+
+            // v21: drop the global PAN UNIQUE constraint on deductees so the same PAN
+            // can exist as both a vendor (e.g. section 194C) and a salary employee (section 192)
+            // under the same deductor. Replace with (pan, deductor_id, section) uniqueness.
+            // SQLite can't DROP CONSTRAINT — we recreate the table.
+            try {
+                using var rc = GetConnection();
+                using var rt = rc.BeginTransaction();
+                using var rm = rc.CreateCommand();
+                rm.Transaction = rt;
+                rm.CommandText = @"
+                    -- Check if the old UNIQUE(pan) index still exists
+                    CREATE TABLE IF NOT EXISTS deductees_new (
+                        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                        deductee_code    TEXT    NOT NULL UNIQUE,
+                        name             TEXT    NOT NULL,
+                        pan              TEXT    NOT NULL,
+                        pan_verified     INTEGER DEFAULT 0,
+                        pan_verification_status TEXT DEFAULT '',
+                        pan_verified_name TEXT   DEFAULT '',
+                        pan_verified_at  TEXT    DEFAULT '',
+                        address          TEXT    DEFAULT '',
+                        city             TEXT    DEFAULT '',
+                        state            TEXT    DEFAULT '',
+                        pincode          TEXT    DEFAULT '',
+                        email            TEXT    DEFAULT '',
+                        phone            TEXT    DEFAULT '',
+                        section          TEXT    NOT NULL DEFAULT '194C',
+                        nature_of_payment TEXT   DEFAULT '',
+                        rate             REAL    NOT NULL DEFAULT 0,
+                        tds_rate         REAL    DEFAULT 0,
+                        deductee_type    TEXT    DEFAULT 'Individual',
+                        is_resident      INTEGER DEFAULT 1,
+                        itr_filed        INTEGER DEFAULT 1,
+                        lower_cert_no    TEXT    DEFAULT '',
+                        lower_cert_rate  REAL    DEFAULT 0,
+                        lower_cert_till  TEXT    DEFAULT '',
+                        remarks          TEXT    DEFAULT '',
+                        deductor_id      INTEGER DEFAULT 0,
+                        created_at       TEXT    DEFAULT (datetime('now','localtime'))
+                    );
+                    INSERT OR IGNORE INTO deductees_new
+                        SELECT id,deductee_code,name,pan,
+                               COALESCE(pan_verified,0),
+                               COALESCE(pan_verification_status,''),
+                               COALESCE(pan_verified_name,''),
+                               COALESCE(pan_verified_at,''),
+                               COALESCE(address,''),COALESCE(city,''),COALESCE(state,''),
+                               COALESCE(pincode,''),COALESCE(email,''),COALESCE(phone,''),
+                               section,COALESCE(nature_of_payment,''),rate,
+                               COALESCE(tds_rate,0),
+                               COALESCE(deductee_type,'Individual'),
+                               COALESCE(is_resident,1),COALESCE(itr_filed,1),
+                               COALESCE(lower_cert_no,''),COALESCE(lower_cert_rate,0),
+                               COALESCE(lower_cert_till,''),COALESCE(remarks,''),
+                               COALESCE(deductor_id,0),
+                               COALESCE(created_at,datetime('now','localtime'))
+                        FROM deductees;
+                    DROP TABLE deductees;
+                    ALTER TABLE deductees_new RENAME TO deductees;
+                    CREATE INDEX IF NOT EXISTS idx_deductees_pan  ON deductees(pan);
+                    CREATE INDEX IF NOT EXISTS idx_deductees_name ON deductees(name);
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_deductees_pan_deductor_section
+                        ON deductees(pan, deductor_id, section);";
+                rm.ExecuteNonQuery();
+                rt.Commit();
+            } catch { }
+
             // PAN verification cache table (idempotent)
             try {
                 using var cacheConn = GetConnection();
@@ -1125,7 +1312,7 @@ namespace CDeTDS.DAL
                        threshold_limit,tds_rate,surcharge_rate,cess_rate,
                        effective_from,reference_act,notes,is_active)
                       VALUES('194Q','Purchase of Goods','All',1,5000000,0.1,0,0,
-                             '2025-04-01','IT Act 2025 s.194Q',
+                             '2025-04-01','IT Act 1961 s.194Q',
                              'Buyer turnover >Rs.10Cr; 206C(1H) cross-ref removed by FA 2025 but 194Q itself continues',
                              1)",
                     // Ensure 194Q is active (v18 may have deleted it)
@@ -1183,64 +1370,64 @@ namespace CDeTDS.DAL
                 //       All resident non-salary sections: Cess=0 (Finance Act 2009 + CBDT Cir 3/2025)
 
                 // ── Salary — full liability computed incl. cess ───────────────
-                ("192",   "Salary",                            "Individual", 1, 300000,  0,    0, 4, "2025-04-01", "IT Act 2025 s.192",   "Slab rates; employer computes full tax incl. cess"),
+                ("192",   "Salary",                            "Individual", 1, 300000,  0,    0, 4, "2025-04-01", "IT Act 1961 s.192",   "Slab rates; employer computes full tax incl. cess"),
                 // ── Resident non-salary sections — cess=0 ─────────────────────
-                ("192A",  "PF Withdrawal",                     "Individual", 1,  50000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.192A",  "PAN mandatory; deductee pays cess in ITR"),
+                ("192A",  "PF Withdrawal",                     "Individual", 1,  50000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.192A",  "PAN mandatory; deductee pays cess in ITR"),
 
                 // ── Interest / Securities ──────────────────────────────────────
-                ("193",   "Interest on Securities",            "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.193",   "FA 2023: unified Rs.10,000 threshold for all deductees"),
-                ("194",   "Dividends",                         "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194",   "FA 2025: threshold raised Rs.5,000->Rs.10,000 w.e.f. 1-Apr-2025"),
-                ("194A",  "Interest other than securities",    "Individual", 1,  40000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194A",  "₹50K for bank/co-op/post; ₹50K senior citizen"),
-                ("194A",  "Interest other than securities",    "Company",    1,  40000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194A",  ""),
+                ("193",   "Interest on Securities",            "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.193",   "FA 2023: unified Rs.10,000 threshold for all deductees"),
+                ("194",   "Dividends",                         "All",        1,  10000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194",   "FA 2025: threshold raised Rs.5,000->Rs.10,000 w.e.f. 1-Apr-2025"),
+                ("194A",  "Interest other than securities",    "Individual", 1,  40000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194A",  "₹50K for bank/co-op/post; ₹50K senior citizen"),
+                ("194A",  "Interest other than securities",    "Company",    1,  40000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194A",  ""),
 
                 // ── Lottery / Games ────────────────────────────────────────────
-                ("194B",  "Lottery Winnings",                  "All",        1,  10000, 30,    0, 0, "2025-04-01", "IT Act 2025 s.194B",  ""),
-                ("194BA", "Online Games",                      "All",        1,      0, 30,    0, 0, "2025-04-01", "IT Act 2025 s.194BA", "No threshold; net winnings basis"),
-                ("194BB", "Winnings from Horse Race",          "All",        1,  10000, 30,    0, 0, "2025-04-01", "IT Act 2025 s.194BB", ""),
+                ("194B",  "Lottery Winnings",                  "All",        1,  10000, 30,    0, 0, "2025-04-01", "IT Act 1961 s.194B",  ""),
+                ("194BA", "Online Games",                      "All",        1,      0, 30,    0, 0, "2025-04-01", "IT Act 1961 s.194BA", "No threshold; net winnings basis"),
+                ("194BB", "Winnings from Horse Race",          "All",        1,  10000, 30,    0, 0, "2025-04-01", "IT Act 1961 s.194BB", ""),
 
                 // ── Contractors ────────────────────────────────────────────────
-                ("194C",  "Payment to Contractor",             "Individual", 1,  30000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194C",  "Single ₹30K; aggregate ₹1L p.a."),
-                ("194C",  "Payment to Contractor",             "HUF",        1,  30000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194C",  ""),
-                ("194C",  "Payment to Contractor",             "Company",    1,  30000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194C",  ""),
+                ("194C",  "Payment to Contractor",             "Individual", 1,  30000,  1,    0, 0, "2025-04-01", "IT Act 1961 s.194C",  "Single ₹30K; aggregate ₹1L p.a."),
+                ("194C",  "Payment to Contractor",             "HUF",        1,  30000,  1,    0, 0, "2025-04-01", "IT Act 1961 s.194C",  ""),
+                ("194C",  "Payment to Contractor",             "Company",    1,  30000,  2,    0, 0, "2025-04-01", "IT Act 1961 s.194C",  ""),
 
                 // ── Insurance / Commission / Rent ──────────────────────────────
-                ("194D",  "Insurance Commission",              "Individual", 1,  15000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194D",  ""),
-                ("194D",  "Insurance Commission",              "Company",    1,  15000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194D",  ""),
-                ("194DA", "Life Insurance Maturity",           "All",        1, 100000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194DA", "On income portion only"),
-                ("194G",  "Commission on Lottery",             "All",        1,  15000,  5,    0, 0, "2025-04-01", "IT Act 2025 s.194G",  ""),
-                ("194H",  "Commission / Brokerage",            "All",        1,  20000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194H",  "FA 2025: rate 2% (reduced from 5%); threshold Rs.20,000 (raised from Rs.15,000) w.e.f. 1-Apr-2025"),
-                ("194I",  "Rent - Plant & Machinery",          "All",        1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025"),
-                ("194I",  "Rent - Land/Building/Furniture",    "All",        1,  50000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194I",  "FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025"),
-                ("194IA", "Transfer of Immovable Property",   "All",        1,5000000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194IA", "Buyer deducts; agri land exempt"),
-                ("194IB", "Rent by Individual/HUF",            "Individual", 1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194IB", "FA 2023: rate 2% (reduced from 5% w.e.f. 1-Oct-2023); Rs.50,000/month threshold; Ind/HUF not subject to tax audit"),
-                ("194IC", "Joint Dev Agreement",               "All",        1,      0, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194IC", "No threshold"),
+                ("194D",  "Insurance Commission",              "Individual", 1,  15000,  5,    0, 0, "2025-04-01", "IT Act 1961 s.194D",  ""),
+                ("194D",  "Insurance Commission",              "Company",    1,  15000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194D",  ""),
+                ("194DA", "Life Insurance Maturity",           "All",        1, 100000,  5,    0, 0, "2025-04-01", "IT Act 1961 s.194DA", "On income portion only"),
+                ("194G",  "Commission on Lottery",             "All",        1,  15000,  5,    0, 0, "2025-04-01", "IT Act 1961 s.194G",  ""),
+                ("194H",  "Commission / Brokerage",            "All",        1,  20000,  2,    0, 0, "2025-04-01", "IT Act 1961 s.194H",  "FA 2025: rate 2% (reduced from 5%); threshold Rs.20,000 (raised from Rs.15,000) w.e.f. 1-Apr-2025"),
+                ("194I",  "Rent - Plant & Machinery",          "All",        1,  50000,  2,    0, 0, "2025-04-01", "IT Act 1961 s.194I",  "FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025"),
+                ("194I",  "Rent - Land/Building/Furniture",    "All",        1,  50000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194I",  "FA 2025: monthly threshold Rs.50,000 per month or part thereof w.e.f. 1-Apr-2025"),
+                ("194IA", "Transfer of Immovable Property",   "All",        1,5000000,  1,    0, 0, "2025-04-01", "IT Act 1961 s.194IA", "Buyer deducts; agri land exempt"),
+                ("194IB", "Rent by Individual/HUF",            "Individual", 1,  50000,  2,    0, 0, "2025-04-01", "IT Act 1961 s.194IB", "FA 2023: rate 2% (reduced from 5% w.e.f. 1-Oct-2023); Rs.50,000/month threshold; Ind/HUF not subject to tax audit"),
+                ("194IC", "Joint Dev Agreement",               "All",        1,      0, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194IC", "No threshold"),
 
                 // ── Professional Fees ─────────────────────────────────────────
-                ("194J",  "Professional Fees",                 "All",        1,  50000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194J",  "FA 2025: threshold raised Rs.30,000->Rs.50,000 w.e.f. 1-Apr-2025; directors no threshold"),
-                ("194J",  "Technical Services / Royalty",      "All",        1,  50000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194J",  "FA 2025: threshold Rs.50,000; technical services/call centre/royalty: 2%"),
+                ("194J",  "Professional Fees",                 "All",        1,  50000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194J",  "FA 2025: threshold raised Rs.30,000->Rs.50,000 w.e.f. 1-Apr-2025; directors no threshold"),
+                ("194J",  "Technical Services / Royalty",      "All",        1,  50000,  2,    0, 0, "2025-04-01", "IT Act 1961 s.194J",  "FA 2025: threshold Rs.50,000; technical services/call centre/royalty: 2%"),
 
                 // ── Mutual Fund / Securities ──────────────────────────────────
-                ("194K",  "Income from MF Units",              "All",        1,   5000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194K",  "Dividend; cap gains exempt from TDS"),
-                ("194LA", "Compensation on Immovable Property","All",        1, 250000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194LA", "Rural agri land exempt"),
+                ("194K",  "Income from MF Units",              "All",        1,   5000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194K",  "Dividend; cap gains exempt from TDS"),
+                ("194LA", "Compensation on Immovable Property","All",        1, 250000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194LA", "Rural agri land exempt"),
 
                 // ── Large Contracts / Cash / E-comm ──────────────────────────
-                ("194M",  "Contract Commission (>50L indiv)",  "Individual", 1,5000000,  2,    0, 0, "2025-04-01", "IT Act 2025 s.194M",  "Rate reduced 5%→2% by FA 2024 w.e.f. 01-Oct-2024"),
-                ("194N",  "Cash Withdrawal (return-filer)",    "All",        1,10000000, 2,    0, 0, "2025-04-01", "IT Act 2025 s.194N",  "≥₹1Cr: 2% for ITR filers"),
-                ("194N",  "Cash Withdrawal (non-filer ≤1Cr)",  "All",        1,  200000, 2,    0, 0, "2025-04-01", "IT Act 2025 s.194N",  "₹20L–1Cr: 2% for non-filers"),
-                ("194N",  "Cash Withdrawal (non-filer >1Cr)",  "All",        1,10000000, 5,    0, 0, "2025-04-01", "IT Act 2025 s.194N",  ">₹1Cr: 5% for non-filers"),
-                ("194O",  "E-commerce Operator",               "All",        1,      0,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194O",  "w.e.f. Oct 2020"),
-                ("194P",  "Senior Citizen (75+) Bank",         "Individual", 1,      0,  0,    0, 4, "2025-04-01", "IT Act 2025 s.194P",  "Bank computes full tax incl. cess; like s.192"),
-                ("194Q",  "Purchase of Goods",                 "All",        1,5000000,0.1,    0, 0, "2025-04-01", "IT Act 2025 s.194Q",  "Buyer turnover >Rs.10Cr; FA 2025 removed 206C(1H) cross-ref but 194Q itself continues"),
-                ("194R",  "Benefit/Perquisite in Business",    "All",        1,  20000, 10,    0, 0, "2025-04-01", "IT Act 2025 s.194R",  "Cash/non-cash; FMV for non-cash"),
-                ("194S",  "VDA / Crypto Transfer",             "All",        1,  10000,  1,    0, 0, "2025-04-01", "IT Act 2025 s.194S",  "₹10K specified persons; ₹50K others"),
+                ("194M",  "Contract Commission (>50L indiv)",  "Individual", 1,5000000,  2,    0, 0, "2025-04-01", "IT Act 1961 s.194M",  "Rate reduced 5%→2% by FA 2024 w.e.f. 01-Oct-2024"),
+                ("194N",  "Cash Withdrawal (return-filer)",    "All",        1,10000000, 2,    0, 0, "2025-04-01", "IT Act 1961 s.194N",  "≥₹1Cr: 2% for ITR filers"),
+                ("194N",  "Cash Withdrawal (non-filer ≤1Cr)",  "All",        1,  200000, 2,    0, 0, "2025-04-01", "IT Act 1961 s.194N",  "₹20L–1Cr: 2% for non-filers"),
+                ("194N",  "Cash Withdrawal (non-filer >1Cr)",  "All",        1,10000000, 5,    0, 0, "2025-04-01", "IT Act 1961 s.194N",  ">₹1Cr: 5% for non-filers"),
+                ("194O",  "E-commerce Operator",               "All",        1,      0,  1,    0, 0, "2025-04-01", "IT Act 1961 s.194O",  "w.e.f. Oct 2020"),
+                ("194P",  "Senior Citizen (75+) Bank",         "Individual", 1,      0,  0,    0, 4, "2025-04-01", "IT Act 1961 s.194P",  "Bank computes full tax incl. cess; like s.192"),
+                ("194Q",  "Purchase of Goods",                 "All",        1,5000000,0.1,    0, 0, "2025-04-01", "IT Act 1961 s.194Q",  "Buyer turnover >Rs.10Cr; FA 2025 removed 206C(1H) cross-ref but 194Q itself continues"),
+                ("194R",  "Benefit/Perquisite in Business",    "All",        1,  20000, 10,    0, 0, "2025-04-01", "IT Act 1961 s.194R",  "Cash/non-cash; FMV for non-cash"),
+                ("194S",  "VDA / Crypto Transfer",             "All",        1,  10000,  1,    0, 0, "2025-04-01", "IT Act 1961 s.194S",  "₹10K specified persons; ₹50K others"),
 
                 // ── Non-Residents — cess=4 (TDS is often final tax) ──────────
-                ("195",   "Payments to Non-Residents",         "NRI - Individual",0,0,  0,    0, 4, "2025-04-01", "IT Act 2025 s.195",   "Rate per DTAA or Act; cess+surcharge apply under Act rates"),
-                ("195",   "Payments to Non-Residents",         "NRI - Company",   0,0,  0,    0, 4, "2025-04-01", "IT Act 2025 s.195",   "Foreign co: surcharge 2% (>1Cr), 5% (>10Cr)"),
+                ("195",   "Payments to Non-Residents",         "NRI - Individual",0,0,  0,    0, 4, "2025-04-01", "IT Act 1961 s.195",   "Rate per DTAA or Act; cess+surcharge apply under Act rates"),
+                ("195",   "Payments to Non-Residents",         "NRI - Company",   0,0,  0,    0, 4, "2025-04-01", "IT Act 1961 s.195",   "Foreign co: surcharge 2% (>1Cr), 5% (>10Cr)"),
 
                 // ── Higher rates — resident; cess=0 ──────────────────────────
-                ("206AA", "Higher TDS - PAN not available",    "All",        1,      0, 20,    0, 0, "2025-04-01", "IT Act 2025 s.206AA", "Higher of 20% or twice applicable rate"),
-                ("206AB", "Higher TDS - ITR not filed",        "All",        1,      0, 20,    0, 0, "2025-04-01", "IT Act 2025 s.206AB", "Higher of 5% or twice normal rate; check TRACES"),
+                ("206AA", "Higher TDS - PAN not available",    "All",        1,      0, 20,    0, 0, "2025-04-01", "IT Act 1961 s.206AA", "Higher of 20% or twice applicable rate"),
+                ("206AB", "Higher TDS - ITR not filed",        "All",        1,      0, 20,    0, 0, "2025-04-01", "IT Act 1961 s.206AB", "Higher of 5% or twice normal rate; check TRACES"),
             };
 
             using var tx = conn.BeginTransaction();
@@ -1710,12 +1897,15 @@ namespace CDeTDS.DAL
         public static void SaveFilingHistory(
             int deductorId, string formType, string fy, string quarter,
             bool isCorrection, string correctionType, string prn,
-            string txtPath = "", string fvuPath = "", string remarks = "")
+            string txtPath = "", string fvuPath = "", string remarks = "",
+            string snapshotJson = "")
         {
             try
             {
                 using var conn = GetConnection();
+                using var tx   = conn.BeginTransaction();   // upsert + snapshot are one unit
                 using var cmd  = conn.CreateCommand();
+                cmd.Transaction = tx;
                 cmd.CommandText = @"INSERT INTO tds_filing_history
                     (deductor_id,form_type,financial_year,quarter,is_correction,
                      correction_type,prn,txt_file_path,fvu_file_path,remarks)
@@ -1739,8 +1929,52 @@ namespace CDeTDS.DAL
                 cmd.Parameters.AddWithValue("@fvu", fvuPath);
                 cmd.Parameters.AddWithValue("@rm",  remarks);
                 cmd.ExecuteNonQuery();
+
+                // Record-level snapshot — basis for correction statements later
+                if (!string.IsNullOrEmpty(snapshotJson))
+                {
+                    using var idCmd = conn.CreateCommand();
+                    idCmd.Transaction = tx;
+                    idCmd.CommandText = @"SELECT id FROM tds_filing_history
+                        WHERE deductor_id=@did AND form_type=@ft AND financial_year=@fy
+                          AND quarter=@qt AND is_correction=@ic";
+                    idCmd.Parameters.AddWithValue("@did", deductorId);
+                    idCmd.Parameters.AddWithValue("@ft",  formType);
+                    idCmd.Parameters.AddWithValue("@fy",  fy);
+                    idCmd.Parameters.AddWithValue("@qt",  quarter);
+                    idCmd.Parameters.AddWithValue("@ic",  isCorrection ? 1 : 0);
+                    var filingId = Convert.ToInt64(idCmd.ExecuteScalar() ?? 0L);
+                    if (filingId > 0)
+                    {
+                        using var snap = conn.CreateCommand();
+                        snap.Transaction = tx;
+                        snap.CommandText = @"INSERT INTO filing_snapshots (filing_id, snapshot_json)
+                            VALUES (@fid, @json)
+                            ON CONFLICT(filing_id) DO UPDATE SET
+                                snapshot_json = excluded.snapshot_json,
+                                created_at    = datetime('now','localtime')";
+                        snap.Parameters.AddWithValue("@fid",  filingId);
+                        snap.Parameters.AddWithValue("@json", snapshotJson);
+                        snap.ExecuteNonQuery();
+                    }
+                }
+                tx.Commit();
             }
             catch { }
+        }
+
+        /// <summary>Snapshot of the statement as generated, for the given filing row. Empty if none.</summary>
+        public static string GetFilingSnapshot(long filingId)
+        {
+            try
+            {
+                using var conn = GetConnection();
+                using var cmd  = conn.CreateCommand();
+                cmd.CommandText = "SELECT snapshot_json FROM filing_snapshots WHERE filing_id=@fid";
+                cmd.Parameters.AddWithValue("@fid", filingId);
+                return cmd.ExecuteScalar() as string ?? "";
+            }
+            catch { return ""; }
         }
 
         public static List<FilingHistoryRecord> GetFilingHistory(

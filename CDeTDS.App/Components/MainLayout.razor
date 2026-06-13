@@ -42,14 +42,18 @@ else
                                 border-radius:8px;padding:5px 14px;
                                 box-shadow:0 2px 8px rgba(0,0,0,0.25)">
                         <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
-                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">FY</span>
+                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">@(TaxRules.IsNewAct(AppState.CurrentFY) ? "TY" : "FY")</span>
                             <span style="font-size:16px;font-weight:900;color:#1a1a1a;letter-spacing:.3px">@AppState.CurrentFY</span>
                         </div>
-                        <div style="width:1px;height:28px;background:rgba(0,0,0,0.2)"></div>
-                        <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
-                            <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">AY</span>
-                            <span style="font-size:13px;font-weight:800;color:#1a1a1a">@TaxRules.AssessmentYearLabel(AppState.CurrentFY)</span>
-                        </div>
+                        @* AY is abolished under the Income-tax Act 2025 — show it only for old-act FYs *@
+                        @if (!TaxRules.IsNewAct(AppState.CurrentFY))
+                        {
+                            <div style="width:1px;height:28px;background:rgba(0,0,0,0.2)"></div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25">
+                                <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:rgba(0,0,0,0.55);text-transform:uppercase">AY</span>
+                                <span style="font-size:13px;font-weight:800;color:#1a1a1a">@TaxRules.AssessmentYearLabel(AppState.CurrentFY).Replace("AY ", "")</span>
+                            </div>
+                        }
                     </div>
                 </ActivatorContent>
                 <ChildContent>
@@ -59,9 +63,9 @@ else
                         <MudMenuItem OnClick="@(() => OnFYChanged(fy))">
                             <div style="display:flex;flex-direction:column;line-height:1.3">
                                 <span style="font-weight:@(fy == AppState.CurrentFY ? "700" : "400");font-size:14px">
-                                    FY @fy@(isSession ? "  · Editable" : "  · Read-only")
+                                    @TaxRules.YearLabel(fy)@(isSession ? "  · Editable" : "  · Read-only")
                                 </span>
-                                <span style="font-size:11px;color:#888">AY @TaxRules.AssessmentYearLabel(fy)</span>
+                                <span style="font-size:11px;color:#888">@(TaxRules.IsNewAct(fy) ? TaxRules.ActName(fy) : TaxRules.AssessmentYearLabel(fy))</span>
                             </div>
                         </MudMenuItem>
                     }
@@ -408,6 +412,42 @@ else
 
         ("Returns & FVU", "Some entries are not linked to any challan — what do I do?", "Go to Challans page. An amber warning banner shows the count of unlinked entries per quarter with a 'Link N in Q1' button. Click it to open the challan dialog with unlinked entries pre-loaded — check the entries you want to link and click Save."),
 
+        // IT Act 2025 transition (TY 2026-27 onwards)
+        ("IT Act 2025", "Why does the Returns page show Form 138/140/143 instead of 24Q/26Q/27EQ?",
+            "From TY 2026-27 the Income-tax Act 2025 replaces the 1961 Act, and the quarterly return forms are renumbered: " +
+            "24Q → 138 (salary), 26Q → 140 (non-salary), 27EQ → 143 (TCS), 27Q → 144 (non-resident). " +
+            "CDeTDS shows the correct family automatically based on the FY you have open — old years still show 24Q/26Q/27EQ. " +
+            "Old form numbers can never be used for TY 2026-27 data (and vice versa); generation blocks it with a clear message."),
+        ("IT Act 2025", "What is the Credit Date field in TDS Entries?",
+            "The governing Act and FY of a transaction are decided by the EARLIER of (a) the date it was credited in your books and " +
+            "(b) the payment date — never by the filing date or quarter. Enter the Credit Date when it differs from the payment date. " +
+            "Example: professional fees credited 15-Mar-2026 but paid 10-Apr-2026 belong to FY 2025-26 under the 1961 Act (section 194J), " +
+            "NOT to TY 2026-27. CDeTDS derives the FY and quarter from this trigger date automatically."),
+        ("IT Act 2025", "Why did my entry save into a different FY than the one I have open?",
+            "Because of the trigger-date rule (earlier of credit/payment date). If the dates place the transaction in another FY, " +
+            "CDeTDS files it there and tells you — switch FY from the top bar to see it. This prevents transactions straddling " +
+            "31-Mar-2026 / 1-Apr-2026 from landing in the wrong Act's return."),
+        ("IT Act 2025", "Why does the section field show 'Files as Section 393(1)…' for my entry?",
+            "Under the Income-tax Act 2025 the old 194-series section numbers no longer exist — payments fall under the Section 392/393/394 " +
+            "tables. You keep selecting the familiar code (e.g. 194C) and CDeTDS shows the Act 2025 reference it will file under. " +
+            "Certificates and paper returns cite the new sections automatically for TY 2026-27+."),
+        ("IT Act 2025", "What are the 4-digit payment codes and the switch in TDS Rules → Rules Status?",
+            "The new-act e-TDS format will eventually replace section codes in the return file with 4-digit payment codes (1001–1092). " +
+            "CDeTDS has staged the codes from Protean's RPU v1.0 BETA, but files currently use the proven FVU 9.4 interim format. " +
+            "Keep the switch OFF until Protean releases the FINAL new-act FVU/RPU and the codes are re-verified — CDeTDS will ship " +
+            "an update when that happens."),
+        ("IT Act 2025", "Where did the Assessment Year (AY) go?",
+            "The Income-tax Act 2025 abolishes the Assessment Year. From TY 2026-27 there is only the Tax Year (TY), which is the same " +
+            "as the financial year — so the top bar shows just 'TY 2026-27'. For FY 2025-26 and earlier, FY and AY display as before."),
+        ("IT Act 2025", "My paper return says 'FORM NO. 138 (erstwhile Form 24Q)' — is that right?",
+            "Yes. For TY 2026-27+ the paper return carries the new form number and Income-tax Act 2025 citations (section 392/393/394), " +
+            "with the old form number shown in brackets for recognition. Returns for FY 2025-26 and earlier keep the 1961-Act format. " +
+            "The paper copy is for reference only — the .fvu file is what you upload."),
+        ("IT Act 2025", "I got a warning about late deposit / interest u/s 201(1A) when saving an entry — what does it mean?",
+            "The challan you linked was deposited after the due date (7th of the next month; 30 April for March deductions by " +
+            "non-government deductors). Interest at 1.5% per month or part thereof may apply from the deduction date. " +
+            "Use the Interest Calc page to compute the exact amount and add it to the challan's Interest field."),
+
         // Form 16
         ("Form 16", "How do I generate Form 16 for employees?",   "Go to Form 16 → Form 16 (Salary) tab → select FY → select employee → Preview. Review and click Print or Export. For all employees at once, use Bulk Generate."),
         ("Form 16", "How do I generate Form 16A for vendors?",    "Go to Form 16 → Form 16A tab → select deductee → select FY and quarter → Generate. Form 16A is issued to vendors/contractors for non-salary TDS deductions."),
@@ -508,12 +548,12 @@ else
         // General
         ("General", "How do I backup my data?",                   "Settings → Backup & Restore → Backup Now. The database is saved with a timestamp to Documents\\CDeTDS\\Backup\\. CDeTDS also takes an automatic daily backup (keeps last 30)."),
         ("General", "How do I change my password?",               "Settings → General → Change Password. Enter current password, new password and confirm. Minimum 6 characters."),
-        ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. Change your password immediately after first login from Settings → General."),
         ("General", "How do I add more users?",                   "Go to Users → Add User. Assign role (Admin = full access, User = restricted). Each user gets their own login and all actions are logged in the Audit Log."),
-        ("General", "Where is my data stored?",                   "All data is stored locally: %AppData%\\CDeTDS\\tds_pro.db. Company files (FVU files, salary slips, reports) are in Documents\\CDeTDS\\. No data is ever sent to any server."),
+        ("General", "Where is my data stored?",                   "All data is stored locally: %AppData%\\CDeTDS\\cdetds.db. Company files (FVU files, salary slips, reports) are in Documents\\CDeTDS\\. No data is ever sent to any server."),
         ("General", "What is the default login?",                 "Username: admin  |  Password: admin@123. This is shown on the login screen. Change your password immediately after first login from Settings → General → Change Password."),
         ("General", "How do I import data from Excel?",           "Go to Excel Import/Export. Download the sample template, fill it in, then upload. Supports bulk import of deductees, TDS entries and challans."),
         ("General", "How do I import a TRACES conso file?",       "Go to Excel Import/Export → Import Data → TRACES Conso File. Select the .tds ZIP file downloaded from TRACES and enter the password (format: TAN_RequestNumber). CDeTDS imports all challans and entries for correction purposes."),
+        ("General", "It says 'CDeTDS is already running' — why?", "Only one CDeTDS window can run at a time — two instances writing the database simultaneously could corrupt your data. Check the taskbar for the open window. If you can't find it, open Task Manager, end the CDeTDS process, and start the app again."),
     ];
 
     private string _faqCategory = "Returns & FVU";

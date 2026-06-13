@@ -1,6 +1,6 @@
 #define AppName      "CDeTDS"
 #ifndef AppVersion
-#define AppVersion   "1.0.2"
+#define AppVersion   "1.0.4"
 #endif
 #define AppPublisher "CDeTDS Software"
 #define AppURL       "https://capitaldesk.co.in"
@@ -57,7 +57,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 
 [Files]
 ; ── Main application (self-contained .NET 8) ─────────────────────────────────
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "publish\*;*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "publish\*;*.pdb;*.xml"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ── Bundled JRE (Eclipse Temurin / OpenJDK 8 x64) ───────────────────────────
 ; Place the extracted JRE folder as "bundled_jre\" next to this script before building.

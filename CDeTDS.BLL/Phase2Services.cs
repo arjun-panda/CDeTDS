@@ -36,7 +36,7 @@ namespace CDeTDS.BLL
             // ReportsRepository.BuildSalaryDetails (DAL) cannot call SalaryService (BLL),
             // so the real computation is done here using ComputeAnnual — the same engine
             // that drives monthly TDS, payslips, and Form 16.
-            if (formType == "24Q" && quarter == "Q4")
+            if ((formType is "24Q" or "138") && quarter == "Q4")
                 data.SalaryDetails = BuildSalaryDetailsFromComputation(deductorId, fy, data.Challans);
 
             return data;
@@ -178,12 +178,18 @@ namespace CDeTDS.BLL
                 Database.LogAction("system", "FVU_TXT_GENERATE", "Return",
                     $"{data.Header.FormType}/{data.Header.TanOfDeductor}/{data.Header.Quarter}");
 
-                // Save to filing history (PRN is empty until uploaded to portal — user updates later)
+                // Save to filing history (PRN is empty until uploaded to portal — user updates later).
+                // A record-level JSON snapshot of the statement is stored alongside, so future
+                // correction statements can diff against what was actually filed.
                 if (deductorId > 0)
+                {
+                    string snapshotJson = "";
+                    try { snapshotJson = System.Text.Json.JsonSerializer.Serialize(data); } catch { }
                     Database.SaveFilingHistory(
                         deductorId, data.Header.FormType, data.Header.FinancialYear, data.Header.Quarter,
                         data.Header.IsCorrection, data.Header.IsCorrection ? data.Header.CorrectionType : "",
-                        prn: "", txtPath: fullPath);
+                        prn: "", txtPath: fullPath, snapshotJson: snapshotJson);
+                }
 
                 return (true, fullPath, "");
             }

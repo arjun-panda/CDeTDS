@@ -435,7 +435,16 @@
                 <div class="sec-card">
                     <div class="sec-strip">
                         <div class="sec-num">5</div>
-                        <div><span class="sec-name">Salary Structure &amp; Settings</span><span class="sec-desc"> · Monthly earnings, deductions and tax configuration</span></div>
+                        <div>
+                            <span class="sec-name">Salary Structure &amp; Settings</span>
+                            <span class="sec-desc"> · Monthly earnings, deductions and tax configuration</span>
+                            @if (_empSalEffective.HasValue)
+                            {
+                                <span style="margin-left:10px;font-size:11px;color:#b45309;background:#fef3c7;border:1px solid #fbbf24;border-radius:4px;padding:1px 7px;white-space:nowrap">
+                                    Effective from @_empSalEffective.Value.ToString("dd-MMM-yyyy") · Past months use saved values
+                                </span>
+                            }
+                        </div>
                     </div>
                     <div class="sec-body">
                         <div class="sal-cols">
@@ -911,7 +920,7 @@
             var _sdNetPay   = _sdGrossTotal - _sdTotalDed;
         }
 
-        @* ── Top toolbar: month picker + counts + Bulk Actions (single compact line) ── *@
+        @* ── Top toolbar: month picker + counts + Monthly Close (single compact line) ── *@
         @{
             var _statusCount = _sdEmpStatus.Values.GroupBy(s => s).ToDictionary(g => g.Key, g => g.Count());
             _statusCount.TryGetValue("Locked", out var _cntLocked);
@@ -933,7 +942,7 @@
             <span style="font-size:11px;color:#dc2626;white-space:nowrap">⏸ @_cntSkip</span>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.PlaylistAddCheck" OnClick="OpenBulkActions">
-                Bulk Actions
+                Monthly Close
             </MudButton>
         </div>
 
@@ -986,7 +995,7 @@
             @if (_sdCurEntry?.IsLocked == true)
             {
                 <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:6px 14px;margin-bottom:8px;font-size:12px;color:#1565C0;display:flex;align-items:center;gap:8px">
-                    🔒 <strong>Finalised</strong> — This month was closed via Monthly Close. Values shown are what was actually paid. Edit via Monthly Close → Bulk Actions.
+                    🔒 <strong>Finalised</strong> — This month was closed via Monthly Close. Values shown are what was actually paid. To revise, re-open Monthly Close.
                 </div>
             }
             <!-- KPI row -->
@@ -1653,7 +1662,7 @@
             <div class="sd-paper" style="color:#888;padding:48px 24px;text-align:center">
                 <div style="font-size:32px;margin-bottom:8px">👈</div>
                 Select an employee from the list to enter salary data,<br/>
-                or click <strong>Bulk Actions</strong> to process all employees at once.
+                or click <strong>Monthly Close</strong> to process all employees at once.
             </div>
         }
             </div>
@@ -2218,21 +2227,14 @@
 
             @* ── toolbar ── *@
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0">
-                <MudSelect T="int" Value="_slipMonth" ValueChanged="@((int m) => { _slipMonth = m; LoadSavedRuns(); })"
+                <MudSelect T="int" Value="_slipMonth" ValueChanged="@((int m) => { _slipMonth = m; _slipYear = SlipYearForMonth(m); LoadSavedRuns(); })"
                            Variant="Variant.Outlined" Margin="Margin.Dense" ShrinkLabel="true"
-                           Style="width:130px" AnchorOrigin="Origin.BottomCenter">
+                           Style="width:160px" AnchorOrigin="Origin.BottomCenter">
                     @for (int i = 0; i < _monthNames.Length; i++)
                     {
                         var m = _fyMonths[i]; var name = _monthNames[i];
-                        <MudSelectItem Value="@m">@name</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="int" Value="_slipYear" ValueChanged="@((int y) => { _slipYear = y; LoadSavedRuns(); })"
-                           Variant="Variant.Outlined" Margin="Margin.Dense" ShrinkLabel="true"
-                           Style="width:90px" AnchorOrigin="Origin.BottomCenter">
-                    @foreach (var y in _runYears)
-                    {
-                        <MudSelectItem Value="@y">@y</MudSelectItem>
+                        int yr = SlipYearForMonth(m);
+                        <MudSelectItem Value="@m">@name @yr</MudSelectItem>
                     }
                 </MudSelect>
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
@@ -2285,7 +2287,17 @@
                                     <td class="slip-td" style="text-align:right;color:@(entry.TdsDeducted>0?"#dc2626":"inherit")">₹@entry.TdsDeducted.ToString("N0")</td>
                                     <td class="slip-td" style="text-align:right;font-weight:700">₹@entry.NetSalary.ToString("N0")</td>
                                     <td class="slip-td" style="text-align:center">
-                                        <span class="slip-badge slip-draft">@entry.Status</span>
+                                        @{
+                                            var _slipCss = entry.IsLocked ? "slip-locked"
+                                                : entry.Status == "Skip"  ? "slip-skip"
+                                                : entry.Status == "Locked"? "slip-locked"
+                                                : "slip-saved";
+                                            var _slipLabel = entry.IsLocked ? "Locked"
+                                                : entry.Status == "Skip"  ? "Skip"
+                                                : entry.Status == "Locked"? "Locked"
+                                                : "Saved";
+                                        }
+                                        <span class="slip-badge @_slipCss">@_slipLabel</span>
                                     </td>
                                     <td class="slip-td" style="text-align:center;white-space:nowrap">
                                         <MudTooltip Text="Save PDF">
@@ -3170,18 +3182,27 @@
     {
         LoadEmployees();
         var now = DateTime.Today;
-        _runYear   = now.Year;
-        _slipMonth = now.Month;
-        _slipYear  = now.Year;
-        LoadSavedRuns();
-        _sdMonth   = now.Month;
-        RefreshSdEmpStatus();
+        _runYear = now.Year;
 
         var fy = AppState.CurrentFY;
-        if (fy.Length >= 4 && int.TryParse(fy[..4], out var fyStart))
-            _runYears = new[] { fyStart, fyStart + 1 };
+        int fyStart   = fy.Length >= 4 && int.TryParse(fy[..4], out var fs) ? fs : now.Year;
+        int fyEndYear = fyStart + 1;
+        bool inScope  = AppStateService.TodayInFyScope(fy);
+        if (inScope)
+        {
+            _slipMonth = now.Month;
+            _sdMonth   = now.Month;
+        }
         else
-            _runYears = new[] { now.Year };
+        {
+            _slipMonth = 3;
+            _sdMonth   = 3;
+        }
+        _slipYear = _slipMonth >= 4 ? fyStart : fyEndYear;
+
+        _runYears = new[] { fyStart, fyEndYear };
+        LoadSavedRuns();
+        RefreshSdEmpStatus();
     }
 
     void LoadEmployees() => ApplyEmpSort(PayrollSvc.GetEmployees(AppState.CurrentDeductorId));
@@ -3354,6 +3375,8 @@
         var (ok, msg) = PayrollSvc.ClearAllEmployees(AppState.CurrentDeductorId);
         if (ok)
         {
+            CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, "CLEAR_ALL", "Payroll",
+                $"All employee data cleared for deductor {AppState.CurrentDeductorId}");
             LoadEmployees();
             Snackbar.Add("All employee data cleared.", Severity.Success);
         }
@@ -3368,9 +3391,12 @@
         if (string.IsNullOrWhiteSpace(_editingEmployee.Pan))          { _empError = "PAN is required."; return; }
         if (_empJoin == null)                                          { _empError = "Date of Joining is required."; return; }
 
-        // OtherAllowance is now edited directly via the Section 5 field — no flush needed.
+        bool isNew = _editingEmployee.Id == 0;
         var (ok, msg) = PayrollSvc.SaveEmployee(_editingEmployee);
         if (!ok) { _empError = msg; return; }
+
+        CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, isNew ? "CREATE" : "UPDATE", "Payroll",
+            $"Employee '{_editingEmployee.Name}' ({_editingEmployee.EmployeeCode}) PAN={_editingEmployee.Pan}");
 
         _salaryStructureNeedsReview = false;
         LoadEmployees();
@@ -3387,6 +3413,8 @@
             yesText: "Delete", cancelText: "Cancel");
         if (confirmed != true) return;
         PayrollSvc.DeleteEmployee(emp.Id);
+        CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, "DELETE", "Payroll",
+            $"Employee '{emp.Name}' ({emp.EmployeeCode}) deactivated");
         LoadEmployees();
         Snackbar.Add("Employee deleted.", Severity.Info);
     }
@@ -3446,6 +3474,9 @@
     {
         if (_decl == null) return;
         PayrollSvc.SaveDeclaration(_decl);
+        var emp = _employees.FirstOrDefault(e => e.Id == _declEmpId);
+        CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, "UPDATE", "Payroll",
+            $"Tax declaration saved for '{emp?.Name ?? _declEmpId.ToString()}' FY {_decl.FinancialYear}");
         Snackbar.Add("Declaration saved.", Severity.Success);
     }
 
@@ -3549,7 +3580,7 @@
                                 annual = SalarySvc.ComputeMonth(entry, emp, entry.FinancialYear, decl);
                             }
                             catch { annual = new AnnualComputation(); }
-                            SalarySlipExport.GenerateHtml(entry, annual, emp, ded, folder);
+                            SalarySlipExport.GeneratePdf(entry, annual, emp, ded, folder);
                             generated++;
                         }
                         catch { }
@@ -3612,7 +3643,7 @@
             var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
             Directory.CreateDirectory(folder);
             var path = html
-                ? SalarySlipExport.GenerateAnnualHtml(annual, emp, AppState.CurrentFY, folder, ded, summary)
+                ? SalarySlipExport.GenerateAnnualPdf(annual, emp, AppState.CurrentFY, folder, ded, summary)
                 : SalarySlipExport.GenerateAnnualExcel(annual, emp, AppState.CurrentFY, folder, ded, summary);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
@@ -3626,12 +3657,17 @@
         {
             var emp = _employees.FirstOrDefault(e => e.Id == summary.EmployeeId)
                       ?? new Employee { Id = summary.EmployeeId, EmployeeCode = summary.EmployeeCode, Name = summary.EmployeeName };
-            var ded = DeductorSvc.GetAll().FirstOrDefault(d => d.Id == AppState.CurrentDeductorId) ?? new Deductor();
+            var ded    = DeductorSvc.GetAll().FirstOrDefault(d => d.Id == AppState.CurrentDeductorId) ?? new Deductor();
             var folder = FolderManager.SalarySlipsForFyFolder(AppState.CurrentFY);
             Directory.CreateDirectory(folder);
+            var entries = SalarySvc.GetAllForFY(summary.EmployeeId, AppState.CurrentFY);
+            foreach (var e in entries) { e.EmployeeName = emp.Name; e.Pan = emp.Pan; }
+            var decl = PayrollSvc.GetDeclaration(summary.EmployeeId, AppState.CurrentFY)
+                       ?? new TaxDeclaration { EmployeeId = summary.EmployeeId, FinancialYear = AppState.CurrentFY };
+            var statRows = SalarySvc.BuildMonthlySalaryStatRows(entries, emp, AppState.CurrentFY, decl);
             var path = html
-                ? SalarySlipExport.GenerateMonthlySalaryHtml(emp, AppState.CurrentFY, folder, ded, summary)
-                : SalarySlipExport.GenerateMonthlySalaryExcel(emp, AppState.CurrentFY, folder, ded, summary);
+                ? SalarySlipExport.GenerateMonthlySalaryPdf(emp, AppState.CurrentFY, folder, ded, summary, statRows)
+                : SalarySlipExport.GenerateMonthlySalaryExcel(emp, AppState.CurrentFY, folder, ded, summary, statRows);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }
@@ -3686,7 +3722,7 @@
         }
         RefreshSdMonthStrip();
         // Reload detail for the currently-selected month (don't force jump to today)
-        if (_sdMonth == 0) _sdMonth = DateTime.Today.Month;
+        if (_sdMonth == 0) _sdMonth = FyDefaultMonth();
         SelectSdMonth(_sdMonth);
     }
 
@@ -3743,6 +3779,19 @@
         row.LopDays    = d;
         row.DaysWorked = 30 - d;
         row.Status     = row.DaysWorked == 0 ? "Skip" : "Draft";
+        // Reset row component fields from salary structure so Compute and SaveDraft always
+        // work from the full structure value, then apply the new f correctly.
+        var _lopEmp = _employees.FirstOrDefault(e => e.Id == row.EmployeeId);
+        if (_lopEmp?.Salary != null)
+        {
+            row.Basic   = _lopEmp.Salary.Basic;
+            row.Hra     = _lopEmp.Salary.Hra;
+            row.Da      = _lopEmp.Salary.Da;
+            row.Special = _lopEmp.Salary.SpecialAllowance;
+            row.Lta     = _lopEmp.Salary.Lta;
+            row.Other   = _lopEmp.Salary.ComponentsReceived();
+        }
+        row.EntryId = 0; // treat as new so SaveDraft applies pro-rata from structure
         var savedTds   = row.TdsManualOverride ? row.Tds : -1;
         try { McSvc.Compute(row, AppState.CurrentDeductorId); } catch { }
         if (savedTds >= 0)
@@ -3797,6 +3846,8 @@
         _sdBulkMsg  = failed > 0 ? $"Saved {ok} · {failed} failed." : $"Saved {ok} employee(s).";
         if (failures.Any())
             _sdBulkMsg += " — " + string.Join("; ", failures.Take(3));
+        CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, "MONTHLY_CLOSE", "Monthly Close",
+            $"{new DateTime(1, _sdMonth, 1):MMMM yyyy} FY {AppState.CurrentFY}: {ok} saved, {failed} failed");
         AppState.NotifyStateChanged();
         LoadBulkGrid();
         RefreshSdEmpStatus();
@@ -4064,6 +4115,8 @@
             var (ok, msg) = McSvc.SaveAndSync(entry, emp, AppState.CurrentDeductorId);
             _sdCurEntry = entry;
             if (!ok) Snackbar.Add($"Sec 192 warning: {msg}", Severity.Warning);
+            CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, "SAVE_SALARY", "Payroll",
+                $"Salary saved for '{entry.EmployeeName}' {new DateTime(1, _sdMonth, 1):MMMM yyyy} FY {AppState.CurrentFY} Gross=₹{entry.GrossPayment:N0} TDS=₹{entry.TdsDeducted:N0}");
             AppState.NotifyStateChanged();
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
@@ -4132,11 +4185,14 @@
                     }
                     catch { }
                     copy.RecalcGross();
-                    SalarySvc.Save(copy);
+                    McSvc.SaveAndSync(copy, emp, AppState.CurrentDeductorId);
                     saved++;
                 }
             });
 
+            var _copyEmp = _employees.FirstOrDefault(e => e.Id == _sdEmpId);
+            CDeTDS.DAL.Database.LogAction(AppState.CurrentUser, "COPY_FORWARD", "Payroll",
+                $"'{_copyEmp?.Name ?? _sdEmpId.ToString()}' salary copied {new DateTime(1, _sdMonth, 1):MMMM} → {new DateTime(1, forwardMonths.Last(), 1):MMMM} FY {AppState.CurrentFY} ({saved} months)");
             AppState.NotifyStateChanged();
             RefreshSdMonthStrip();
             RefreshSdEmpStatus();
@@ -4187,7 +4243,7 @@
                 ?? PayrollSvc.GetYearSummary(AppState.CurrentFY, AppState.CurrentDeductorId)
                               .FirstOrDefault(s => s.EmployeeId == _sdEmpId);
             var path = html
-                ? SalarySlipExport.GenerateAnnualHtml(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum)
+                ? SalarySlipExport.GenerateAnnualPdf(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum)
                 : SalarySlipExport.GenerateAnnualExcel(_sdAnnual, emp, AppState.CurrentFY, folder, ded, sdYearSum);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
@@ -4207,14 +4263,37 @@
             var sdYearSum = _yearSummaries.FirstOrDefault(s => s.EmployeeId == _sdEmpId)
                 ?? PayrollSvc.GetYearSummary(AppState.CurrentFY, AppState.CurrentDeductorId)
                               .FirstOrDefault(s => s.EmployeeId == _sdEmpId);
+            var entries = SalarySvc.GetAllForFY(_sdEmpId, AppState.CurrentFY);
+            foreach (var e in entries) { e.EmployeeName = emp.Name; e.Pan = emp.Pan; }
+            var decl = PayrollSvc.GetDeclaration(_sdEmpId, AppState.CurrentFY)
+                       ?? new TaxDeclaration { EmployeeId = _sdEmpId, FinancialYear = AppState.CurrentFY };
+            var statRows = SalarySvc.BuildMonthlySalaryStatRows(entries, emp, AppState.CurrentFY, decl);
             var path = html
-                ? SalarySlipExport.GenerateMonthlySalaryHtml(emp, AppState.CurrentFY, folder, ded, sdYearSum)
-                : SalarySlipExport.GenerateMonthlySalaryExcel(emp, AppState.CurrentFY, folder, ded, sdYearSum);
+                ? SalarySlipExport.GenerateMonthlySalaryPdf(emp, AppState.CurrentFY, folder, ded, sdYearSum, statRows)
+                : SalarySlipExport.GenerateMonthlySalaryExcel(emp, AppState.CurrentFY, folder, ded, sdYearSum, statRows);
             FolderManager.OpenFolder(Path.GetDirectoryName(path)!);
             Snackbar.Add($"Saved: {Path.GetFileName(path)}", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
     }
 
+    /// <summary>
+    /// Returns today's month if today falls within AppState.CurrentFY,
+    /// otherwise returns the last month of the FY (March).
+    /// Prevents selectors from defaulting to a month outside the selected FY.
+    /// </summary>
+    int FyDefaultMonth()
+    {
+        var now = DateTime.Today;
+        return AppStateService.TodayInFyScope(AppState.CurrentFY) ? now.Month : 3;
+    }
+
+    // Apr–Dec belong to FY start year; Jan–Mar belong to FY start+1 year.
+    int SlipYearForMonth(int month)
+    {
+        var fy = AppState.CurrentFY;
+        int fyStart = fy.Length >= 4 && int.TryParse(fy[..4], out var s) ? s : DateTime.Today.Year;
+        return month >= 4 ? fyStart : fyStart + 1;
+    }
 }
 

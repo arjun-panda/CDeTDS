@@ -456,41 +456,56 @@ namespace CDeTDS.DAL
         /// Find an existing deductee row by PAN, or create a minimal one keyed to the employee.
         /// Used to link salary payroll to the TDS Entries module (Section 192).
         /// </summary>
-        public int EnsureSalaryDeductee(Employee emp)
+        public int EnsureSalaryDeductee(Employee emp, int deductorId = 0)
         {
             if (string.IsNullOrWhiteSpace(emp.Pan)) return 0;
             using var conn = Database.GetConnection();
 
-            // Look for an existing deductee that matches this employee exactly:
-            // same PAN + auto-created by payroll (section=192, code starts with EMP-)
-            // This prevents reusing a vendor/contractor deductee that happens to share the same PAN.
+            // 1. Exact match: same PAN + section 192 + same deductor_id
             using var chk = conn.CreateCommand();
             chk.CommandText = @"SELECT id FROM deductees
-                                WHERE pan=@p AND section='192'
-                                AND (deductee_code LIKE 'EMP-%' OR remarks='Auto-created from Payroll module')
-                                LIMIT 1";
-            chk.Parameters.AddWithValue("@p", emp.Pan.ToUpper());
+                                WHERE pan=@p AND section='192' AND deductor_id=@did LIMIT 1";
+            chk.Parameters.AddWithValue("@p",   emp.Pan.ToUpper());
+            chk.Parameters.AddWithValue("@did", deductorId);
             var obj = chk.ExecuteScalar();
             if (obj != null && obj != DBNull.Value) return Convert.ToInt32(obj);
 
-            using var cnt = conn.CreateCommand();
-            cnt.CommandText = "SELECT COALESCE(MAX(id),0)+1 FROM deductees";
-            int newId = Convert.ToInt32(cnt.ExecuteScalar() ?? 1);
+            // 2. Fallback: row exists with deductor_id=0 (created before deductor was set).
+            //    Migrate it to the correct deductor_id instead of failing.
+            using var chk0 = conn.CreateCommand();
+            chk0.CommandText = @"SELECT id FROM deductees
+                                 WHERE pan=@p AND section='192' AND deductor_id=0 LIMIT 1";
+            chk0.Parameters.AddWithValue("@p", emp.Pan.ToUpper());
+            var obj0 = chk0.ExecuteScalar();
+            if (obj0 != null && obj0 != DBNull.Value)
+            {
+                int existingId = Convert.ToInt32(obj0);
+                using var upd = conn.CreateCommand();
+                upd.CommandText = "UPDATE deductees SET deductor_id=@did WHERE id=@id";
+                upd.Parameters.AddWithValue("@did", deductorId);
+                upd.Parameters.AddWithValue("@id",  existingId);
+                upd.ExecuteNonQuery();
+                return existingId;
+            }
 
+            // 3. Not found — create new row
             using var ins = conn.CreateCommand();
-            ins.CommandText = @"INSERT INTO deductees
-                (id,deductee_code,name,pan,section,rate,deductee_type,is_resident,remarks)
-                VALUES(@id,@cd,@n,@p,@s,@r,@t,1,@rm)";
-            ins.Parameters.AddWithValue("@id", newId);
-            ins.Parameters.AddWithValue("@cd", $"EMP-{emp.EmployeeCode}");
-            ins.Parameters.AddWithValue("@n",  emp.Name);
-            ins.Parameters.AddWithValue("@p",  emp.Pan.ToUpper());
-            ins.Parameters.AddWithValue("@s",  "192");
-            ins.Parameters.AddWithValue("@r",  0);   // salary TDS rate computed per-employee
-            ins.Parameters.AddWithValue("@t",  "Individual");
-            ins.Parameters.AddWithValue("@rm", "Auto-created from Payroll module");
+            ins.CommandText = @"INSERT OR IGNORE INTO deductees
+                (deductee_code,name,pan,section,rate,deductee_type,is_resident,deductor_id,remarks,source)
+                VALUES(@cd,@n,@p,'192',0,'Individual',1,@did,'Auto-created from Payroll module','payroll')";
+            ins.Parameters.AddWithValue("@cd",  $"EMP-{emp.EmployeeCode}");
+            ins.Parameters.AddWithValue("@n",   emp.Name);
+            ins.Parameters.AddWithValue("@p",   emp.Pan.ToUpper());
+            ins.Parameters.AddWithValue("@did", deductorId);
             ins.ExecuteNonQuery();
-            return newId;
+
+            using var get = conn.CreateCommand();
+            get.CommandText = @"SELECT id FROM deductees
+                                WHERE pan=@p AND section='192' AND deductor_id=@did LIMIT 1";
+            get.Parameters.AddWithValue("@p",   emp.Pan.ToUpper());
+            get.Parameters.AddWithValue("@did", deductorId);
+            var id = get.ExecuteScalar();
+            return id != null && id != DBNull.Value ? Convert.ToInt32(id) : 0;
         }
 
         public (bool ok, string msg) DeleteEmployee(int id)
@@ -512,18 +527,27 @@ namespace CDeTDS.DAL
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd  = conn.CreateCommand();
-                // Delete all related data for this deductor's employees
-                cmd.CommandText = @"
-                    DELETE FROM monthly_salary_entries WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM salary_structures      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM tax_declarations       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM landlord_records       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM reimbursement_claims   WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did);
-                    DELETE FROM payroll_runs           WHERE deductor_id=@did;
-                    DELETE FROM employees              WHERE deductor_id=@did;";
-                cmd.Parameters.AddWithValue("@did", deductorId);
-                cmd.ExecuteNonQuery();
+                using var tx   = conn.BeginTransaction();
+                // Microsoft.Data.Sqlite only executes the first statement in a multi-statement
+                // CommandText — each DELETE must be a separate command.
+                void Del(string sql)
+                {
+                    using var c = conn.CreateCommand();
+                    c.Transaction  = tx;
+                    c.CommandText  = sql;
+                    c.Parameters.AddWithValue("@did", deductorId);
+                    c.ExecuteNonQuery();
+                }
+                Del("DELETE FROM monthly_salary_entries WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did)");
+                Del("DELETE FROM salary_components      WHERE salary_structure_id IN (SELECT s.id FROM salary_structures s JOIN employees e ON s.employee_id=e.id WHERE e.deductor_id=@did)");
+                Del("DELETE FROM salary_structures      WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did)");
+                Del("DELETE FROM tax_declarations       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did)");
+                Del("DELETE FROM landlord_records       WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did)");
+                Del("DELETE FROM reimbursement_claims   WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did)");
+                Del("DELETE FROM deduction_schedules    WHERE employee_id IN (SELECT id FROM employees WHERE deductor_id=@did)");
+                Del("DELETE FROM payroll_runs           WHERE deductor_id=@did");
+                Del("DELETE FROM employees              WHERE deductor_id=@did");
+                tx.Commit();
                 return (true, "All employee data cleared.");
             }
             catch (Exception ex) { return (false, ex.Message); }

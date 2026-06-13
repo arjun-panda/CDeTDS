@@ -33,14 +33,14 @@ namespace CDeTDS.DAL
         /// A4 portrait page with consistent margins, app footer, page number.
         /// Pass a delegate to render the body — the delegate gets a Container scoped to the page content area.
         /// </summary>
-        public static byte[] BuildA4(string title, Action<IContainer> body, string? subtitle = null, bool centerHeader = false)
+        public static byte[] BuildA4(string title, Action<IContainer> body, string? subtitle = null, bool centerHeader = false, bool landscape = false)
         {
             Initialize();
             return Document.Create(doc =>
             {
                 doc.Page(page =>
                 {
-                    page.Size(PageSizes.A4);
+                    page.Size(landscape ? PageSizes.A4.Landscape() : PageSizes.A4);
                     page.Margin(36);
                     page.DefaultTextStyle(t => t.FontSize(10).FontFamily("Arial"));
 

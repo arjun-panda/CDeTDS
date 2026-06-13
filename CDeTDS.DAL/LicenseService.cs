@@ -238,38 +238,9 @@ namespace CDeTDS.DAL
         private static LicenseInfo Invalid(string msg) =>
             new() { IsValid = false, Message = msg, Tier = LicenseTier.Trial };
 
-        // ── Base32 (RFC 4648) ─────────────────────────────────────────────────
-        private const string B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-
-        public static string Base32Encode(byte[] data)
-        {
-            var sb = new StringBuilder();
-            int bits = 0, acc = 0;
-            foreach (var b in data)
-            {
-                acc = (acc << 8) | b;
-                bits += 8;
-                while (bits >= 5) { bits -= 5; sb.Append(B32[(acc >> bits) & 31]); }
-            }
-            if (bits > 0) sb.Append(B32[(acc << (5 - bits)) & 31]);
-            return sb.ToString();
-        }
-
-        public static byte[] Base32Decode(string s)
-        {
-            var out2 = new List<byte>();
-            s = s.ToUpper().TrimEnd('=');
-            int bits = 0, acc = 0;
-            foreach (var c in s)
-            {
-                int v = B32.IndexOf(c);
-                if (v < 0) continue;
-                acc = (acc << 5) | v;
-                bits += 5;
-                if (bits >= 8) { bits -= 8; out2.Add((byte)((acc >> bits) & 0xFF)); }
-            }
-            return out2.ToArray();
-        }
+        // ── Base32 (RFC 4648) — implementation shared with KeyGen via Common ──
+        public static string Base32Encode(byte[] data) => CDeTDS.Common.Base32.Encode(data);
+        public static byte[] Base32Decode(string s)    => CDeTDS.Common.Base32.Decode(s);
     }
 
     // ── Models ─────────────────────────────────────────────────────────────────

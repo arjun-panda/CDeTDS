@@ -47,9 +47,11 @@ namespace CDeTDS.DAL
                 (ConfigKeyOutputDir, cfg.OutputDir),
             };
             using var conn = Database.GetConnection();
+            using var tx   = conn.BeginTransaction();   // all three keys saved atomically
             foreach (var (key, val) in pairs)
             {
                 using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
                 cmd.CommandText = @"
                     INSERT INTO fvu_format_config (config_key, form_type, version, effective_from, notes)
                     VALUES (@k,'CONFIG','1.0','2026-04-01',@v)
@@ -58,6 +60,7 @@ namespace CDeTDS.DAL
                 cmd.Parameters.AddWithValue("@v", val ?? "");
                 cmd.ExecuteNonQuery();
             }
+            tx.Commit();
         }
 
         // ── Ensure hosts entry so FVU version check resolves (old NSDL domain is dead) ──

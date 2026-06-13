@@ -251,7 +251,9 @@ namespace CDeTDS.DAL.Models
         // Tax computation
         public string TaxRegimeUsed  { get; set; } = "New";
         public double HraExemption   { get; set; }
-        public double StandardDeduction { get; set; } = 75000;
+        // 0 = not computed (rows adapted from monthly_salary_entries carry no tax fields).
+        // Never default to a real amount — reports must not mistake it for data.
+        public double StandardDeduction { get; set; }
         public double Chapter6ADeduction { get; set; }
         public double TaxableIncome  { get; set; }
         public double AnnualTax      { get; set; }

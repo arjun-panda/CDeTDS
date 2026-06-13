@@ -4,7 +4,7 @@ namespace CDeTDS.DAL.Models
 {
     /// <summary>
     /// Complete per-month salary entry for one employee.
-    /// Stores every component shown in the TDSPro data entry form.
+    /// Stores every component shown in the CDeTDS data entry form.
     /// </summary>
     public class MonthlySalaryEntry
     {
@@ -186,6 +186,33 @@ namespace CDeTDS.DAL.Models
     /// <summary>
     /// Full annual computation for one employee at a given month.
     /// </summary>
+    /// <summary>Pre-computed per-month row for the Monthly Salary Statement report.</summary>
+    public record MonthlySalaryStatRow(
+        string MonthLabel,
+        // A. Gross Salary components
+        double Basic, double Hra, double Da, double Special,
+        double Medical, double Lta,
+        double Bonus, double Commission, double AdvanceSalary, double Arrears,
+        double NpsEmployer, double PerqTaxable, double LeaveEncTaxable,
+        double Other,       // named line items + residual OtherAllowances
+        double GrossTotal,
+        // B. Exemptions
+        double HraEx, double OtherEx, double TotalEx,
+        // C
+        double NetTaxableSalary,
+        // D. Deductions (tax)
+        double StdDed, double ProfTax, double Chap6A, double Nps80CCD2, double TotalDed,
+        // E
+        double OtherSources,
+        // Net taxable income
+        double NetTaxableIncome,
+        // F. Tax
+        double TaxOnIncome, double Rebate87A, double TaxAfterRebate,
+        double Surcharge, double Cess, double TotalTax, double TdsDeducted,
+        // Salary deductions / net
+        double Pf, double Esi, double NetPay
+    );
+
     public class AnnualComputation
     {
         public RegimeResult  OldRegime        { get; set; } = new();

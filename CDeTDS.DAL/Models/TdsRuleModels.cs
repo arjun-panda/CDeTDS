@@ -11,7 +11,14 @@ namespace CDeTDS.DAL.Models
         public string NatureOfPayment { get; set; } = "";
         public string DeducteeType    { get; set; } = "All";  // Individual/Company/NRI/All
         public bool   IsResident      { get; set; } = true;
-        public double ThresholdLimit  { get; set; }           // Annual threshold
+        public double ThresholdLimit  { get; set; }           // Single-payment threshold
+        public double AggregateLimit  { get; set; }           // FY aggregate threshold (0 = none), e.g. 194C ₹1,00,000
+        /// <summary>
+        /// IT Act 2025 four-digit payment code (≈1001–1092) from the OFFICIAL Protean
+        /// data structure document. Empty until the final new-act FVU/RPU is released.
+        /// Used in generated files only when the FVU_USE_PAYMENT_CODES setting is on.
+        /// </summary>
+        public string PaymentCode     { get; set; } = "";
         public double TdsRate         { get; set; }           // Percentage
         public double SurchargeRate   { get; set; }           // Percentage on TDS
         public double CessRate        { get; set; }            // Health & Education Cess — explicit per rule, never assumed

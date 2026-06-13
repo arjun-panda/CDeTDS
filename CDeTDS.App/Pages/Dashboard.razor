@@ -27,7 +27,7 @@
             <div>
                 <div style="font-size:15px;font-weight:700;line-height:1.2">Welcome, @AppState.CurrentUser</div>
                 <div style="font-size:11px;opacity:.85;margin-top:2px">
-                    @AppState.CurrentDeductorName &nbsp;·&nbsp; FY @AppState.CurrentFY &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY) &nbsp;·&nbsp; @TaxRules.ActName(AppState.CurrentFY)
+                    @AppState.CurrentDeductorName &nbsp;·&nbsp; @TaxRules.YearLabel(AppState.CurrentFY)@(TaxRules.IsNewAct(AppState.CurrentFY) ? "" : " · " + TaxRules.AssessmentYearLabel(AppState.CurrentFY)) &nbsp;·&nbsp; @TaxRules.ActName(AppState.CurrentFY)
                 </div>
             </div>
             <MudChip T="string" Icon="@Icons.Material.Filled.Verified" Color="Color.Success"
@@ -77,6 +77,15 @@
                            StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="OpenFolder">Open Folder</MudButton>
                 <MudButton Variant="Variant.Outlined" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Print" OnClick='()=>Nav.NavigateTo("/challan/print")'>Challan Print</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Style="color:#7c3aed;border-color:#7c3aed"
+                           StartIcon="@Icons.Material.Filled.Description" OnClick='()=>Nav.NavigateTo("/returns")'>Form 16</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Style="color:#e65100;border-color:#e65100"
+                           StartIcon="@Icons.Material.Filled.CloudDownload" OnClick='()=>Nav.NavigateTo("/returns")'>Download CSI</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Style="color:#0891b2;border-color:#0891b2"
+                           StartIcon="@Icons.Material.Filled.VerifiedUser" OnClick='()=>Nav.NavigateTo("/deductees")'>Verify PAN</MudButton>
             </div>
         </div>
 
@@ -271,13 +280,20 @@
         }
         catch { _recentEntries = new(); }
 
-        // Payroll stats for current month
+        // Payroll stats — use the most recent month that has data in the selected FY,
+        // not DateTime.Today (which may be outside the FY).
         try
         {
             var now = DateTime.Today;
-            _payrollMonthLabel = now.ToString("MMMM yyyy");
+            var fy  = AppState.CurrentFY;
+            int fyStart   = fy.Length >= 4 && int.TryParse(fy[..4], out var _fs) ? _fs : now.Year;
+            int fyEndYear = fyStart + 1;
+            bool inScope  = AppStateService.TodayInFyScope(fy);
+            int payMonth = inScope ? now.Month : 3;
+            int payYear  = inScope ? now.Year  : fyEndYear;
+            _payrollMonthLabel = new DateTime(payYear, payMonth, 1).ToString("MMMM yyyy");
             var runs = await Task.Run(() =>
-                PayrollSvc.GetRuns(now.Month, now.Year, AppState.CurrentDeductorId));
+                PayrollSvc.GetRuns(payMonth, payYear, AppState.CurrentDeductorId));
             if (runs.Any())
             {
                 var allRuns = await Task.Run(() =>

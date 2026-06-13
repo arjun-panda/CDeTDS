@@ -118,16 +118,18 @@ namespace CDeTDS.BLL
             if (emp == null) return row;
 
             // Pro-rate fixed earnings using standard 30-day method (Indian payroll convention).
-            // WorkingDays = calendar days in the month (shown in UI); denominator is always 30.
-            // daysWorked=30 in any month = full salary; daysWorked=15 = 50%. Capped at 1.0.
+            // Always use the salary STRUCTURE values from emp.Salary as the basis — not row.Basic/Hra/etc
+            // which may already be pro-rated (if loaded from a previously-saved entry via FromEntry).
+            // This prevents double-prorating when Compute is called again on a saved row.
+            var ss2 = emp.Salary ?? new CDeTDS.DAL.Models.SalaryStructure();
             const int StdDays = 30;
             double f = row.DaysWorked > 0 ? Math.Min(1.0, (double)row.DaysWorked / StdDays) : 1.0;
-            double basic = Math.Round(row.Basic * f);
-            double hra   = Math.Round(row.Hra   * f);
-            double da    = Math.Round(row.Da    * f);
-            double spec  = Math.Round(row.Special * f);
-            double lta   = Math.Round(row.Lta   * f);
-            double other = Math.Round(row.Other * f);
+            double basic = Math.Round(ss2.Basic            * f);
+            double hra   = Math.Round(ss2.Hra              * f);
+            double da    = Math.Round(ss2.Da               * f);
+            double spec  = Math.Round(ss2.SpecialAllowance * f);
+            double lta   = Math.Round(ss2.Lta              * f);
+            double other = Math.Round(ss2.ComponentsReceived() * f);
 
             row.Gross = basic + hra + da + spec + lta + other + row.Bonus + row.Arrears;
 
@@ -187,7 +189,22 @@ namespace CDeTDS.BLL
             IReadOnlyList<Employee>? employeeCache = null)
         {
             var entry = row.ToEntry(deductorId);
-            entry.RecalcGross();   // ensure NetSalary is correct before persisting
+            // Pro-rata: apply only for NEW rows (EntryId=0, row.Basic holds structure value).
+            // For saved rows (EntryId>0), FromEntry loaded the already-paid (pro-rated) values
+            // from DB into row.Basic/Hra/etc — do not apply f again.
+            if (row.EntryId == 0
+                && row.DaysWorked > 0
+                && row.DaysWorked < CDeTDS.Common.AppConstants.StandardPayrollDays)
+            {
+                double f = Math.Min(1.0, (double)row.DaysWorked / CDeTDS.Common.AppConstants.StandardPayrollDays);
+                entry.Basic            = Math.Round(entry.Basic            * f);
+                entry.HRA              = Math.Round(entry.HRA              * f);
+                entry.DaAmount         = Math.Round(entry.DaAmount         * f);
+                entry.SpecialAllowance = Math.Round(entry.SpecialAllowance * f);
+                entry.Lta              = Math.Round(entry.Lta              * f);
+                entry.OtherAllowances  = Math.Round(entry.OtherAllowances  * f);
+            }
+            entry.RecalcGross();   // computes gross/net from the (possibly pro-rated) fields
             entry.Status   = row.Status == "Skip" ? "Skip" : "Draft";
             entry.IsLocked = false;
             // Preserve existing line items (perqs/reimbursements entered in Salary Data tab).
@@ -324,6 +341,7 @@ namespace CDeTDS.BLL
             Status      = string.IsNullOrEmpty(e.Status) ? "Draft" : e.Status,
             IsLocked    = e.IsLocked,
             ApprovedAt  = e.ApprovedAt,
+            TdsManualOverride = true,  // preserve saved TDS — never recompute a loaded entry
         };
 
         public MonthlySalaryEntry ToEntry(int deductorId) => new MonthlySalaryEntry

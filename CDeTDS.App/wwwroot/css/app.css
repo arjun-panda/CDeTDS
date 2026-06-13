@@ -14,20 +14,22 @@ html, body {
     overflow: hidden !important;
 }
 
-/* Main content scrolls, but NO visible scrollbar on this element */
+/* Main content scrolls with a THIN visible scrollbar.
+   (Previously hidden entirely — that made any page taller than the window
+   lose its bottom rows with no reliable way to reach them.) */
 .mud-main-content {
     height: calc(100vh - 64px) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    /* hide the outer scrollbar — content still scrollable via mouse wheel / touch */
-    scrollbar-width: none !important;        /* Firefox */
-    -ms-overflow-style: none !important;     /* IE/Edge */
+    scrollbar-width: thin !important;                    /* Firefox */
+    scrollbar-color: #94a3b8 transparent !important;
 }
-.mud-main-content::-webkit-scrollbar {
-    display: none !important;               /* Chrome/WebView2 */
-}
+.mud-main-content::-webkit-scrollbar        { width: 8px !important; }      /* Chrome/WebView2 */
+.mud-main-content::-webkit-scrollbar-track  { background: transparent; }
+.mud-main-content::-webkit-scrollbar-thumb  { background: #94a3b8; border-radius: 4px; }
+.mud-main-content::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
 /* Dashboard: lock outer scroll so dashboard fills exactly and doesn't move */
 body.dashboard-active .mud-main-content {
@@ -127,13 +129,33 @@ body.reports-payroll-active .mud-main-content {
     font-weight: 500;
 }
 
-/* Page content — grows to fill space; bottom padding clears the fixed footer bar */
+/* Page content — sized to exactly the remaining viewport space (flex-basis 0),
+   so it MUST scroll its own overflow: without overflow-y, any page taller than
+   the window silently loses its bottom (no scrollbar anywhere could reach it). */
 .page-content {
     padding: 16px 24px 44px;
     flex: 1 1 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
+}
+.page-content::-webkit-scrollbar       { width: 8px; }
+.page-content::-webkit-scrollbar-track { background: transparent; }
+.page-content::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+
+/* THE fix for "bottom of page cut off / unreachable":
+   .page-content is a FIXED-height flex column, and flex SHRINKS children to fit,
+   so tall pages were being compressed (and clipped inside rounded containers like
+   MudTabs) instead of overflowing — meaning no scrollbar could ever appear.
+   Forbid shrinking: children keep natural height, the container overflows, and
+   the overflow-y:auto above produces a working scrollbar.
+   (Viewport-locked pages like Dashboard re-enable shrinking via their own later
+   rules, e.g. .dashboard-page { flex: 1 1 0 }.) */
+.page-content > * {
+    flex-shrink: 0;
 }
 
 /* Dashboard KPI tile */
@@ -277,8 +299,10 @@ body.reports-payroll-active .mud-main-content {
 .slip-row:nth-child(even) td { background: #fafafa; }
 .slip-row:nth-child(even):hover td { background: #f1f5f9; }
 .slip-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.slip-locked { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-.slip-draft  { background: #fef9c3; color: #b45309; border: 1px solid #fde68a; }
+.slip-locked   { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.slip-draft    { background: #fef9c3; color: #b45309; border: 1px solid #fde68a; }
+.slip-saved    { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.slip-skip     { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
 
 /* Landlord records grid */
 .ll-add-btn { padding: 4px 12px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }

@@ -27,7 +27,10 @@ namespace CDeTDS.DAL
         double CessPercent,
         string EffectiveFrom,
         string EffectiveTo,        // "" = active
-        string RulesVersion        // version that introduced this rule
+        string RulesVersion,       // version that introduced this rule
+        // IT Act 2025 4-digit payment code — fill from the OFFICIAL Protean data
+        // structure document when the final new-act FVU/RPU ships; "" until then.
+        string PaymentCode = ""
     )
     {
         // New Act section reference auto-derived — never user-editable
@@ -55,12 +58,14 @@ namespace CDeTDS.DAL
             "194M"   => "Section 393(1) Sl.6(ii) — IT Act 2025",
             "194N"   => "Section 393(1) Sl.15 — IT Act 2025",
             "194O"   => "Section 393(1) Sl.16 — IT Act 2025",
-            "194Q"   => "Section 393(1) Sl.17 — IT Act 2025 (Removed w.e.f. 1-Apr-2025)",
+            "194Q"   => "Section 393(1) Sl.17 — IT Act 2025",   // 194Q continues; FA 2025 only removed the 206C(1H) cross-reference
             "194R"   => "Section 393(1) Sl.18 — IT Act 2025",
             "194S"   => "Section 393(1) Sl.8(vi) — IT Act 2025",
             "195"    => "Section 393(2) — IT Act 2025",
             "206AB"  => "Section 397(3) — IT Act 2025 (Removed w.e.f. 1-Apr-2025)",
-            _        => $"IT Act 2025 s.{SectionCode}"
+            // No official Section 393 Sl. mapping known for this code — cite the
+            // legacy section honestly rather than inventing a table entry.
+            _        => $"IT Act 2025 (legacy s.{SectionCode})"
         };
         public bool IsStandard => BuiltInTdsRules.StandardSections.Contains(SectionCode);
     }
@@ -68,7 +73,57 @@ namespace CDeTDS.DAL
     public static class BuiltInTdsRules
     {
         // ── Version: bump this when rates change ─────────────────────────────
-        public const string CurrentVersion = "2026-27-20260601";
+        // 20260612: corrected ReferenceAct strings (194Q "removed" mislabel; honest
+        //           fallback for unmapped codes) — bump forces re-apply on startup
+        // 20260613: IT Act 2025 payment codes staged from Protean RPU v1.0 (BETA,
+        //           TY 2026-27 onwards) — see FVU_NEWACT_1.0\PaymentCodes_RPU1.0.md.
+        //           Codes are inert until FVU_USE_PAYMENT_CODES is enabled, which must
+        //           wait for the FINAL RPU/FVU release + data structure document.
+        public const string CurrentVersion = "2026-27-20260613";
+
+        /// <summary>
+        /// IT Act 2025 payment code for a rule row, extracted from Protean RPU v1.0
+        /// (BETA — re-verify against the final release before enabling). Returns ""
+        /// where the mapping is ambiguous; those stay blank until confirmed against
+        /// the official data structure document (see PaymentCodes_RPU1.0.md).
+        /// </summary>
+        public static string PaymentCodeFor(string section, string nature, string deducteeType)
+        {
+            var s  = (section ?? "").ToUpperInvariant();
+            var n  = (nature ?? "");
+            var dt = (deducteeType ?? "");
+            return s switch
+            {
+                "192"   => "1002",   // non-Government employees (1001/1003 for Govt categories)
+                "192A"  => "1004",
+                "193"   => "1019",
+                "194"   => "1029",
+                "194A"  => n.Contains("Sr", StringComparison.OrdinalIgnoreCase) ||
+                           n.Contains("senior", StringComparison.OrdinalIgnoreCase) ? "1020" : "1021",
+                "194B"  => "1058",
+                "194BA" => "1060",
+                "194BB" => "1062",
+                "194C"  => dt is "Individual" or "HUF" ? "1023" : "1024",
+                "194D"  => "1005",
+                "194DA" => "1030",
+                "194EE" => "1066",
+                "194G"  => "1063",
+                "194H"  => "1006",
+                "194I"  => n.Contains("Machinery", StringComparison.OrdinalIgnoreCase) ||
+                           n.Contains("Plant", StringComparison.OrdinalIgnoreCase) ? "1008" : "1009",
+                "194IC" => "1011",
+                "194LA" => "1012",
+                "194N"  => "1065",   // person other than co-operative society (1064 = co-op)
+                "194O"  => "1035",
+                "194P"  => "1032",
+                "194Q"  => "1031",
+                "194R"  => "1033",
+                "194T"  => "1067",
+                // Ambiguous pending official data-structure doc: 194J (1025/1026/1027),
+                // 194K ("94K" oddity), 194S (1037/1038), 195/196x (Form 144), TCS (Form 143)
+                _       => "",
+            };
+        }
 
         public static readonly HashSet<string> StandardSections = new(StringComparer.OrdinalIgnoreCase)
         {

@@ -116,4 +116,78 @@ public class PdfReportsTests
         Assert.True(bytes.Length > 500);
         Assert.Equal((byte)'%', bytes[0]);
     }
+
+    private static AnnualComputation SampleAnnual()
+    {
+        var old = new RegimeResult
+        {
+            RegimeName = "Old", GrossSalary = 1404000, HraExemption = 228720,
+            StandardDeduction = 50000, Chapter6A = 225000, TotalIncome = 720280,
+            TaxOnIncome = 56556, TaxAfterRebate = 56556, Cess = 2262, TotalTax = 58818,
+            Sec10Items = { new Sec10Item { Name = "Conveyance", RuleRef = "10(14)(i)", OldRegime = 180000, NewRegime = 180000 } },
+        };
+        var nw = new RegimeResult
+        {
+            RegimeName = "New", GrossSalary = 1404000, StandardDeduction = 75000,
+            TotalIncome = 1149000, TaxOnIncome = 54900, Rebate87A = 54900,
+            Sec10Items = { new Sec10Item { Name = "Conveyance", RuleRef = "10(14)(i)", OldRegime = 180000, NewRegime = 180000 } },
+        };
+        return new AnnualComputation { OldRegime = old, NewRegime = nw, ChosenRegime = "Old" };
+    }
+
+    private static EmployeeYearSummary SampleYearSummary()
+    {
+        var ys = new EmployeeYearSummary { EmployeeId = 1, EmployeeName = "Ajay Sharma" };
+        for (int m = 4; m <= 12; m++)
+            ys.MonthlyRuns[m] = new PayrollRun
+            {
+                Month = m, Year = 2025, GrossSalary = 117000,
+                TdsDeducted = 5000, PfEmployee = 1800,
+            };
+        return ys;
+    }
+
+    [Fact]
+    public void AnnualComputation_Pdf_Produces_Valid_File()
+    {
+        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCDE1234F", Designation = "Engineer" };
+        var ded = new Deductor { CompanyName = "Acme Corp", Tan = "DELA12345A" };
+
+        var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
+        var path = SalarySlipExport.GenerateAnnualPdf(SampleAnnual(), emp, "2025-26", tmp, ded, SampleYearSummary());
+        var bytes = File.ReadAllBytes(path);
+        try { File.Delete(path); Directory.Delete(tmp); } catch { }
+
+        Assert.True(bytes.Length > 1000);
+        Assert.Equal((byte)'%', bytes[0]);
+    }
+
+    [Fact]
+    public void MonthlySalaryStatement_Pdf_Produces_Valid_File()
+    {
+        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCDE1234F" };
+        var ded = new Deductor { CompanyName = "Acme Corp" };
+        string[] mn = { "Apr","May","Jun","Jul","Aug","Sep" };
+        var rows = mn.Select(m => new MonthlySalaryStatRow(
+            MonthLabel: m,
+            Basic: 60000, Hra: 30000, Da: 0, Special: 12000, Medical: 0, Lta: 0,
+            Bonus: 5000, Commission: 0, AdvanceSalary: 0, Arrears: 0,
+            NpsEmployer: 0, PerqTaxable: 0, LeaveEncTaxable: 0,
+            Other: 10000, GrossTotal: 117000,
+            HraEx: 19060, OtherEx: 15000, TotalEx: 34060,
+            NetTaxableSalary: 82940,
+            StdDed: 4167, ProfTax: 200, Chap6A: 18750, Nps80CCD2: 0, TotalDed: 23117,
+            OtherSources: 0, NetTaxableIncome: 59823,
+            TaxOnIncome: 4713, Rebate87A: 0, TaxAfterRebate: 4713,
+            Surcharge: 0, Cess: 189, TotalTax: 4902, TdsDeducted: 5000,
+            Pf: 1800, Esi: 0, NetPay: 110000)).ToList();
+
+        var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
+        var path = SalarySlipExport.GenerateMonthlySalaryPdf(emp, "2025-26", tmp, ded, null, rows);
+        var bytes = File.ReadAllBytes(path);
+        try { File.Delete(path); Directory.Delete(tmp); } catch { }
+
+        Assert.True(bytes.Length > 1000);
+        Assert.Equal((byte)'%', bytes[0]);
+    }
 }

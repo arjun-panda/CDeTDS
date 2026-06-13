@@ -120,6 +120,37 @@ namespace CDeTDS.App
             catch { }
         }
 
+        /// <summary>
+        /// Returns true if today falls within the working scope of the given FY.
+        /// A FY is still in scope until its last Q4 filing due date (typically 31-May
+        /// of the following year). After that date the FY is considered closed.
+        /// Falls back to calendar boundary (31-Mar) if no due dates exist in DB.
+        /// </summary>
+        public static bool TodayInFyScope(string fy)
+        {
+            var today = DateTime.Today;
+            if (string.IsNullOrEmpty(fy)) return true;
+
+            // Try to get last due date for this FY from the database
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd  = conn.CreateCommand();
+                cmd.CommandText = "SELECT MAX(due_date) FROM due_dates WHERE fy=@fy";
+                cmd.Parameters.AddWithValue("@fy", fy);
+                var raw = cmd.ExecuteScalar() as string;
+                if (!string.IsNullOrEmpty(raw) && DateTime.TryParse(raw, out var lastDue))
+                    return today <= lastDue;
+            }
+            catch { }
+
+            // Fallback: use calendar boundary — FY ends 31-Mar of start+1 year
+            if (fy.Length >= 4 && int.TryParse(fy[..4], out var fyStart))
+                return today <= new DateTime(fyStart + 1, 3, 31);
+
+            return true;
+        }
+
         public void NotifyStateChanged() => OnChange?.Invoke();
 
         private void NotifyChanged() => NotifyStateChanged();

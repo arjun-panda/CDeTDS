@@ -20,7 +20,7 @@
         <MudText Typo="Typo.h6" Style="font-weight:700">Returns / FVU — FY @AppState.CurrentFY</MudText>
         <MudSpacer />
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            @TaxRules.ActName(AppState.CurrentFY) &nbsp;·&nbsp; AY @TaxRules.AssessmentYearLabel(AppState.CurrentFY)
+            @TaxRules.ActName(AppState.CurrentFY) &nbsp;·&nbsp; @TaxRules.AssessmentYearLabel(AppState.CurrentFY)
         </MudText>
     </div>
     <div style="background:#e3f2fd;border-left:4px solid #1565C0;border-radius:6px 6px 0 0;
@@ -43,8 +43,8 @@
                 <MudItem xs="6">
                     <MudSelect T="string" Value="_formType" Label="Form Type" Variant="Variant.Outlined" Margin="Margin.Dense"
                                ValueChanged="@((string v) => { _formType = v; OnFormOrQuarterChanged(); })">
-                        @foreach (var f in AppConstants.ReturnFormTypes)
-                        { <MudSelectItem Value="@f">@f</MudSelectItem> }
+                        @foreach (var f in TaxRules.ReturnFormTypesForFy(AppState.CurrentFY))
+                        { <MudSelectItem Value="@f">@TaxRules.ReturnFormLabel(f)</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="6">
@@ -54,11 +54,11 @@
                         { <MudSelectItem Value="@q">@q</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                @if (_formType == "27EQ")
+                @if (_formType is "27EQ" or "143")
                 {
                     <MudItem xs="12">
                         <MudAlert Severity="Severity.Info" Dense="true">
-                            <b>27EQ — TCS Return</b>: For Tax Collected at Source under Section 206C.
+                            <b>@(_formType == "143" ? "143 — TCS Return (Income-tax Act 2025, was 27EQ)" : "27EQ — TCS Return")</b>: For Tax Collected at Source under Section 206C.
                             Enter TCS collections as TDS Entries using sections 206C, 206C(1F), 206C(1G), 206C(1H) etc.
                             Collectee = the buyer/payer from whom tax is collected.
                         </MudAlert>
@@ -433,8 +433,8 @@
         <MudGrid>
             <MudItem xs="6">
                 <MudSelect @bind-Value="_nilForm" Label="Form Type" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    @foreach (var f in AppConstants.ReturnFormTypes)
-                    { <MudSelectItem Value="@f">@f</MudSelectItem> }
+                    @foreach (var f in TaxRules.ReturnFormTypesForFy(AppState.CurrentFY))
+                    { <MudSelectItem Value="@f">@TaxRules.ReturnFormLabel(f)</MudSelectItem> }
                 </MudSelect>
             </MudItem>
             <MudItem xs="6">
@@ -645,6 +645,9 @@
     {
         AppState.OnChange += OnContextChanged;
         _quarter = CurrentAutoQuarter();
+        // Map default form codes to the FY-correct family (24Q/26Q/27EQ vs 138/140/143)
+        _formType = TaxRules.FormTypeForFy(_formType, AppState.CurrentFY);
+        _nilForm  = TaxRules.FormTypeForFy(_nilForm,  AppState.CurrentFY);
         CheckFvuReadiness();
         LoadQuickStatus();
         BuildPortalCards();
@@ -652,7 +655,13 @@
         _ = CheckFvuVersionAsync();
     }
 
-    void OnContextChanged() { LoadQuickStatus(); InvokeAsync(StateHasChanged); }
+    void OnContextChanged()
+    {
+        // FY may have switched — keep the selected forms in the correct Act family
+        _formType = TaxRules.FormTypeForFy(_formType, AppState.CurrentFY);
+        _nilForm  = TaxRules.FormTypeForFy(_nilForm,  AppState.CurrentFY);
+        LoadQuickStatus(); InvokeAsync(StateHasChanged);
+    }
     public void Dispose() => AppState.OnChange -= OnContextChanged;
 
     private async Task CheckFvuVersionAsync()
@@ -888,6 +897,17 @@
                 {
                     _result         = $"⚠️  FVU found {_fvuErrors.Count} error(s). Fix them and regenerate.\n.txt file is saved — open it in RPU to review.";
                     _resultSeverity = Severity.Warning;
+
+                    // Open NSDL's own error report so the user sees the full detail immediately
+                    if (!string.IsNullOrEmpty(fvuResult.ErrorHtmlFile) && File.Exists(fvuResult.ErrorHtmlFile))
+                    {
+                        try
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(fvuResult.ErrorHtmlFile) { UseShellExecute = true });
+                            _logLines.Add($"[{Now()}] 📄 Opened FVU error report: {Path.GetFileName(fvuResult.ErrorHtmlFile)}");
+                        }
+                        catch { }
+                    }
                 }
                 else
                 {
@@ -1197,9 +1217,11 @@
     static string CardTextStyle(string color) => $"font-size:12px;font-weight:600;color:{color}";
     static string Now() => DateTime.Now.ToString("HH:mm:ss");
 
-    static string CurrentAutoQuarter()
+    string CurrentAutoQuarter()
     {
-        int m = DateTime.Today.Month;
+        var now = DateTime.Today;
+        bool inScope = AppStateService.TodayInFyScope(AppState.CurrentFY);
+        int m = inScope ? now.Month : 3; // March → Q4 fallback for closed FY
         return m >= 4 && m <= 6 ? "Q1" : m >= 7 && m <= 9 ? "Q2" : m >= 10 && m <= 12 ? "Q3" : "Q4";
     }
 }

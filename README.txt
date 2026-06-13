@@ -1,6 +1,6 @@
-CDeTDS v1.0.1 — TDS Compliance Software
+CDeTDS v1.0.4 — TDS Compliance Software
 =========================================
-Income-tax Act 1961 | NSDL FVU 9.4 | FY 2025-26
+Income-tax Act 1961 & 2025 | NSDL FVU 9.4
 
 QUICK START
 ───────────
@@ -22,9 +22,10 @@ WHAT'S INCLUDED
 
 DATA LOCATION
 ─────────────
-Database : %APPDATA%\CDeTDS\tds_pro.db
-Backups  : %APPDATA%\CDeTDS\Backup\
-Returns  : Documents\CDeTDS\{FY}\Returns\
+Database : %APPDATA%\CDeTDS\cdetds.db
+Backups  : %APPDATA%\CDeTDS\Backup\          (daily, on app close)
+           Documents\CDeTDS\Backup\          (auto + manual backups)
+Returns  : Documents\CDeTDS\Companies\{TAN}_{COMPANY}\{FY}\Returns\
 Logs     : %APPDATA%\CDeTDS\Logs\
 
 PAGES

@@ -133,9 +133,9 @@
             </MudButton>
         </div>
 
-        <div style="height:calc(100vh - 170px);overflow-y:auto;overflow-x:auto">
+        <div style="height:calc(100vh - 340px);overflow-y:auto;overflow-x:auto">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="calc(100vh - 170px)">
+                     FixedHeader="true" Height="calc(100vh - 340px)">
             <Columns>
                 <TemplateColumn Title="Section"  SortBy="x => x.SectionCode"    HeaderStyle="width:70px"  CellStyle="width:70px">
                     <CellTemplate>@context.Item.SectionCode</CellTemplate>
@@ -190,48 +190,35 @@
     @* ── Tab 3: Section Quick Reference ── *@
     <MudTabPanel Text="Section Guide" Icon="@Icons.Material.Filled.MenuBook">
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-            Key TDS sections under the Income-tax Act 2025 applicable for FY @AppState.CurrentFY
+            Key TDS sections under the @TaxRules.ActName(AppState.CurrentFY) applicable for @TaxRules.YearLabel(AppState.CurrentFY)@(TaxRules.IsNewAct(AppState.CurrentFY) ? " — legacy 194-series numbers shown with their Income-tax Act 2025 references" : "")
         </MudAlert>
-        <div style="height:calc(100vh - 190px);overflow-y:auto">
+        @* Offset must exceed all chrome above (app bar + title + tabs + padding + alert), *@
+        @* otherwise the div's bottom falls below the viewport and the last rows are unreachable *@
+        @* (the outer page scrollbar is hidden by app.css). Generous 340px = always fits. *@
+        <div style="height:calc(100vh - 340px);overflow-y:auto">
         <MudSimpleTable Dense="true" Striped="true" Hover="true">
             <thead>
                 <tr>
-                    <th>Section</th><th>Nature of Payment</th><th>Threshold (₹)</th>
+                    <th>Section</th>
+                    @if (TaxRules.IsNewAct(AppState.CurrentFY))
+                    { <th>Income-tax Act 2025 Reference</th> }
+                    <th>Nature of Payment</th><th>Threshold (₹)</th>
                     <th>Resident Rate</th><th>Notes</th>
                 </tr>
             </thead>
             <tbody>
-                <tr><td><b>192</b></td><td>Salary</td><td>Basic exemption limit</td><td>Slab rate (old/new regime)</td><td>Employer deducts monthly; Form 24Q / Form 138 (Act 2025)</td></tr>
-                <tr><td><b>192A</b></td><td>Premature PF withdrawal</td><td>50,000</td><td>10%</td><td>206AA applies if no PAN → 20%</td></tr>
-                <tr><td><b>193</b></td><td>Interest on securities</td><td>10,000 (all deductees — FA 2023 unified)</td><td>10%</td><td>Debentures, Govt securities; listed bonds exempted</td></tr>
-                <tr><td><b>194</b></td><td>Dividend</td><td>10,000</td><td>10%</td><td>Finance Act 2025 increased threshold from ₹5,000 → ₹10,000 w.e.f. 1-Apr-2025; mutual fund dividends → 194K</td></tr>
-                <tr><td><b>194A</b></td><td>Interest other than securities</td><td>40,000 (general); 1,00,000 (bank/co-op/post, senior citizen)</td><td>10%</td><td>Finance Act 2025 raised senior citizen threshold ₹50,000 → ₹1,00,000 w.e.f. 1-Apr-2025</td></tr>
-                <tr><td><b>194B</b></td><td>Winnings from lottery/crossword puzzle</td><td>10,000 per transaction</td><td>30%</td><td>TDS on gross amount; no deduction allowed</td></tr>
-                <tr><td><b>194BA</b></td><td>Winnings from online games</td><td>Nil (no threshold)</td><td>30%</td><td>Inserted by Finance Act 2023 w.e.f. 01-Apr-2023; net winnings basis</td></tr>
-                <tr><td><b>194BB</b></td><td>Winnings from horse races</td><td>10,000 per transaction</td><td>30%</td><td>Bookmaker / totalisator</td></tr>
-                <tr><td><b>194C</b></td><td>Contractor / sub-contractor</td><td>₹30,000 single; ₹1,00,000 aggregate p.a.</td><td>1% Individual/HUF; 2% Company/LLP</td><td>Includes advertising, transport, catering</td></tr>
-                <tr><td><b>194D</b></td><td>Insurance commission</td><td>15,000</td><td>5% Individual; 10% Company (domestic)</td><td>Life / general insurance agents</td></tr>
-                <tr><td><b>194DA</b></td><td>Life insurance maturity payment</td><td>1,00,000</td><td>5% on income portion (maturity − premium paid)</td><td>Only on income component; not on return of premium</td></tr>
-                <tr><td><b>194G</b></td><td>Commission on lottery tickets</td><td>15,000</td><td>5%</td><td>Stocking agent / sub-agent</td></tr>
-                <tr><td><b>194H</b></td><td>Commission / brokerage</td><td>20,000</td><td>2%</td><td>Finance Act 2025: rate reduced 5%→2%; threshold raised ₹15,000→₹20,000 w.e.f. 1-Apr-2025; excludes insurance commission and securities brokerage</td></tr>
-                <tr><td><b>194I</b></td><td>Rent</td><td>₹50,000 per month or part thereof</td><td>2% Plant &amp; Machinery; 10% Land/Building/Furniture</td><td>Finance Act 2025: threshold changed to ₹50,000 per month or part thereof w.e.f. 1-Apr-2025 (earlier annual ₹2,40,000)</td></tr>
-                <tr><td><b>194IA</b></td><td>Transfer of immovable property</td><td>50,00,000 per transaction</td><td>1%</td><td>Buyer deducts at time of payment; agricultural land exempt</td></tr>
-                <tr><td><b>194IB</b></td><td>Rent by Individual/HUF (not under audit)</td><td>₹50,000 per month</td><td>2%</td><td>Rate 2% (reduced from 5% by Finance Act 2023, w.e.f. 1-Oct-2023); no major FY 2025-26 change</td></tr>
-                <tr><td><b>194IC</b></td><td>Payment under Joint Development Agreement</td><td>Nil</td><td>10%</td><td>Cash/cheque component to landowner under JDA</td></tr>
-                <tr><td><b>194J</b></td><td>Professional / technical fees / royalty</td><td>50,000 (nil for directors)</td><td>10% Professional/Royalty; 2% Technical services</td><td>Finance Act 2025 increased threshold from ₹30,000 → ₹50,000 w.e.f. 1-Apr-2025; directors: no threshold; royalty for software @@ 10%</td></tr>
-                <tr><td><b>194K</b></td><td>Income from mutual fund units</td><td>5,000</td><td>10%</td><td>Dividend distributed by MF; capital gains → exempt from TDS</td></tr>
-                <tr><td><b>194LA</b></td><td>Compensation on compulsory acquisition</td><td>2,50,000</td><td>10%</td><td>Urban agricultural land included; rural agri land exempt</td></tr>
-                <tr><td><b>194LB</b></td><td>Interest from infrastructure debt fund</td><td>Nil</td><td>5%</td><td>NRI / foreign company investors only</td></tr>
-                <tr><td><b>194M</b></td><td>Contractor/professional by Individual/HUF (&gt;₹50L)</td><td>50,00,000 p.a.</td><td>2%</td><td>Inserted by Finance Act 2019; no TAN required — use PAN</td></tr>
-                <tr><td><b>194N</b></td><td>Cash withdrawal from bank/co-op/post</td><td>₹1 Cr (return-filer); ₹20L (non-filer)</td><td>2% on excess (return-filer); 2% ₹20L–1Cr, 5% above ₹1Cr (non-filer)</td><td>Per account per FY; ITR non-filer rates apply if ITR not filed for 3 preceding years</td></tr>
-                <tr><td><b>194O</b></td><td>E-commerce payments to participants</td><td>Nil (no threshold)</td><td>1%</td><td>E-commerce operator deducts at time of credit/payment; w.e.f. Oct 2020</td></tr>
-                <tr><td><b>194Q</b></td><td>Purchase of goods</td><td>50,00,000 p.a. per seller</td><td>0.1%</td><td>Continues in force. Finance Act 2025 only removed the Section 206C(1H) cross-reference; 194Q itself applies — buyer's turnover &gt;₹10 Cr in preceding FY</td></tr>
-                <tr><td><b>194R</b></td><td>Benefit/perquisite to business/profession</td><td>20,000 p.a.</td><td>10%</td><td>Cash or non-cash; FMV for non-cash; inserted by Finance Act 2022</td></tr>
-                <tr><td><b>194S</b></td><td>VDA / cryptocurrency transfer consideration</td><td>₹10,000 (specified persons: exchanges); ₹50,000 (others)</td><td>1%</td><td>Virtual digital assets w.e.f. 01-Jul-2022; deductor uses Form 26QE if no TAN</td></tr>
-                <tr><td><b>195</b></td><td>Payments to non-residents</td><td>Nil</td><td>As per rates in force / DTAA (lower)</td><td>Requires Form 15CA + 15CB from CA; DTAA rates available on TRACES</td></tr>
-                <tr><td><b>206AA</b></td><td>Higher rate — PAN not furnished</td><td>—</td><td>Higher of 20% or twice the applicable rate</td><td>Applies on top of any section; furnish PAN to avoid</td></tr>
-                <tr style="color:#999;text-decoration:line-through"><td><b>206AB</b></td><td>Higher rate — ITR non-filer (deductee)</td><td>TDS &gt; ₹50,000 in each of 2 preceding years</td><td>Higher of 5% or twice the normal rate</td><td>REMOVED by Finance Act 2025 w.e.f. 1-Apr-2025 — no longer applicable from FY 2025-26</td></tr>
-                <tr><td><b>206CCA</b></td><td>Higher rate TCS — ITR non-filer (collectee)</td><td>TCS &gt; ₹50,000 in each of 2 preceding years</td><td>Higher of 5% or twice the normal TCS rate</td><td>Mirror provision of 206AB for Tax Collected at Source</td></tr>
+                @foreach (var s in _sectionGuide)
+                {
+                    <tr style="@(s.Removed ? "color:#999;text-decoration:line-through" : "")">
+                        <td><b>@s.Sec</b></td>
+                        @if (TaxRules.IsNewAct(AppState.CurrentFY))
+                        {
+                            var nref = TaxRules.NewActSectionRef(s.Sec);
+                            <td style="color:#065f46">@(string.IsNullOrEmpty(nref) ? "—" : nref)</td>
+                        }
+                        <td>@s.Nature</td><td>@s.Threshold</td><td>@s.Rate</td><td>@s.Notes</td>
+                    </tr>
+                }
             </tbody>
         </MudSimpleTable>
         </div>
@@ -274,11 +261,12 @@
                             </tr>
                             <tr>
                                 <td><b>Effective From</b></td>
-                                <td>1 April @(AppState.CurrentFY.Length >= 4 ? AppState.CurrentFY[..4] : DateTime.Today.Year.ToString()) (FY @AppState.CurrentFY)</td>
+                                <td>1 April @(AppState.CurrentFY.Length >= 4 ? AppState.CurrentFY[..4] : DateTime.Today.Year.ToString()) (@TaxRules.YearLabel(AppState.CurrentFY))</td>
                             </tr>
                             <tr>
                                 <td><b>Act Reference</b></td>
-                                <td>Income Tax Act 2025 · Finance Act @(AppState.CurrentFY.Length >= 4 && int.TryParse(AppState.CurrentFY[..4], out var faYear) ? (faYear + 1).ToString() : "2026") · CBDT Circulars</td>
+                                @* Finance Act year = FY start year (FA 2026 governs FY 2026-27) *@
+                                <td>@TaxRules.ActName(AppState.CurrentFY) · Finance Act @(AppState.CurrentFY.Length >= 4 && int.TryParse(AppState.CurrentFY[..4], out var faYear) ? faYear.ToString() : DateTime.Today.Year.ToString()) · CBDT Circulars</td>
                             </tr>
                         </tbody>
                     </MudSimpleTable>
@@ -296,6 +284,30 @@
                     </MudButton>
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
                         Safe to run anytime — only updates standard sections, never overwrites custom rules or user notes.
+                    </MudText>
+
+                    <MudDivider Class="my-4" />
+
+                    @* ── IT Act 2025 payment codes (future activation) ── *@
+                    <MudText Typo="Typo.subtitle2" Class="mb-2"><b>IT Act 2025 Payment Codes</b></MudText>
+                    <div style="border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;background:#fffbeb;margin-bottom:8px">
+                        <MudCheckBox T="bool" Value="_usePaymentCodes" ValueChanged="TogglePaymentCodes"
+                                     Color="Color.Success" Dense="true"
+                                     Label="@($"Write payment codes in new-act files ({_payCodeCount} rules have a code) — keep OFF until final FVU")" />
+                    </div>
+                    @if (_usePaymentCodes && _payCodeCount == 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                            Enabled, but no rule has a payment code yet — files will still use the interim
+                            392/393 codes until codes are entered.
+                        </MudAlert>
+                    }
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
+                        From TY 2026-27, e-TDS files will eventually carry 4-digit payment codes instead of
+                        section numbers. Codes staged so far come from Protean's <b>RPU v1.0 BETA</b> and may
+                        change — keep the box above <b>unticked</b> until Protean releases the FINAL new-act
+                        FVU/RPU and data structure document, and the codes are re-verified against it. Until
+                        then, files use the FVU 9.4 interim format and validate normally.
                     </MudText>
                 </MudPaper>
             </MudItem>
@@ -383,9 +395,14 @@
                     <DateField Value="_ruleEffTo" ValueChanged="d => _ruleEffTo = d" Label="Effective To (blank=current)"
                                Variant="Variant.Outlined" Class="date-field" />
                 </MudItem>
-                <MudItem xs="12">
+                <MudItem xs="8">
                     <MudTextField @bind-Value="_editingRule.ReferenceAct" Label="Act Reference"
-                                  Variant="Variant.Outlined" Placeholder="Income-tax Act 2025 s.194C" />
+                                  Variant="Variant.Outlined" Placeholder="e.g. IT Act 1961 s.194C (FY ≤ 2025-26) or IT Act 2025 ref" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_editingRule.PaymentCode" Label="IT Act 2025 Payment Code"
+                                  Variant="Variant.Outlined" Placeholder="e.g. 1006"
+                                  HelperText="From official Protean doc only — leave blank until released" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_editingRule.Notes" Label="Notes"
@@ -403,6 +420,43 @@
 </MudDialog>
 
 @code {
+    // ── Section Guide rows (1961-Act numbers; Act 2025 refs added per FY in markup) ──
+    private record SectionGuideRow(string Sec, string Nature, string Threshold, string Rate, string Notes, bool Removed = false);
+    private static readonly SectionGuideRow[] _sectionGuide =
+    {
+        new("192",   "Salary", "Basic exemption limit", "Slab rate (old/new regime)", "Employer deducts monthly; Form 24Q / Form 138 (Act 2025)"),
+        new("192A",  "Premature PF withdrawal", "50,000", "10%", "206AA applies if no PAN → 20%"),
+        new("193",   "Interest on securities", "10,000 (all deductees — FA 2023 unified)", "10%", "Debentures, Govt securities; listed bonds exempted"),
+        new("194",   "Dividend", "10,000", "10%", "Finance Act 2025 increased threshold from ₹5,000 → ₹10,000 w.e.f. 1-Apr-2025; mutual fund dividends → 194K"),
+        new("194A",  "Interest other than securities", "40,000 (general); 1,00,000 (bank/co-op/post, senior citizen)", "10%", "Finance Act 2025 raised senior citizen threshold ₹50,000 → ₹1,00,000 w.e.f. 1-Apr-2025"),
+        new("194B",  "Winnings from lottery/crossword puzzle", "10,000 per transaction", "30%", "TDS on gross amount; no deduction allowed"),
+        new("194BA", "Winnings from online games", "Nil (no threshold)", "30%", "Inserted by Finance Act 2023 w.e.f. 01-Apr-2023; net winnings basis"),
+        new("194BB", "Winnings from horse races", "10,000 per transaction", "30%", "Bookmaker / totalisator"),
+        new("194C",  "Contractor / sub-contractor", "₹30,000 single; ₹1,00,000 aggregate p.a.", "1% Individual/HUF; 2% Company/LLP", "Includes advertising, transport, catering"),
+        new("194D",  "Insurance commission", "15,000", "5% Individual; 10% Company (domestic)", "Life / general insurance agents"),
+        new("194DA", "Life insurance maturity payment", "1,00,000", "5% on income portion (maturity − premium paid)", "Only on income component; not on return of premium"),
+        new("194G",  "Commission on lottery tickets", "15,000", "5%", "Stocking agent / sub-agent"),
+        new("194H",  "Commission / brokerage", "20,000", "2%", "Finance Act 2025: rate reduced 5%→2%; threshold raised ₹15,000→₹20,000 w.e.f. 1-Apr-2025; excludes insurance commission and securities brokerage"),
+        new("194I",  "Rent", "₹50,000 per month or part thereof", "2% Plant & Machinery; 10% Land/Building/Furniture", "Finance Act 2025: threshold changed to ₹50,000 per month or part thereof w.e.f. 1-Apr-2025 (earlier annual ₹2,40,000)"),
+        new("194IA", "Transfer of immovable property", "50,00,000 per transaction", "1%", "Buyer deducts at time of payment; agricultural land exempt"),
+        new("194IB", "Rent by Individual/HUF (not under audit)", "₹50,000 per month", "2%", "Rate 2% (reduced from 5% by Finance Act 2023, w.e.f. 1-Oct-2023); no major FY 2025-26 change"),
+        new("194IC", "Payment under Joint Development Agreement", "Nil", "10%", "Cash/cheque component to landowner under JDA"),
+        new("194J",  "Professional / technical fees / royalty", "50,000 (nil for directors)", "10% Professional/Royalty; 2% Technical services", "Finance Act 2025 increased threshold from ₹30,000 → ₹50,000 w.e.f. 1-Apr-2025; directors: no threshold; royalty for software @ 10%"),
+        new("194K",  "Income from mutual fund units", "5,000", "10%", "Dividend distributed by MF; capital gains → exempt from TDS"),
+        new("194LA", "Compensation on compulsory acquisition", "2,50,000", "10%", "Urban agricultural land included; rural agri land exempt"),
+        new("194LB", "Interest from infrastructure debt fund", "Nil", "5%", "NRI / foreign company investors only"),
+        new("194M",  "Contractor/professional by Individual/HUF (>₹50L)", "50,00,000 p.a.", "2%", "Inserted by Finance Act 2019; no TAN required — use PAN"),
+        new("194N",  "Cash withdrawal from bank/co-op/post", "₹1 Cr (return-filer); ₹20L (non-filer)", "2% on excess (return-filer); 2% ₹20L–1Cr, 5% above ₹1Cr (non-filer)", "Per account per FY; ITR non-filer rates apply if ITR not filed for 3 preceding years"),
+        new("194O",  "E-commerce payments to participants", "Nil (no threshold)", "1%", "E-commerce operator deducts at time of credit/payment; w.e.f. Oct 2020"),
+        new("194Q",  "Purchase of goods", "50,00,000 p.a. per seller", "0.1%", "Continues in force. Finance Act 2025 only removed the Section 206C(1H) cross-reference; 194Q itself applies — buyer's turnover >₹10 Cr in preceding FY"),
+        new("194R",  "Benefit/perquisite to business/profession", "20,000 p.a.", "10%", "Cash or non-cash; FMV for non-cash; inserted by Finance Act 2022"),
+        new("194S",  "VDA / cryptocurrency transfer consideration", "₹10,000 (specified persons: exchanges); ₹50,000 (others)", "1%", "Virtual digital assets w.e.f. 01-Jul-2022; deductor uses Form 26QE if no TAN"),
+        new("195",   "Payments to non-residents", "Nil", "As per rates in force / DTAA (lower)", "Requires Form 15CA + 15CB from CA; DTAA rates available on TRACES"),
+        new("206AA", "Higher rate — PAN not furnished", "—", "Higher of 20% or twice the applicable rate", "Applies on top of any section; furnish PAN to avoid"),
+        new("206AB", "Higher rate — ITR non-filer (deductee)", "TDS > ₹50,000 in each of 2 preceding years", "Higher of 5% or twice the normal rate", "REMOVED by Finance Act 2025 w.e.f. 1-Apr-2025 — no longer applicable from FY 2025-26", Removed: true),
+        new("206CCA","Higher rate TCS — ITR non-filer (collectee)", "TCS > ₹50,000 in each of 2 preceding years", "Higher of 5% or twice the normal TCS rate", "Mirror provision of 206AB for Tax Collected at Source"),
+    };
+
     // Calculator
     private string _section       = "194J";
     private double _amount        = 100000;
@@ -431,6 +485,10 @@
     private string   _rulesUpdateMsg   = "";
     private Severity _rulesUpdateSeverity = Severity.Info;
 
+    // IT Act 2025 payment-code activation (future: final new-act FVU/RPU)
+    private bool _usePaymentCodes;
+    private int  _payCodeCount;
+
     private IEnumerable<TdsRule> FilteredRules => _allRules.Where(r =>
         (_showInactive || r.IsActive) &&
         (string.IsNullOrEmpty(_rulesSearch) ||
@@ -455,10 +513,28 @@
     {
         try
         {
-            _rulesDbVersion = CDeTDS.DAL.Database.GetSetting("RULES_VERSION", "Not applied");
-            _ruleCount      = _allRules.Count;
+            _rulesDbVersion   = CDeTDS.DAL.Database.GetSetting("RULES_VERSION", "Not applied");
+            _ruleCount        = _allRules.Count;
+            _usePaymentCodes  = CDeTDS.DAL.Database.GetSetting("FVU_USE_PAYMENT_CODES", "0") == "1";
+            _payCodeCount     = _allRules.Count(r => !string.IsNullOrEmpty(r.PaymentCode));
         }
         catch { }
+    }
+
+    void TogglePaymentCodes(bool on)
+    {
+        _usePaymentCodes = on;
+        try
+        {
+            CDeTDS.DAL.Database.SetSetting("FVU_USE_PAYMENT_CODES", on ? "1" : "0");
+            CDeTDS.DAL.Database.LogAction("admin", on ? "ENABLE" : "DISABLE", "TdsRules",
+                "IT Act 2025 payment codes in e-TDS files");
+            Snackbar.Add(on
+                ? "⚠ Payment codes enabled. Staged codes are from the Protean RPU v1.0 BETA — do not file real returns until they are re-verified against the FINAL FVU/RPU release."
+                : "Payment codes disabled — new-act files use the interim 392/393 codes.",
+                on ? Severity.Warning : Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add("Failed to save setting: " + ex.Message, Severity.Error); }
     }
 
     async Task ApplyBuiltInRules()
