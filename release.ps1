@@ -87,12 +87,12 @@ Ok "Package created"
 # -- 8. Upload to GitHub ------------------------------------------------------
 Step "Uploading to GitHub Releases"
 $token = (gh auth token)
-vpk upload github -o $releaseDir --repoUrl https://github.com/arjun-panda/tdspro-releases --token $token
+vpk upload github -o $releaseDir --repoUrl https://github.com/arjun-panda/cdetds-releases --token $token
 if ($LASTEXITCODE -ne 0) { Fail "vpk upload failed" }
 
 # Publish the draft release
-gh release edit $Version --repo arjun-panda/tdspro-releases --draft=false 2>&1
-Ok "Release v$Version published at https://github.com/arjun-panda/tdspro-releases/releases/tag/$Version"
+gh release edit $Version --repo arjun-panda/cdetds-releases --draft=false 2>&1
+Ok "Release v$Version published at https://github.com/arjun-panda/cdetds-releases/releases/tag/$Version"
 
 # -- 9. Git commit & push -----------------------------------------------------
 Step "Committing version bump"

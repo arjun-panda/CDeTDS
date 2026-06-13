@@ -222,7 +222,7 @@ namespace CDeTDS.App
         {
             try
             {
-                var source  = new GithubSource("https://github.com/arjun-panda/tdspro-releases", null, false);
+                var source  = new GithubSource("https://github.com/arjun-panda/cdetds-releases", null, false);
                 var manager = new UpdateManager(source);
                 if (!manager.IsInstalled) return;   // dev/debug — not installed via Velopack
                 var info = await manager.CheckForUpdatesAsync();
