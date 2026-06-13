@@ -16,7 +16,7 @@ namespace CDeTDS.DAL
             string outputPath)
         {
             using var doc = new PdfDocument(outputPath);
-            doc.AddTitlePage($"TDS Quarter Summary — FY {fy}", deductorName);
+            doc.AddTitlePage($"TDS Quarter Summary — {CDeTDS.Common.TaxRules.YearLabel(fy)}", deductorName);
 
             // KPI row
             double totalEntries = data.Sum(d => d.Entries);
@@ -61,7 +61,7 @@ namespace CDeTDS.DAL
             string outputPath)
         {
             using var doc = new PdfDocument(outputPath);
-            doc.AddTitlePage("Challan Reconciliation Report", $"{deductorName} — FY {fy}");
+            doc.AddTitlePage("Challan Reconciliation Report", $"{deductorName} — {CDeTDS.Common.TaxRules.YearLabel(fy)}");
             doc.AddKpiRow(new[]
             {
                 ("TDS Payable",       $"Rs {recon.TdsPayable:N2}"),
@@ -218,7 +218,7 @@ namespace CDeTDS.DAL
             string deductorName, string fy, string outputPath)
         {
             using var doc = new PdfDocument(outputPath);
-            doc.AddTitlePage($"Deductee-wise TDS Report — FY {fy}", deductorName);
+            doc.AddTitlePage($"Deductee-wise TDS Report — {CDeTDS.Common.TaxRules.YearLabel(fy)}", deductorName);
             doc.AddKpiRow(new[]
             {
                 ("Total Deductees",  data.Count.ToString()),
@@ -246,7 +246,7 @@ namespace CDeTDS.DAL
             string deductorName, string fy, string outputPath)
         {
             using var doc = new PdfDocument(outputPath);
-            doc.AddTitlePage($"Section-wise TDS Breakup — FY {fy}", deductorName);
+            doc.AddTitlePage($"Section-wise TDS Breakup — {CDeTDS.Common.TaxRules.YearLabel(fy)}", deductorName);
             doc.AddKpiRow(new[]
             {
                 ("Sections Used",  data.Count.ToString()),

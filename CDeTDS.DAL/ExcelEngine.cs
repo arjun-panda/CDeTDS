@@ -1704,7 +1704,7 @@ namespace CDeTDS.DAL
             var ws = wb.Worksheets.Add("Year Summary");
 
             // ── Title row ─────────────────────────────────────────────────────
-            ws.Cell(1,1).Value = $"Full Year Salary & TDS Summary — FY {fy}";
+            ws.Cell(1,1).Value = $"Full Year Salary & TDS Summary — {TaxRules.YearLabel(fy)}";
             ws.Cell(1,1).Style.Font.Bold = true;
             ws.Cell(1,1).Style.Font.FontSize = 13;
             ws.Cell(1,1).Style.Font.FontColor = XLColor.FromArgb(23,52,140);

@@ -814,7 +814,7 @@ tr.chosen td.num{{font-weight:700}}
 </div>
 <div class='hdr' style='margin-top:0;padding-top:8px'>
   <div>
-    <div class='co'>Annual Tax Computation — FY {Esc(fy)}</div>
+    <div class='co'>Annual Tax Computation — {Esc(TaxRules.YearLabel(fy))}</div>
     <div style='font-size:8.5px;color:#6b7280;margin-top:2px'>CDeTDS v{CDeTDS.Common.AppConstants.AppVersion} &nbsp;|&nbsp; {CDeTDS.Common.TaxRules.ActName(fy)}</div>
   </div>
   <div style='text-align:right;font-size:8.5px;color:#6b7280'>{DateTime.Now:dd-MMM-yyyy HH:mm}</div>
@@ -1046,7 +1046,7 @@ tr.chosen td.num{{font-weight:700}}
             string subtitle = string.Join("  |  ", subParts.Where(s => !string.IsNullOrWhiteSpace(s)));
 
             byte[] pdf = PdfReports.BuildA4(
-                title:        $"Annual Tax Computation — FY {fy}",
+                title:        $"Annual Tax Computation — {TaxRules.YearLabel(fy)}",
                 subtitle:     subtitle,
                 centerHeader: true,
                 body:         c => c.Column(col =>
@@ -1317,7 +1317,7 @@ tr.chosen td.num{{font-weight:700}}
 
             var sb2 = new System.Text.StringBuilder();
             sb2.Append($@"<!DOCTYPE html><html><head><meta charset='utf-8'>
-<title>Monthly Salary Statement — {Esc(emp.Name)} — FY {fy}</title>
+<title>Monthly Salary Statement — {Esc(emp.Name)} — {Esc(TaxRules.YearLabel(fy))}</title>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
 body{{font-family:Arial,sans-serif;font-size:9.5px;color:#1a1a2e;background:#fff;padding:18px}}
@@ -1639,7 +1639,7 @@ td.ded{{color:#7c3aed}} td.tax{{color:#9f1239;font-weight:600}} td.dim{{color:#9
             // ── Title rows ──
             int curRow = 1;
             ws.Range(curRow,1,curRow,totalCols).Merge();
-            ws.Cell(curRow,1).Value = $"{deductor?.CompanyName ?? ""} — Monthly Salary Statement — FY {fy}";
+            ws.Cell(curRow,1).Value = $"{deductor?.CompanyName ?? ""} — Monthly Salary Statement — {TaxRules.YearLabel(fy)}";
             ApplyHdr(ws.Cell(curRow,1), "#1e3a8a", 12, center:true);
             ws.Row(curRow).Height = 22; curRow++;
 
@@ -1830,7 +1830,7 @@ td.ded{{color:#7c3aed}} td.tax{{color:#9f1239;font-weight:600}} td.dim{{color:#9
             float fs = cols.Count <= 16 ? 7f : cols.Count <= 22 ? 6.2f : 5.5f;
 
             byte[] pdf = PdfReports.BuildA4(
-                title:        $"Monthly Salary Statement — FY {fy}",
+                title:        $"Monthly Salary Statement — {TaxRules.YearLabel(fy)}",
                 subtitle:     subtitle,
                 centerHeader: true,
                 landscape:    true,
@@ -1945,7 +1945,7 @@ td.ded{{color:#7c3aed}} td.tax{{color:#9f1239;font-weight:600}} td.dim{{color:#9
 
             // Report title
             ws.Range(r,1,r,3).Merge();
-            ws.Cell(r,1).Value = $"Annual Tax Computation — FY {fy}";
+            ws.Cell(r,1).Value = $"Annual Tax Computation — {TaxRules.YearLabel(fy)}";
             ws.Cell(r,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
             ws.Cell(r,1).Style.Font.FontColor = XLColor.White;
             ws.Cell(r,1).Style.Font.Bold = true; ws.Cell(r,1).Style.Font.FontSize = 11;
@@ -2066,7 +2066,7 @@ td.ded{{color:#7c3aed}} td.tax{{color:#9f1239;font-weight:600}} td.dim{{color:#9
 
                 // Header
                 wm.Range(1,1,1,9).Merge();
-                wm.Cell(1,1).Value = $"{deductor?.CompanyName ?? ""} — Monthly Salary Statement — FY {fy}";
+                wm.Cell(1,1).Value = $"{deductor?.CompanyName ?? ""} — Monthly Salary Statement — {TaxRules.YearLabel(fy)}";
                 wm.Cell(1,1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a8a");
                 wm.Cell(1,1).Style.Font.FontColor = XLColor.White;
                 wm.Cell(1,1).Style.Font.Bold = true; wm.Cell(1,1).Style.Font.FontSize = 11;
