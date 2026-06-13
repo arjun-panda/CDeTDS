@@ -15,7 +15,7 @@
 
     @* Row 1: title + controls *@
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-        <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Reports — FY @AppState.CurrentFY</span>
+        <span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">Reports — @TaxRules.YearLabel(AppState.CurrentFY)</span>
         <span style="font-size:11px;color:#64748b;white-space:nowrap">@AppState.CurrentDeductorName</span>
         <div style="flex:1"></div>
         @if (_activeTab == 1 || _activeTab == 2 || _activeTab == 3)
@@ -588,7 +588,7 @@
         {
             @if (!_yearSummary.Any())
             {
-                <MudAlert Severity="Severity.Info">No payroll data for FY @AppState.CurrentFY.</MudAlert>
+                <MudAlert Severity="Severity.Info">No payroll data for @TaxRules.YearLabel(AppState.CurrentFY).</MudAlert>
             }
             else
             {

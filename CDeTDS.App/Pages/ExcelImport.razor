@@ -11,7 +11,7 @@
 <div class="d-flex align-center gap-3 mb-4">
     <MudText Typo="Typo.h5">Import / Export</MudText>
     <MudSpacer />
-    <MudText Typo="Typo.caption" Color="Color.Secondary">FY @AppState.CurrentFY · @AppState.CurrentDeductorName</MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary">@TaxRules.YearLabel(AppState.CurrentFY) · @AppState.CurrentDeductorName</MudText>
 </div>
 
 <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="import-tab-panel">
@@ -172,7 +172,7 @@
                     @if (_consoResult.Success)
                     {
                         <div style="font-size:12px;margin-top:4px;color:#1e6b3c">
-                            Form: @_consoResult.FormType | @_consoResult.Quarter | FY @_consoResult.FY &nbsp;·&nbsp;
+                            Form: @_consoResult.FormType | @_consoResult.Quarter | @TaxRules.YearLabel(_consoResult.FY) &nbsp;·&nbsp;
                             Challans: @_consoResult.ChallansImported &nbsp;·&nbsp;
                             Deductees: @_consoResult.DeducteesImported &nbsp;·&nbsp;
                             Entries: @_consoResult.EntriesImported
@@ -208,7 +208,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Primary" Size="Size.Small" />
                         <span style="font-weight:600;font-size:14px">TDS Entries</span>
                     </div>
-                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">All entries · FY @AppState.CurrentFY</div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">All entries · @TaxRules.YearLabel(AppState.CurrentFY)</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportEntries" Disabled="_exporting">Export Excel</MudButton>
@@ -234,7 +234,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Success" Size="Size.Small" />
                         <span style="font-weight:600;font-size:14px">Challans</span>
                     </div>
-                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">All challans · FY @AppState.CurrentFY</div>
+                    <div style="flex:1;min-width:260px;font-size:12px;color:#666">All challans · @TaxRules.YearLabel(AppState.CurrentFY)</div>
                     <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.TableChart"
                                OnClick="ExportChallans" Disabled="_exporting">Export Excel</MudButton>

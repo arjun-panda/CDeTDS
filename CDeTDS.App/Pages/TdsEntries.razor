@@ -212,7 +212,7 @@
         @if (AppState.IsReadOnlyFY)
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2" Icon="@Icons.Material.Filled.Lock">
-                FY @AppState.CurrentFY is locked — view only. Changes cannot be saved.
+                @TaxRules.YearLabel(AppState.CurrentFY) is locked — view only. Changes cannot be saved.
             </MudAlert>
         }
         @if (_editing != null)

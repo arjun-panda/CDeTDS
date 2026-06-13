@@ -17,7 +17,7 @@
             margin:-16px -24px 16px -24px;padding:10px 24px 0;
             border-bottom:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.06)">
     <div class="d-flex align-center gap-3 mb-2">
-        <MudText Typo="Typo.h6" Style="font-weight:700">Returns / FVU — FY @AppState.CurrentFY</MudText>
+        <MudText Typo="Typo.h6" Style="font-weight:700">Returns / FVU — @TaxRules.YearLabel(AppState.CurrentFY)</MudText>
         <MudSpacer />
         <MudText Typo="Typo.caption" Color="Color.Secondary">
             @TaxRules.ActName(AppState.CurrentFY) &nbsp;·&nbsp; @TaxRules.AssessmentYearLabel(AppState.CurrentFY)

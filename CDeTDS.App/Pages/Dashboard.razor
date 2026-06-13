@@ -122,7 +122,7 @@
             <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;min-height:0;gap:6px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
                     <div style="font-size:12px;font-weight:700;color:#374151">Filing Readiness</div>
-                    <div style="font-size:10px;color:#94a3b8">FY @AppState.CurrentFY</div>
+                    <div style="font-size:10px;color:#94a3b8">@TaxRules.YearLabel(AppState.CurrentFY)</div>
                 </div>
 
                 @* Quarter status rows — 24Q and 26Q *@
@@ -207,7 +207,7 @@
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                         <div style="flex:1;background:@(a.IsOverdue?"#ffebee":"#fff8e1");border-left:4px solid @(a.IsOverdue?"#c62828":"#FF9800");
                                     border-radius:6px;padding:6px 12px;font-size:12px">
-                            <b>@a.FormType</b> @a.Quarter FY @a.Fy — Due: @a.DueDateValue.ToString("dd-MMM-yyyy") — @a.DaysLabel
+                            <b>@a.FormType</b> @a.Quarter @TaxRules.YearLabel(a.Fy) — Due: @a.DueDateValue.ToString("dd-MMM-yyyy") — @a.DaysLabel
                         </div>
                         <MudButton Size="Size.Small" Variant="Variant.Filled"
                                    Color="@(a.IsOverdue ? Color.Error : Color.Warning)"

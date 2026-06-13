@@ -1679,7 +1679,7 @@
                 <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;width:100%">
                     <div>
                         <div style="font-size:18px;font-weight:700;color:#111827">Monthly Close — @_mcMonth</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:1px">FY @AppState.CurrentFY @(_mcSkip > 0 ? $" · {_mcSkip} skip" : "")</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:1px">@TaxRules.YearLabel(AppState.CurrentFY) @(_mcSkip > 0 ? $" · {_mcSkip} skip" : "")</div>
                     </div>
                     <div style="flex:1"></div>
                     @* Summary KPIs *@

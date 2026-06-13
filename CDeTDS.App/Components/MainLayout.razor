@@ -238,7 +238,7 @@ else
             {
                 <div class="tds-readonly-bar">
                     <MudIcon Icon="@Icons.Material.Filled.Visibility" Style="font-size:18px;color:#e65100" />
-                    <span><b>Viewing FY @AppState.CurrentFY for reference (read-only).</b> You are logged in to FY @AppState.SessionFY — switch back to make changes.</span>
+                    <span><b>Viewing @TaxRules.YearLabel(AppState.CurrentFY) for reference (read-only).</b> You are logged in to @TaxRules.YearLabel(AppState.SessionFY) — switch back to make changes.</span>
                 </div>
             }
             <div class="page-content">

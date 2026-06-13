@@ -9,7 +9,7 @@
         <div class="d-flex align-center">
             <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />
             <MudText Typo="Typo.h6">
-                @(_addingNew ? (_new.Id == 0 ? "Add New Company" : "Modify Company") : "Select Company & Financial Year")
+                @(_addingNew ? (_new.Id == 0 ? "Add New Company" : "Modify Company") : "Select Company & Year")
             </MudText>
         </div>
     </TitleContent>
@@ -19,7 +19,7 @@
         {
             <!-- ── SELECT MODE ── -->
             <MudText Color="Color.Secondary" Class="mb-4">
-                Welcome, <b>@AppState.CurrentUser</b>. Select the company and financial year to work with.
+                Welcome, <b>@AppState.CurrentUser</b>. Select the company and year to work with.
             </MudText>
 
             <MudSelect T="int" @bind-Value="_selectedDeductorId" Label="Company / Deductor*"
@@ -30,16 +30,16 @@
                 }
             </MudSelect>
 
-            <MudSelect T="string" @bind-Value="_selectedFY" Label="Working Financial Year*"
+            <MudSelect T="string" @bind-Value="_selectedFY" Label="Working Year*"
                        Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
                        Disabled="@_fyLocked"
-                       HelperText="@(_fyLocked ? "Locked for this session — log out to switch FY." : "You will have full edit access to this FY. Other years remain read-only for reference.")">
+                       HelperText="@(_fyLocked ? "Locked for this session — log out to switch year." : "You will have full edit access to this year. Other years remain read-only for reference. (TY = Tax Year under the Income-tax Act 2025; FY/AY for 2025-26 and earlier.)")">
                 @foreach (var fy in AppConstants.FinancialYears)
                 {
                     var isCurrent = fy == AppConstants.CurrentFinancialYear;
                     <MudSelectItem Value="@fy">
                         <span style="font-weight:@(isCurrent?"700":"400")">
-                            FY @fy@(isCurrent ? "  · Current" : "")
+                            @TaxRules.YearLabel(fy)@(isCurrent ? "  · Current" : "")
                         </span>
                     </MudSelectItem>
                 }

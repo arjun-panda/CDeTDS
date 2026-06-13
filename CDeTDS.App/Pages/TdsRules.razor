@@ -10,7 +10,7 @@
     <MudText Typo="Typo.h5">TDS Rules</MudText>
     <MudSpacer />
     <MudText Typo="Typo.caption" Color="Color.Secondary">
-        FY @AppState.CurrentFY · @AppState.CurrentLicense.TierLabel
+        @TaxRules.YearLabel(AppState.CurrentFY) · @AppState.CurrentLicense.TierLabel
     </MudText>
 </div>
 
