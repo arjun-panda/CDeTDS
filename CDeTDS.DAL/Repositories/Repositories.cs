@@ -599,9 +599,9 @@ namespace CDeTDS.DAL.Repositories
                     cmd.CommandText = @"INSERT INTO challans
                         (challan_no,challan_date,deductor_id,bsr_code,section,amount,
                          tds_amount,surcharge,cess,interest,late_fee,total_amount,
-                         bank_name,ack_no,quarter,financial_year,status,remarks,minor_head_code)
+                         bank_name,ack_no,quarter,financial_year,status,remarks,minor_head_code,payment_code)
                         VALUES(@cn,@cd,@di,@bs,@s,@am,@ta,@su,@ce,@in,@lf,@to,
-                               @bn,@an,@qt,@fy,@st,@rm,@mh)
+                               @bn,@an,@qt,@fy,@st,@rm,@mh,@pc)
                         ON CONFLICT(bsr_code,challan_no,challan_date,deductor_id) DO UPDATE SET
                             section=excluded.section, amount=excluded.amount,
                             tds_amount=excluded.tds_amount, surcharge=excluded.surcharge,
@@ -610,7 +610,7 @@ namespace CDeTDS.DAL.Repositories
                             bank_name=excluded.bank_name, ack_no=excluded.ack_no,
                             quarter=excluded.quarter, financial_year=excluded.financial_year,
                             status=excluded.status, remarks=excluded.remarks,
-                            minor_head_code=excluded.minor_head_code";
+                            minor_head_code=excluded.minor_head_code, payment_code=excluded.payment_code";
                 }
                 else
                 {
@@ -619,7 +619,7 @@ namespace CDeTDS.DAL.Repositories
                         section=@s,amount=@am,tds_amount=@ta,surcharge=@su,cess=@ce,
                         interest=@in,late_fee=@lf,total_amount=@to,bank_name=@bn,
                         ack_no=@an,quarter=@qt,financial_year=@fy,status=@st,remarks=@rm,
-                        minor_head_code=@mh
+                        minor_head_code=@mh,payment_code=@pc
                         WHERE id=@id";
                     cmd.Parameters.AddWithValue("@id", c.Id);
                 }
@@ -642,6 +642,7 @@ namespace CDeTDS.DAL.Repositories
                 cmd.Parameters.AddWithValue("@st", c.Status);
                 cmd.Parameters.AddWithValue("@rm", c.Remarks);
                 cmd.Parameters.AddWithValue("@mh", c.MinorHeadCode);
+                cmd.Parameters.AddWithValue("@pc", c.PaymentCode ?? "");
                 cmd.ExecuteNonQuery();
                 return (true, "Challan saved.");
             }
@@ -684,8 +685,16 @@ namespace CDeTDS.DAL.Repositories
             Status        = r.IsDBNull(r.GetOrdinal("status"))        ? "Paid" : r.GetString(r.GetOrdinal("status")),
             Remarks         = r.IsDBNull(r.GetOrdinal("remarks"))          ? "" : r.GetString(r.GetOrdinal("remarks")),
             MinorHeadCode   = r.IsDBNull(r.GetOrdinal("minor_head_code"))  ? "200" : r.GetString(r.GetOrdinal("minor_head_code")),
+            PaymentCode     = HasColumn(r, "payment_code") && !r.IsDBNull(r.GetOrdinal("payment_code")) ? r.GetString(r.GetOrdinal("payment_code")) : "",
             DeductorName    = r.IsDBNull(r.GetOrdinal("deductor_name"))    ? "" : r.GetString(r.GetOrdinal("deductor_name")),
         };
+
+        private static bool HasColumn(SqliteDataReader r, string name)
+        {
+            for (int i = 0; i < r.FieldCount; i++)
+                if (string.Equals(r.GetName(i), name, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
     }
 
     // ── Dashboard Repository ──────────────────────────────────────────────────

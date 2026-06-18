@@ -11,7 +11,7 @@ namespace CDeTDS.DAL
         public static string DbPath => _dbPath;
 
         // Current schema version — bump this when adding new migrations
-        private const int SchemaVersion = 21;
+        private const int SchemaVersion = 22;
 
         /// <summary>
         /// Fast path: creates tables + seeds. Returns immediately so the window can show.
@@ -185,6 +185,10 @@ namespace CDeTDS.DAL
                 Add("tds_rules", "aggregate_limit", "REAL DEFAULT 0");
                 // tds_rules — IT Act 2025 payment code (filled from official Protean doc when released)
                 Add("tds_rules", "payment_code", "TEXT DEFAULT ''");
+                // challans — IT Act 2025 4-digit payment code paired with the parent section
+                // (e.g. portal challan shows Section 392 + Code 1002 for salary). Inert until
+                // FVU_USE_PAYMENT_CODES is enabled; the parent section stays in `section`.
+                Add("challans", "payment_code", "TEXT DEFAULT ''");
                 using (var agg = conn.CreateCommand())
                 {
                     // Idempotent seed — CLAUDE.md domain rule: contractor aggregate ₹1,00,000/yr

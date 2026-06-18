@@ -117,6 +117,10 @@ namespace CDeTDS.DAL.Models
         public string Status { get; set; } = "Paid";
         public string Remarks { get; set; } = "";
         public string MinorHeadCode { get; set; } = "200";   // 200=TDS payable, 400=regular assessment
+        // IT Act 2025 4-digit payment code, paired with the parent section in `Section`
+        // (portal challan shows e.g. Section 392 + Code 1002). Empty until payment codes
+        // are activated; the parent section continues to live in `Section`.
+        public string PaymentCode { get; set; } = "";
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         // Navigation
