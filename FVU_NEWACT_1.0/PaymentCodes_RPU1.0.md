@@ -137,3 +137,60 @@ is unpublished. Methods tried and results:
   decompile of the FVU validator classes (no decompiler bundled; not installed).
   Switch stays OFF. The unpacked jar lives in `fvu_unpack/` (gitignored) if a
   future session wants to decompile `com/tin/tds/a/r.class`.
+
+## 2026-06-18 RPU "Select Section for PAYMENT" picker (CONFIRMED mappings)
+Transcribed from the RPU 1.0 in-app section picker, which shows the official
+Code → IT-2025 parent section → legacy IT-1961 section. This is the RPU's own
+table (stronger than the dropdown-string scrape, but still NOT the canonical
+file-format .xls). Mappings CONFIRMED from the screenshot:
+
+| Code | Description (RPU) | IT 2025 | IT 1961 |
+|------|------------------|---------|---------|
+| 1005 | Commission or brokerage - insurance | 393(1) | 194D |
+| 1006 | Commission or brokerage - others | 393(1) | 194H |
+| 1008 | Rent - Machinery etc. | 393(1) | 194I |
+| 1009 | Rent other than machinery etc | 393(1) | 194I |
+| 1019 | Interest on securities | 393(1) | 193 |
+| 1022 | Interest other than interest on securities | 393(1) | 194A |
+| 1023 | Contractor - Individual or HUF | 393(1) | 194C |
+| 1024 | Contractor - Other Than Individual or HUF | 393(1) | 194C |
+| 1026 | Technical Services, Royality, Call Centre | 393(1) | 194J |
+| 1027 | Fees for Professional Services | 393(1) | 194J |
+| 1028 | Director Payment | 393(1) | 194J |
+| 1029 | Dividends | 393(1) | 194 |
+| 1031 | Purchase of Goods | 393(1) | 194Q |
+| 1033 | Perquisite | 393(1) | 194R |
+| 1034 | Perquisite in cash or in kind | 393(1) | 194R |
+| 1035 | Sale of goods Ecommerce Operator | 393(1) | 194O |
+| 1037 | Virtual Assets - other than Individual or HUF | 393(1) | 194S |
+| 1038 | Virtual Assets | 393(1) | 194S |
+| 1058 | Winnings | 393(3) | 194B |
+| 1059 | Winnings (in kind) | 393(3) | 194B |
+| 1060 | Online Games | 393(3) | 194BA |
+| 1061 | Online Games (in kind) | 393(3) | 194BA |
+| 1067 | Partners Payment | 393(3) | 194T |
+
+### Key corrections vs the earlier dropdown-string extraction
+- **194J is split across THREE codes:** 1026 = Technical Services/Royalty/Call
+  Centre (the 2% leg), **1027 = Fees for Professional Services** (the 10% leg),
+  1028 = Director Payment. Earlier notes worried "1025 = 194J professional, DO
+  NOT GUESS" — that was WRONG. Professional fees is **1027**; the picker skips
+  1025 entirely (1024 → 1026), so **1025 appears not to exist as a payment code**.
+- 1037/1038 = 194S, 1034 = 194R-in-kind, 1059/1061 = in-kind winnings —
+  previously `⚠`, now confirmed.
+- 393(1) vs 393(3): winnings (1058–1061), partners' payment (1067) file under
+  **393(3)**; the rest of the above under **393(1)**.
+
+### Still NOT covered by this screenshot (need full picker / .xls)
+- Salary codes (1001–1003, 1032) — Form 138 picker, not shown here.
+- 192A/PF (1004), life insurance (1030), business-trust/investment-fund/
+  securitisation (1014–1018), MF units / "94K" (1013?), 194N cash (1064/1065),
+  194EE (1066), e-commerce variants, all TCS codes (1068–1092), all 27Q/144
+  codes (1039–1057). These were not on the visible page.
+- Whether the .xls assigns different codes than the picker. The published
+  file-format .xls (e.g. "File Format for Form Number 138/140 ... Version 1.0")
+  remains the canonical source and supersedes this if they ever disagree.
+
+Status unchanged: `FVU_USE_PAYMENT_CODES` stays **OFF**. These confirmed mappings
+are recorded for seeding once the full set (all forms) is captured and the .xls
+cross-checked.
