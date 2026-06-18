@@ -196,11 +196,22 @@ else
                 <MudTextField @bind-Value="_editing.ChallanNo" Label="Challan No*" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 <MudTextField @bind-Value="_editing.BsrCode"   Label="BSR Code*"   Variant="Variant.Outlined" Margin="Margin.Dense" />
                 <DateField Value="_challanDate" ValueChanged="d => _challanDate = d" Label="Date*" Variant="Variant.Outlined" Margin="Margin.Dense" Class="date-field" />
-                <MudSelect Value="_editing.Section" Label="Section" Variant="Variant.Outlined" Margin="Margin.Dense"
-                           ValueChanged="@((string s) => { _editing.Section = s; LoadLinkableEntries(_editing.Quarter, _editing.ChallanNo); })">
-                    @foreach (var s in AppConstants.KnownSections)
-                    { <MudSelectItem Value="@s">@s</MudSelectItem> }
-                </MudSelect>
+                <div>
+                    <MudSelect Value="_editing.Section" Label="Section" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               ValueChanged="@((string s) => { _editing.Section = s; LoadLinkableEntries(_editing.Quarter, _editing.ChallanNo); })">
+                        @foreach (var s in AppConstants.KnownSections)
+                        { <MudSelectItem Value="@s">@s</MudSelectItem> }
+                    </MudSelect>
+                    @* Income-tax Act 2025: legacy 194-series codes are renumbered into the
+                       Section 393(1) table — show what this challan actually files under. *@
+                    @if (TaxRules.IsNewAct(_editing.FinancialYear) && !string.IsNullOrEmpty(_editing.Section))
+                    {
+                        var nref = TaxRules.NewActSectionRef(_editing.Section);
+                        <MudText Typo="Typo.caption" Style="color:#065f46;line-height:1.2;display:block;margin-top:2px">
+                            Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref) — IT Act 2025
+                        </MudText>
+                    }
+                </div>
             </div>
 
             @* ── Row 2: Minor Head + radio inline ── *@

@@ -120,6 +120,14 @@ else
                                 @foreach (var s in AppConstants.KnownSections)
                                 { <MudSelectItem Value="@s">@s</MudSelectItem> }
                             </MudSelect>
+                            @* IT Act 2025: show what the legacy code files as in the current working year. *@
+                            @if (TaxRules.IsNewAct(AppState.CurrentFY) && !string.IsNullOrEmpty(_editing.Section))
+                            {
+                                var nref = TaxRules.NewActSectionRef(_editing.Section);
+                                <MudText Typo="Typo.caption" Style="color:#065f46;line-height:1.2;display:block;margin-top:2px">
+                                    Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref) — IT Act 2025
+                                </MudText>
+                            }
                         </MudItem>
                         <MudItem xs="3">
                             <MudNumericField @bind-Value="_editing.Rate" Label="TDS Rate %"

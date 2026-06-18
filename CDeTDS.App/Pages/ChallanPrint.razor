@@ -64,12 +64,23 @@
                 <td style="@_tdLabel">Pin Code</td>
                 <td style="@_tdValue">@_deductor.Pincode</td>
             </tr>
-            <tr>
-                <td style="@_tdLabel">Financial Year</td>
-                <td style="@_tdValue">@_selected.FinancialYear</td>
-                <td style="@_tdLabel">Assessment Year</td>
-                <td style="@_tdValue">@GetAY(_selected.FinancialYear)</td>
-            </tr>
+            @* IT Act 2025: "Tax Year" replaces FY/AY (Assessment Year abolished). *@
+            @if (TaxRules.IsNewAct(_selected.FinancialYear))
+            {
+                <tr>
+                    <td style="@_tdLabel">Tax Year</td>
+                    <td style="@_tdValue" colspan="3">@_selected.FinancialYear</td>
+                </tr>
+            }
+            else
+            {
+                <tr>
+                    <td style="@_tdLabel">Financial Year</td>
+                    <td style="@_tdValue">@_selected.FinancialYear</td>
+                    <td style="@_tdLabel">Assessment Year</td>
+                    <td style="@_tdValue">@GetAY(_selected.FinancialYear)</td>
+                </tr>
+            }
 
             @* â”€â”€ CHALLAN DETAILS â”€â”€ *@
             <tr>
@@ -87,7 +98,14 @@
                 <td style="@_tdLabel">Date of Payment</td>
                 <td style="@_tdValue">@_selected.ChallanDate.ToString("dd-MMM-yyyy")</td>
                 <td style="@_tdLabel">Section</td>
-                <td style="@_tdValue">@_selected.Section</td>
+                <td style="@_tdValue">
+                    @_selected.Section
+                    @if (TaxRules.IsNewAct(_selected.FinancialYear) && !string.IsNullOrEmpty(_selected.Section))
+                    {
+                        var nref = TaxRules.NewActSectionRef(_selected.Section);
+                        <span style="display:block;font-size:10px;color:#065f46">@(string.IsNullOrEmpty(nref) ? "IT Act 2025" : nref)</span>
+                    }
+                </td>
             </tr>
             <tr>
                 <td style="@_tdLabel">Bank Name</td>
