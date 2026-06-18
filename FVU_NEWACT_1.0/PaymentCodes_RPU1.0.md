@@ -1,10 +1,15 @@
-# IT Act 2025 Payment Codes — extracted from Protean RPU v1.0 (BETA)
+# IT Act 2025 Payment Codes — extracted from Protean RPU/FVU v1.0
 
-⚠ **BETA SOURCE — NOT FINAL.** RPU/FVU v1.0 for TY 2026-27 is Protean's Beta
-line. Every code below MUST be re-verified against the FINAL RPU/FVU release
-and the official data structure document before payment codes are enabled for
-real filings (FVU_USE_PAYMENT_CODES stays OFF until then). Codes may be
-renumbered between Beta and final.
+⚠ **RELEASED UTILITY, but CODES STILL UNVERIFIED.** As of 2026-06-18 Protean's
+download page lists RPU 1.0 and FVU 1.0 for TY 2026-27 as regular downloads with
+NO "Beta/draft/provisional" qualifier — so the utility itself appears final (the
+earlier "BETA" wording here was our own annotation, not Protean's). HOWEVER the
+authoritative source for the codes — Protean's official file-format / data-
+structure spec for the NEW forms (138/140/143/144/141) — is **NOT yet published**
+(the page still lists file-format .xls only for the OLD forms 24Q/26Q/27EQ/27Q).
+The ~18 `⚠` codes below therefore remain UNVERIFIED. `FVU_USE_PAYMENT_CODES`
+stays OFF until they are confirmed from the published spec (or a decompile of the
+FVU validator — see "2026-06-18 code-extraction attempt" below).
 
 Source: `RPU Version_1.0_for TDSTCS Statements_2026-27 onwards.zip` downloaded
 2026-06-12 from tinpan.proteantech.in. Codes and descriptions read from the
@@ -114,3 +119,21 @@ CDeTDS anyway).
   RPU/FVU + official data-structure document, (b) resolving the `⚠` codes from
   that doc, (c) a headless-capable FVU (or reverse-engineered CLI), (d) a real
   Form 140 validated against it. None of these are satisfied by this re-download.
+
+## 2026-06-18 code-extraction attempt (from the released jars)
+Goal: recover authoritative codes from the released binaries since the .xls spec
+is unpublished. Methods tried and results:
+- **RPU dropdown strings** (`rpu_codes_ordered.txt`, from `o.class`): same as the
+  original extraction — shows the literal `94K` oddity, and NO `1025` / NO `1013`.
+  Released RPU is byte-identical to the 12-Jun build, so no new info.
+- **FVU validator classes** (`com/tin/tds/a/r.class`, `h.class`, ~184 KB each):
+  a byte-scan for `1025` matches inside these classes, suggesting the FVU DOES
+  validate 1025 — but the codes are stored as integer constants in bytecode, not
+  as plaintext string literals (a printable-string scan of r.class yielded only
+  21 strings, none of them 4-digit codes). String-scraping therefore CANNOT
+  produce a reliable, complete code list.
+- **Conclusion:** authoritative codes still cannot be confirmed without either
+  (a) Protean publishing the new-form file-format .xls, or (b) a proper Java
+  decompile of the FVU validator classes (no decompiler bundled; not installed).
+  Switch stays OFF. The unpacked jar lives in `fvu_unpack/` (gitignored) if a
+  future session wants to decompile `com/tin/tds/a/r.class`.

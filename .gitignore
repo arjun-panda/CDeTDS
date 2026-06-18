@@ -45,6 +45,7 @@ TDS_STANDALONE_FVU_9.4/
 FVU_NEWACT_1.0/*.zip
 FVU_NEWACT_1.0/extracted/
 FVU_NEWACT_1.0/fvu_extracted/
+FVU_NEWACT_1.0/fvu_unpack/
 FVU_NEWACT_1.0/rpu/
 FVU_NEWACT_1.0/rpu_jar/
 FVU_NEWACT_1.0/rpu_codes_ordered.txt
