@@ -92,3 +92,25 @@ CDeTDS anyway).
 3. Whether FVU 1.0 changes FH/BH/CD/DD field layout beyond section→code
    substitution. Ground truth: run generated files through the bundled
    `TDS_STANDALONE_FVU_1.0.jar` (in this folder).
+
+## 2026-06-18 re-check (re-download of RPU/FVU v1.0)
+- The RPU and FVU v1.0 zips re-downloaded 2026-06-18 are **byte-for-byte
+  identical** (verified SHA-256) to the 2026-06-12 Beta already analysed. This
+  is the SAME build — NOT a newer/final release. The ~18 `⚠` codes above remain
+  unresolved; nothing new to seed.
+- **FVU 1.0 has NO headless CLI.** Its launcher (`TDS_STANDALONE_FVU_1.0.bat`)
+  is literally `start javaw -jar TDS_STANDALONE_FVU_1.0.jar` — a GUI-only Swing
+  app with no input-file/form/quarter/version/CSI arguments. By contrast CDeTDS
+  drives FVU 9.4 headlessly as:
+  `java -jar FVU_9.4.jar <input> ver.txt <formCode> <quarter> 9.4 0 <csiName>`.
+  **Dual-FVU wiring is therefore BLOCKED**: there is no known way to invoke FVU
+  1.0 non-interactively, parse its error report, and surface the .fvu file the
+  way FvuUtilityRunner does for 9.4. Wiring it would require reverse-engineering
+  the Beta jar's main class / CLI entry point (cf. the existing RunFVU.class
+  patch + fvu_*.py probes done for 9.4) — and the Beta may expose no CLI at all.
+- Status unchanged: `FVU_USE_PAYMENT_CODES` stays **OFF**; bundled FVU stays
+  **9.4**. The FVU 1.0 jar is staged in `fvu_extracted/` for reference only.
+- To genuinely "make final" still requires: (a) Protean's FINAL non-Beta
+  RPU/FVU + official data-structure document, (b) resolving the `⚠` codes from
+  that doc, (c) a headless-capable FVU (or reverse-engineered CLI), (d) a real
+  Form 140 validated against it. None of these are satisfied by this re-download.
