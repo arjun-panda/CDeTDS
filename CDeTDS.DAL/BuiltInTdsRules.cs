@@ -79,7 +79,12 @@ namespace CDeTDS.DAL
         //           TY 2026-27 onwards) — see FVU_NEWACT_1.0\PaymentCodes_RPU1.0.md.
         //           Codes are inert until FVU_USE_PAYMENT_CODES is enabled, which must
         //           wait for the FINAL RPU/FVU release + data structure document.
-        public const string CurrentVersion = "2026-27-20260613";
+        // 20260618: Filled remaining payment codes after the RPU "Select Section for
+        //           PAYMENT" picker + a real TY 2026-27 challan (1002=salary) confirmed
+        //           them: 194J→1026/1027/1028 by nature, 194S→1037/1038, 194K→"94K".
+        //           Still inert (switch OFF); 195/Form-144 + TCS 1068-1092 still blank
+        //           pending the file-format .xls.
+        public const string CurrentVersion = "2026-27-20260618";
 
         /// <summary>
         /// IT Act 2025 payment code for a rule row, extracted from Protean RPU v1.0
@@ -117,10 +122,24 @@ namespace CDeTDS.DAL
                 "194O"  => "1035",
                 "194P"  => "1032",
                 "194Q"  => "1031",
+                // 194J split by nature (confirmed via RPU section-picker 2026-06-18):
+                //   1026 = technical services / royalty / call centre (2% leg)
+                //   1028 = director payment
+                //   1027 = fees for professional services (default 10% leg)
+                "194J"  => n.Contains("Technical", StringComparison.OrdinalIgnoreCase) ||
+                           n.Contains("Royalty",  StringComparison.OrdinalIgnoreCase) ||
+                           n.Contains("Call",     StringComparison.OrdinalIgnoreCase) ? "1026"
+                         : n.Contains("Director", StringComparison.OrdinalIgnoreCase) ? "1028"
+                         : "1027",
+                // 194S VDA (confirmed via picker): 1037 = other than Individual/HUF, 1038 = Individual/HUF
+                "194S"  => dt is "Individual" or "HUF" ? "1038" : "1037",
+                // 194K mutual-fund units — RPU/picker shows the literal token "94K" (not a 4-digit
+                // code). Recorded as-is from the source; re-verify against the file-format .xls.
+                "194K"  => "94K",
                 "194R"  => "1033",
                 "194T"  => "1067",
-                // Ambiguous pending official data-structure doc: 194J (1025/1026/1027),
-                // 194K ("94K" oddity), 194S (1037/1038), 195/196x (Form 144), TCS (Form 143)
+                // Still pending the official file-format .xls: 195/196x (Form 144 non-resident)
+                // and all TCS codes 1068-1092 (Form 143). Left blank — inert anyway (switch OFF).
                 _       => "",
             };
         }
