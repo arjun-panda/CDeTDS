@@ -135,7 +135,7 @@
 
         <div style="height:calc(100vh - 340px);overflow-y:auto;overflow-x:auto">
         <MudDataGrid T="TdsRule" Items="FilteredRules" Dense="true" Hover="true" Striped="true" Bordered="true"
-                     FixedHeader="true" Height="calc(100vh - 340px)">
+                     FixedHeader="true" Height="calc(100vh - 340px)" Class="rules-grid">
             <Columns>
                 <TemplateColumn Title="Section"  SortBy="x => x.SectionCode"    HeaderStyle="width:64px"  CellStyle="width:64px">
                     <CellTemplate>@context.Item.SectionCode</CellTemplate>
@@ -152,13 +152,13 @@
                         </CellTemplate>
                     </TemplateColumn>
                 }
-                <TemplateColumn Title="Nature of Payment" SortBy="x => x.NatureOfPayment" HeaderStyle="width:130px" CellStyle="width:130px;white-space:normal;line-height:1.3">
+                <TemplateColumn Title="Nature of Payment" SortBy="x => x.NatureOfPayment" HeaderStyle="width:118px" CellStyle="width:118px;white-space:normal;line-height:1.3">
                     <CellTemplate>@context.Item.NatureOfPayment</CellTemplate>
                 </TemplateColumn>
                 <TemplateColumn Title="Type"     SortBy="x => x.DeducteeType"   HeaderStyle="width:74px"  CellStyle="width:74px">
                     <CellTemplate>@context.Item.DeducteeType</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Threshold (₹)"             HeaderStyle="width:78px" CellStyle="width:78px;text-align:right">
+                <TemplateColumn Title="Threshold (₹)"             HeaderStyle="width:80px" CellStyle="width:80px;text-align:right">
                     <CellTemplate>@context.Item.ThresholdLimit.ToString("N0")</CellTemplate>
                 </TemplateColumn>
                 <TemplateColumn Title="Rate %"                    HeaderStyle="width:52px" CellStyle="width:52px;text-align:right">
@@ -170,8 +170,13 @@
                 <TemplateColumn Title="Cess %"                    HeaderStyle="width:48px" CellStyle="width:48px;text-align:right">
                     <CellTemplate>@context.Item.CessRate.ToString("N2")</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Act Ref"  SortBy="x => x.ReferenceAct"   HeaderStyle="width:175px" CellStyle="width:175px;font-size:11px;white-space:normal;line-height:1.25">
-                    <CellTemplate>@context.Item.ReferenceAct</CellTemplate>
+                <TemplateColumn Title="Act Ref (IT Act 2025)" SortBy="x => x.ReferenceAct" HeaderStyle="width:175px" CellStyle="width:175px;font-size:11px;white-space:normal;line-height:1.25">
+                    <CellTemplate>
+                        @* "— IT Act 2025" is in the header; strip the repetition from each cell. *@
+                        @{ var actRef = (context.Item.ReferenceAct ?? "")
+                               .Replace(" — IT Act 2025", "").Replace(" - IT Act 2025", "").Trim(); }
+                        @actRef
+                    </CellTemplate>
                 </TemplateColumn>
                 <TemplateColumn Title="Eff. From"                 HeaderStyle="width:92px" CellStyle="width:92px;font-size:11px">
                     <CellTemplate>

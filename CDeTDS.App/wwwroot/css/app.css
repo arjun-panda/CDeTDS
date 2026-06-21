@@ -206,6 +206,17 @@ body.reports-payroll-active .mud-main-content {
     background: #EEF2F7;
 }
 
+/* Compact TDS Rules Reference grid — smaller font + tighter padding so all
+   columns fit without horizontal scroll. */
+.rules-grid .mud-table-cell {
+    font-size: 12px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.rules-grid .mud-table-head .mud-table-cell {
+    font-size: 11px;
+}
+
 /* Form 16 / print-ready area */
 .print-area {
     background: white;
