@@ -366,18 +366,19 @@ namespace CDeTDS.DAL
 </div>
 <table style=""margin-bottom:2px"">
 <thead><tr>
-  <th>Sr.<br/>314</th><th>Emp Ref<br/>315</th><th>PAN<br/>316</th>
-  <th style=""min-width:140px"">Name of Employee<br/>317</th>
-  <th>Sec<br/>318</th>
-  <th>Date of Payment<br/>319</th>
-  <th>Date of Deduction<br/>320</th>
-  <th style=""text-align:right"">Amount Paid (₹)<br/>321</th>
-  <th style=""text-align:right"">Tax (₹)<br/>322</th>
-  <th style=""text-align:right"">Surcharge<br/>323</th>
-  <th style=""text-align:right"">Cess<br/>324</th>
-  <th style=""text-align:right"">Total TDS (₹)<br/>325</th>
-  <th style=""text-align:right"">Total TDS Dep. (₹)<br/>326</th>
-  <th>Date of Deposit<br/>327</th>
+  <th>Sl.No<br/>(A)</th><th>Challan Ref<br/>(Sl.No A, Part B)<br/>(B)</th><th>PAN<br/>(C)</th>
+  <th style=""min-width:130px"">Name of {(newAct ? "employee/<br/>specified senior citizen" : "Employee")}<br/>(D)</th>
+  <th>Emp ref/<br/>PPO No.<br/>(E)</th>
+  <th>Section<br/>Code<br/>(F)</th>
+  <th>Date of payment/<br/>credit (G)</th>
+  <th>Date of<br/>deduction (H)</th>
+  <th style=""text-align:right"">Amount Paid/<br/>Credited (I)</th>
+  <th style=""text-align:right"">Total Tax<br/>Deducted (J)</th>
+  <th>Deposited?<br/>(K)</th>
+  <th style=""text-align:right"">Total Tax<br/>Deposited (L)</th>
+  <th>Date of<br/>deposit (M)</th>
+  <th>Reason for non/<br/>lower/higher<br/>deduction (N)</th>
+  <th>Cert No.<br/>u/s 395(1)<br/>(O)</th>
 </tr></thead><tbody>");
 
                     int cSlNo = 1;
@@ -397,31 +398,35 @@ namespace CDeTDS.DAL
                             var pc = BuiltInTdsRules.PaymentCodeFor(string.IsNullOrEmpty(e.Section) ? "192" : e.Section, "", "");
                             secCode = string.IsNullOrEmpty(pc) ? "1002" : pc;
                         }
+                        // Reason for non/lower/higher deduction (col N): A = lower/no
+                        // deduction on s.395(1) cert; C = higher rate u/s 397(2) (no PAN).
+                        string reason = !string.IsNullOrEmpty(e.LowerDeductionCertNo) ? "A"
+                                      : (!CDeTDS.Common.Validators.IsValidPan(e.Pan) ? "C" : "");
                         sb.Append($@"<tr>
   <td class=""num"">{cSlNo++}</td>
-  <td class=""num""></td>
+  <td class=""num"" style=""text-align:center"">{challSeq}</td>
   <td style=""font-family:monospace;font-size:7pt"">{Esc(e.Pan)}</td>
   <td>{Esc(e.Name)}</td>
+  <td class=""num""></td>
   <td style=""text-align:center"">{secCode}</td>
   <td>{e.PaymentDate:dd/MM/yyyy}</td>
   <td>{e.PaymentDate:dd/MM/yyyy}</td>
   <td class=""num"">{e.AmountPaid:N0}</td>
-  <td class=""num"">{(e.TdsDeducted > 0 ? e.TdsDeducted.ToString("N0") : "")}</td>
-  <td class=""num"">{(e.Surcharge > 0 ? e.Surcharge.ToString("N0") : "")}</td>
-  <td class=""num"">{(e.Cess > 0 ? e.Cess.ToString("N0") : "")}</td>
   <td class=""num"">{(tot > 0 ? tot.ToString("N0") : "")}</td>
+  <td style=""text-align:center"">{(tot > 0 ? "Yes" : "No")}</td>
   <td class=""num"">{(tot > 0 ? tot.ToString("N0") : "")}</td>
   <td>{ch.ChallanDate:dd/MM/yyyy}</td>
+  <td style=""text-align:center"">{reason}</td>
+  <td style=""font-family:monospace;font-size:7pt"">{Esc(e.LowerDeductionCertNo)}</td>
 </tr>");
                     }
                     sb.Append($@"<tr class=""total-row"">
-  <td colspan=""7""></td>
+  <td colspan=""8"" style=""text-align:right;font-weight:bold"">Total</td>
   <td class=""num"">{chAmt:N0}</td>
-  <td class=""num"">{chDed:N0}</td>
-  <td></td><td></td>
-  <td class=""num"">{chTot:N0}</td>
   <td class=""num"">{chTot:N0}</td>
   <td></td>
+  <td class=""num"">{chTot:N0}</td>
+  <td colspan=""3""></td>
 </tr></tbody></table>");
                 }
 
@@ -692,10 +697,11 @@ namespace CDeTDS.DAL
             sb.Append($@"
 <div class=""sign-block"">
   <div style=""flex:2;padding-right:24px"">
-    <div style=""font-weight:700;font-size:10pt;margin-bottom:6px"">VERIFICATION</div>
+    <div style=""font-weight:700;font-size:10pt;margin-bottom:6px"">{((newAct && isSalaryForm) ? "DECLARATION" : "VERIFICATION")}</div>
     <div style=""font-size:9.5pt;line-height:1.7"">
-      I, <span style=""border-bottom:1px solid #000;min-width:220px;display:inline-block;padding-bottom:1px"">{Esc(h.ResponsibleName)}</span>,
-      hereby certify that all the particulars furnished above are correct and complete.
+      {((newAct && isSalaryForm)
+        ? $@"I, <span style=""border-bottom:1px solid #000;min-width:160px;display:inline-block"">{Esc(h.ResponsibleName)}</span> (name of the person responsible for deducting tax at source), having Permanent Account Number <span style=""border-bottom:1px solid #000;min-width:110px;display:inline-block;font-family:monospace"">{Esc(h.ResponsiblePan)}</span>, am the person responsible for deducting tax at source in the case of <span style=""border-bottom:1px solid #000;min-width:160px;display:inline-block"">{Esc(h.DeductorName)}</span> (name of the deductor). I certify that all the particulars furnished above are correct and complete."
+        : $@"I, <span style=""border-bottom:1px solid #000;min-width:220px;display:inline-block;padding-bottom:1px"">{Esc(h.ResponsibleName)}</span>, hereby certify that all the particulars furnished above are correct and complete.")}
     </div>
     <div style=""margin-top:28px;display:flex;gap:40px"">
       <div>
@@ -732,11 +738,26 @@ namespace CDeTDS.DAL
 </div>
 
 <div class=""footer"">
-  <b>Notes:</b>&nbsp;
+  {((newAct && isSalaryForm)
+    // Official Form 138 Notes (Gazette of India).
+    ? @"<b>Notes:</b>&nbsp;
+  (1)(a) In case of individual, the first, middle and last name shall be provided in full without abbreviations. In any other case, name shall be provided in full.
+  (b) In case of Central Government, mention name of Ministry/Department. In case of State Government, mention name of the State.&nbsp;
+  (2) The address shall contain: Country/Region, Flat/Door/Block No., Road/Street/Block/Sector, PIN/ZIP Code, Post Office, Area/locality, District, State.&nbsp;
+  (3) It is mandatory for non-Government deductors/payers to quote PAN. In case of Government deductors/payers, PAN should be mentioned as 'PANNOTREQD'.&nbsp;
+  (4) In column (B), total tax shall be sum of amount of tax deducted, Surcharge and Health &amp; Education Cess.&nbsp;
+  (5) Fee paid under section 427 for late filing of TDS statement to be mentioned in separate column of 'Total Fee' (column D).&nbsp;
+  (6) In column (F), Government DDOs to mention the amount remitted by the PAO/CDDO/DTO. Other deductors/payers to write the exact amount deposited through challan.&nbsp;
+  (7) In column (G), Government deductors/payers to write 'B' where TDS is remitted to the credit of Central Government through book adjustment. Other deductors/payers to write 'C'.&nbsp;
+  (8) Challan/Transfer Voucher (CIN/BIN) particulars, i.e. H, I, J should be exactly the same as available at TIN 2.0/TRACES portal.&nbsp;
+  (9) In column (K), mention minor head as marked on the challan.&nbsp;
+  (10) Amounts to be filled in &#8377; unless otherwise provided.&nbsp;
+  Annexure I, Note: Write 'A' if 'lower deduction' or 'no deduction' is on account of a certificate issued under section 395(1). Write 'C' if deduction is at a higher rate under section 397(2) on account of non-furnishing of PAN."
+    : $@"<b>Notes:</b>&nbsp;
   (1) Indicate the type of deductor — 'Government' / 'Others'.&nbsp;
   (2) Government deductors to give particulars of transfer vouchers; other deductors to give particulars of challan No. regarding deposit into bank.&nbsp;
   (3) Column is relevant only for Government deductors.&nbsp;
-  {(isSalaryForm ? "(4) Salary includes wages, annuity, pension, gratuity, fees, commission, bonus, perquisites, profits in lieu of or in addition to any salary or wages. (5) Please record on every page the totals of each of the columns." : $"(4) Note: Write 'A' if lower deduction or 'B' if no deduction is on account of a certificate under section {(newAct ? "395" : "197")}.")}<br/>
+  {(isSalaryForm ? "(4) Salary includes wages, annuity, pension, gratuity, fees, commission, bonus, perquisites, profits in lieu of or in addition to any salary or wages. (5) Please record on every page the totals of each of the columns." : $"(4) Note: Write 'A' if lower deduction or 'B' if no deduction is on account of a certificate under section {(newAct ? "395" : "197")}.")}")}<br/>
   <span style=""color:#aaa"">Computer-generated paper copy &nbsp;·&nbsp; CDeTDS v{CDeTDS.Common.AppConstants.AppVersion} &nbsp;·&nbsp; {now} &nbsp;·&nbsp; Submit the validated .fvu file to TRACES portal — this printout is for record only.</span>
 </div>
 
