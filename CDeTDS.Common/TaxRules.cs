@@ -516,6 +516,20 @@ namespace CDeTDS.Common
         public static string ActName(string fy)
             => IsNewAct(fy) ? "Income-tax Act 2025" : "Income-tax Act 1961";
 
+        /// <summary>
+        /// FVU/RPU utility version applicable to a year, for display.
+        /// Old-Act (FY ≤ 2025-26): FVU 9.4. New-Act (TY 2026-27+): the applicable
+        /// utility is Protean RPU/FVU 1.0, though CDeTDS currently generates files in
+        /// the documented FVU 9.4 interim wire format until the new FVU is bundled —
+        /// so the label is explicit about that to avoid over-claiming.
+        /// </summary>
+        public static string FvuVersionLabel(string fy)
+            => IsNewAct(fy) ? "FVU/RPU 1.0 (interim 9.4 format)" : "FVU 9.4";
+
+        /// <summary>Short FVU/RPU version applicable to a year (badge use).</summary>
+        public static string FvuVersionShort(string fy)
+            => IsNewAct(fy) ? "FVU/RPU 1.0" : "FVU 9.4";
+
         // Section code → IT Act 2025 reference mapping
         // Source: IT Act 2025, Section 393(1) Table as notified by CBDT
         private static readonly Dictionary<string, string> NewActSectionMap = new(StringComparer.OrdinalIgnoreCase)

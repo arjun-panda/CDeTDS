@@ -269,7 +269,7 @@ else
         <!-- Bottom bar: footer text centred + Back button right -->
         <div class="tds-footer-strip">
             <span class="tds-footer-text">
-                CDeTDS v@(AppConstants.AppVersion) &nbsp;·&nbsp; Income-tax Act 1961 &amp; IT Act 2025 &nbsp;·&nbsp; NSDL FVU 9.4 &nbsp;·&nbsp; Developed by <strong>Arjun Panda</strong>
+                CDeTDS v@(AppConstants.AppVersion) &nbsp;·&nbsp; Income-tax Act 1961 &amp; IT Act 2025 &nbsp;·&nbsp; NSDL @TaxRules.FvuVersionLabel(AppState.CurrentFY) &nbsp;·&nbsp; Developed by <strong>Arjun Panda</strong>
             </span>
             <button @onclick="GoBack" class="tds-back-btn">← Back</button>
         </div>
@@ -432,10 +432,10 @@ else
             "tables. You keep selecting the familiar code (e.g. 194C) and CDeTDS shows the Act 2025 reference it will file under. " +
             "Certificates and paper returns cite the new sections automatically for TY 2026-27+."),
         ("IT Act 2025", "What are the 4-digit payment codes and the switch in TDS Rules → Rules Status?",
-            "The new-act e-TDS format will eventually replace section codes in the return file with 4-digit payment codes (1001–1092). " +
-            "CDeTDS has staged the codes from Protean's RPU v1.0 BETA, but files currently use the proven FVU 9.4 interim format. " +
-            "Keep the switch OFF until Protean releases the FINAL new-act FVU/RPU and the codes are re-verified — CDeTDS will ship " +
-            "an update when that happens."),
+            "The new-act e-TDS format replaces section codes in the return file with 4-digit payment codes (1001–1092). " +
+            "CDeTDS has loaded the resident codes verified against Protean's official Form 138/140 file-format spec, but files " +
+            "currently still use the proven FVU 9.4 interim wire format. Keep the switch OFF until the new FVU 1.0 is bundled and a " +
+            "generated return is validated against it — CDeTDS will ship an update when that happens."),
         ("IT Act 2025", "Where did the Assessment Year (AY) go?",
             "The Income-tax Act 2025 abolishes the Assessment Year. From TY 2026-27 there is only the Tax Year (TY), which is the same " +
             "as the financial year — so the top bar shows just 'TY 2026-27'. For FY 2025-26 and earlier, FY and AY display as before."),
