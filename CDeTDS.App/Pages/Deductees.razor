@@ -13,6 +13,15 @@
                OnClick="OpenAdd">Add Deductee</MudButton>
 </div>
 
+@{ var _invalidPanCount = _items.Count(d => !string.IsNullOrWhiteSpace(d.Pan) && !Validators.IsValidPan(d.Pan)); }
+@if (_invalidPanCount > 0)
+{
+    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3" Style="flex-shrink:0">
+        <b>@_invalidPanCount deductee(s)</b> have an invalid-format PAN (highlighted in red below).
+        Fix these before generating a return — the FVU / e-filing portal will reject a statement
+        containing a malformed PAN.
+    </MudAlert>
+}
 @if (_items.Count == 0)
 {
     <EmptyState Icon="@Icons.Material.Filled.People"
@@ -36,7 +45,22 @@ else
     <Columns>
         <PropertyColumn Property="x => x.DeducteeCode" Title="Code" />
         <PropertyColumn Property="x => x.Name"         Title="Name" />
-        <PropertyColumn Property="x => x.Pan"          Title="PAN" />
+        <TemplateColumn Title="PAN" SortBy="x => x.Pan">
+            <CellTemplate>
+                @if (!string.IsNullOrWhiteSpace(context.Item.Pan) && !Validators.IsValidPan(context.Item.Pan))
+                {
+                    <MudTooltip Text="@Validators.GetPanError(context.Item.Pan)">
+                        <span style="color:#d32f2f;font-weight:600">@context.Item.Pan
+                            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Size="Size.Small" Color="Color.Error" Style="vertical-align:text-bottom" />
+                        </span>
+                    </MudTooltip>
+                }
+                else
+                {
+                    @context.Item.Pan
+                }
+            </CellTemplate>
+        </TemplateColumn>
         <PropertyColumn Property="x => x.Section"      Title="Section" />
         <PropertyColumn Property="x => x.DeducteeType" Title="Type" />
         <PropertyColumn Property="x => x.Rate"         Title="Rate %" Format="N2" />
