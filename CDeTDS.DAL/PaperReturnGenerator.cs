@@ -200,12 +200,21 @@ namespace CDeTDS.DAL
   <div class=""info-cell""><span class=""info-label"">Original PRN</span><span class=""info-value"" style=""font-family:monospace;font-size:11px"">{Esc(string.IsNullOrEmpty(h.OriginalPrn) ? h.PreviousPrn : h.OriginalPrn)}</span></div>" : "")}
 </div>
 
-<div class=""summary-box"">
+{(isSalaryForm
+    // Salary forms (138/24Q) carry employees in SalaryDetails, not Deductees —
+    // count those so the summary isn't 0/₹0 on every salary return.
+    ? $@"<div class=""summary-box"">
+  <div class=""kpi""><div class=""kpi-label"">Total Challans</div><div class=""kpi-value"">{d.Challans.Count}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Total Employees</div><div class=""kpi-value"">{d.SalaryDetails.Count}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Gross Salary</div><div class=""kpi-value"">₹{d.SalaryDetails.Sum(s => s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3):N0}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Total TDS Deducted</div><div class=""kpi-value"">₹{d.SalaryDetails.Sum(s => s.TdsDeducted):N0}</div></div>
+</div>"
+    : $@"<div class=""summary-box"">
   <div class=""kpi""><div class=""kpi-label"">Total Challans</div><div class=""kpi-value"">{d.Challans.Count}</div></div>
   <div class=""kpi""><div class=""kpi-label"">Total Deductees</div><div class=""kpi-value"">{d.Deductees.Count}</div></div>
   <div class=""kpi""><div class=""kpi-label"">Gross Amount Paid</div><div class=""kpi-value"">₹{d.TotalAmountPaid:N0}</div></div>
   <div class=""kpi""><div class=""kpi-label"">Total TDS Deducted</div><div class=""kpi-value"">₹{d.TotalTdsDeducted:N0}</div></div>
-</div>
+</div>")}
 ");
 
             // ── Challan table ──────────────────────────────────────────────────
