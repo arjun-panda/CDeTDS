@@ -34,37 +34,41 @@ namespace CDeTDS.DAL
     )
     {
         // New Act section reference auto-derived — never user-editable
+        // Sl. numbers are the AUTHORITATIVE Annexure 2 references from the Protean
+        // Form 138/140 file-format spec (2026-06-16). They corrected an earlier
+        // sequential guess — see FVU_NEWACT_1.0\PaymentCodes_RPU1.0.md.
         public string ReferenceAct => SectionCode switch {
             "192"    => "Section 392(1) — IT Act 2025",
-            "192A"   => "Section 393(1) Sl.4(i) — IT Act 2025",
-            "193"    => "Section 393(1) Sl.1 — IT Act 2025",
-            "194"    => "Section 393(1) Sl.2 — IT Act 2025",
-            "194A"   => "Section 393(1) Sl.3 — IT Act 2025",
-            "194B"   => "Section 393(1) Sl.5(i) — IT Act 2025",
-            "194BA"  => "Section 393(1) Sl.5(iv) — IT Act 2025",
-            "194BB"  => "Section 393(1) Sl.5(ii) — IT Act 2025",
-            "194C"   => "Section 393(1) Sl.6 — IT Act 2025",
-            "194D"   => "Section 393(1) Sl.7 — IT Act 2025",
+            "192A"   => "Section 392(7) — IT Act 2025",
+            "193"    => "Section 393(1) Sl.5(i) — IT Act 2025",
+            "194"    => "Section 393(1) Sl.7 — IT Act 2025",
+            "194A"   => "Section 393(1) Sl.5(ii)/(iii) — IT Act 2025",
+            "194B"   => "Section 393(3) Sl.1 — IT Act 2025",
+            "194BA"  => "Section 393(3) Sl.2 — IT Act 2025",
+            "194BB"  => "Section 393(3) Sl.3 — IT Act 2025",
+            "194C"   => "Section 393(1) Sl.6(i) — IT Act 2025",
+            "194D"   => "Section 393(1) Sl.1(i) — IT Act 2025",
             "194DA"  => "Section 393(1) Sl.8(i) — IT Act 2025",
-            "194G"   => "Section 393(1) Sl.9 — IT Act 2025",
-            "194H"   => "Section 393(1) Sl.10(i) — IT Act 2025",
-            "194I"   => "Section 393(1) Sl.11 — IT Act 2025",
-            "194IA"  => "Section 393(1) Sl.12(i) — IT Act 2025",
-            "194IB"  => "Section 393(1) Sl.12(ii) — IT Act 2025",
-            "194IC"  => "Section 393(1) Sl.12(iii) — IT Act 2025",
-            "194J"   => "Section 393(1) Sl.13 — IT Act 2025",
-            "194K"   => "Section 393(1) Sl.8(ii) — IT Act 2025",
-            "194LA"  => "Section 393(1) Sl.14 — IT Act 2025",
-            "194M"   => "Section 393(1) Sl.6(ii) — IT Act 2025",
-            "194N"   => "Section 393(1) Sl.15 — IT Act 2025",
-            "194O"   => "Section 393(1) Sl.16 — IT Act 2025",
-            "194Q"   => "Section 393(1) Sl.17 — IT Act 2025",   // 194Q continues; FA 2025 only removed the 206C(1H) cross-reference
-            "194R"   => "Section 393(1) Sl.18 — IT Act 2025",
+            "194G"   => "Section 393(3) Sl.4 — IT Act 2025",
+            "194H"   => "Section 393(1) Sl.1(ii) — IT Act 2025",
+            "194I"   => "Section 393(1) Sl.2(ii) — IT Act 2025",
+            "194IC"  => "Section 393(1) Sl.3(ii) — IT Act 2025",
+            "194J"   => "Section 393(1) Sl.6(iii) — IT Act 2025",
+            "194K"   => "Section 393(1) Sl.4(i) — IT Act 2025",
+            "194LA"  => "Section 393(1) Sl.3(iii) — IT Act 2025",
+            "194N"   => "Section 393(3) Sl.5 — IT Act 2025",
+            "194O"   => "Section 393(1) Sl.8(v) — IT Act 2025",
+            "194Q"   => "Section 393(1) Sl.8(ii) — IT Act 2025",
+            "194R"   => "Section 393(1) Sl.8(iv) — IT Act 2025",
             "194S"   => "Section 393(1) Sl.8(vi) — IT Act 2025",
+            "194EE"  => "Section 393(3) Sl.6 — IT Act 2025",
+            "194P"   => "Section 393(1) Sl.8(iii) — IT Act 2025",
+            "194T"   => "Section 393(3) Sl.7 — IT Act 2025",
             "195"    => "Section 393(2) — IT Act 2025",
             "206AB"  => "Section 397(3) — IT Act 2025 (Removed w.e.f. 1-Apr-2025)",
-            // No official Section 393 Sl. mapping known for this code — cite the
-            // legacy section honestly rather than inventing a table entry.
+            // 194IA/194IB/194M move to the consolidated Form 141 (not Form 140) and
+            // have no Annexure-2 Sl. here; 194IA/IB amounts also appear via 393(1)
+            // Sl.2/3. Cite the legacy section honestly rather than inventing a Sl.
             _        => $"IT Act 2025 (legacy s.{SectionCode})"
         };
         public bool IsStandard => BuiltInTdsRules.StandardSections.Contains(SectionCode);
@@ -81,10 +85,14 @@ namespace CDeTDS.DAL
         //           wait for the FINAL RPU/FVU release + data structure document.
         // 20260618: Filled remaining payment codes after the RPU "Select Section for
         //           PAYMENT" picker + a real TY 2026-27 challan (1002=salary) confirmed
-        //           them: 194J→1026/1027/1028 by nature, 194S→1037/1038, 194K→"94K".
-        //           Still inert (switch OFF); 195/Form-144 + TCS 1068-1092 still blank
-        //           pending the file-format .xls.
-        public const string CurrentVersion = "2026-27-20260618";
+        //           them: 194J→1026/1027/1028 by nature, 194S→1037/1038.
+        // 20260621: Aligned to the OFFICIAL Protean Form 138/140 file-format spec
+        //           (Annexure 2). Corrected 194K: 1013 (NOT the RPU "94K"); and rewrote
+        //           every ReferenceAct Sl. number to the authoritative table values
+        //           (193 Sl.5(i), 194 Sl.7, 194C Sl.6(i), 194J Sl.6(iii), 194K Sl.4(i),
+        //           192A→392(7), winnings/194N/194T under 393(3), etc.). The prior Sl.
+        //           numbers were a sequential guess. Codes still inert (switch OFF).
+        public const string CurrentVersion = "2026-27-20260621";
 
         /// <summary>
         /// IT Act 2025 payment code for a rule row, extracted from Protean RPU v1.0
@@ -131,11 +139,12 @@ namespace CDeTDS.DAL
                            n.Contains("Call",     StringComparison.OrdinalIgnoreCase) ? "1026"
                          : n.Contains("Director", StringComparison.OrdinalIgnoreCase) ? "1028"
                          : "1027",
-                // 194S VDA (confirmed via picker): 1037 = other than Individual/HUF, 1038 = Individual/HUF
+                // 194S VDA (Form 140 spec Sl.8(vi)): 1037 = other than Individual/HUF, 1038 = Individual/HUF
                 "194S"  => dt is "Individual" or "HUF" ? "1038" : "1037",
-                // 194K mutual-fund units — RPU/picker shows the literal token "94K" (not a 4-digit
-                // code). Recorded as-is from the source; re-verify against the file-format .xls.
-                "194K"  => "94K",
+                // 194K mutual-fund units = 1013 per the official Form 140 file-format spec
+                // (Annexure 2, Sl.4(i)). Corrects the earlier "94K" from the RPU dropdown,
+                // which CLAUDE.md warns must never be trusted over the data-structure document.
+                "194K"  => "1013",
                 "194R"  => "1033",
                 "194T"  => "1067",
                 // Still pending the official file-format .xls: 195/196x (Form 144 non-resident)

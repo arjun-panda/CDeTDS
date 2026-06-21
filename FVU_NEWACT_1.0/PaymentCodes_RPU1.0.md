@@ -1,5 +1,21 @@
 # IT Act 2025 Payment Codes — extracted from Protean RPU/FVU v1.0
 
+> **2026-06-21 — AUTHORITATIVE SOURCE NOW AVAILABLE.** Protean's official
+> file-format specs for Form 138 (salary) and Form 140 (resident non-salary)
+> were obtained (`assets/Form Number 138-24Q...xlsx`, `Form Number 140-26Q...xlsx`).
+> Their **Annexure 2** gives the canonical Nature → Section → 4-digit code table.
+> This SUPERSEDES the RPU-dropdown scrape below. Corrections applied to
+> `BuiltInTdsRules`:
+> - **194K = 1013** (the RPU literal "94K" was WRONG; spec Annexure 2 Sl.4(i)).
+> - All **ReferenceAct Sl. numbers** rewritten to the spec's real table values
+>   (e.g. 193→Sl.5(i), 194→Sl.7, 194C→Sl.6(i), 194J→Sl.6(iii), 192A→**392(7)**;
+>   winnings/194N/194T file under **393(3)**). The old Sl. numbers were a guess.
+> - Confirmed: salary 1001/1002/1003 (Govt/non-Govt/Union, s.392), 1027=professional
+>   fees, 1025 does not exist, 1037/1038=194S, 1062/1063, 1064/1065.
+> Still NOT covered (no spec yet): TCS Form 143 (1068-1092) and non-resident
+> Form 144 (1039-1057). Switch stays OFF until those + a validated Form 140.
+
+
 ⚠ **RELEASED UTILITY, but CODES STILL UNVERIFIED.** As of 2026-06-18 Protean's
 download page lists RPU 1.0 and FVU 1.0 for TY 2026-27 as regular downloads with
 NO "Beta/draft/provisional" qualifier — so the utility itself appears final (the
