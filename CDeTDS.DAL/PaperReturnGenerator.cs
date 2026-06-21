@@ -231,13 +231,14 @@ namespace CDeTDS.DAL
 </div>")}
 
 {(isSalaryForm
-    // Salary forms (138/24Q) carry employees in SalaryDetails, not Deductees —
-    // count those so the summary isn't 0/₹0 on every salary return.
+    // Salary forms: deductee rows live in Deductees for every quarter (Q1-Q4);
+    // SalaryDetails is only populated for the Q4 salary annexure. Count whichever
+    // is populated so the summary is never 0 on a salary return.
     ? $@"<div class=""summary-box"">
   <div class=""kpi""><div class=""kpi-label"">Total Challans</div><div class=""kpi-value"">{d.Challans.Count}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Total Employees</div><div class=""kpi-value"">{d.SalaryDetails.Count}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Gross Salary</div><div class=""kpi-value"">₹{d.SalaryDetails.Sum(s => s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3):N0}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Total TDS Deducted</div><div class=""kpi-value"">₹{d.SalaryDetails.Sum(s => s.TdsDeducted):N0}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Total Employees</div><div class=""kpi-value"">{(d.Deductees.Count > 0 ? d.Deductees.Count : d.SalaryDetails.Count)}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Amount Paid</div><div class=""kpi-value"">₹{(d.Deductees.Count > 0 ? d.TotalAmountPaid : d.SalaryDetails.Sum(s => s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3)):N0}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Total TDS Deducted</div><div class=""kpi-value"">₹{(d.Deductees.Count > 0 ? d.TotalTdsDeducted : d.SalaryDetails.Sum(s => s.TdsDeducted)):N0}</div></div>
 </div>"
     : $@"<div class=""summary-box"">
   <div class=""kpi""><div class=""kpi-label"">Total Challans</div><div class=""kpi-value"">{d.Challans.Count}</div></div>
