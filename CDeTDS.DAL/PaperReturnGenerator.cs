@@ -256,8 +256,9 @@ namespace CDeTDS.DAL
             bool officialPartB = officialForm;   // Form 138/140 official A–K layout
             if (officialPartB)
             {
-                // Official Form 138 PART B columns A–K (Gazette layout).
+                // Official Form 138/140 PART B columns A–K (Gazette layout).
                 sb.Append($@"<div style=""font-weight:bold;font-size:9pt;margin:10px 0 2px"">PART B: Details of tax Deducted at source and paid to the credit of the Central Government</div>
+<div style=""font-size:8.5pt;margin:2px 0"">1. Details of tax deducted and paid to the credit of the Central Government:</div>
 <table class=""partA"">
 <thead><tr>
   <th>Sl.<br/>No.<br/>(A)</th><th>Total tax<br/>(B)</th><th>Total interest<br/>(C)</th>
@@ -292,6 +293,22 @@ namespace CDeTDS.DAL
   <td class=""num"">{pbFee:N0}</td><td class=""num"">0</td><td class=""num"">{pbTot:N0}</td>
   <td colspan=""5""></td></tr>
 </tbody></table>");
+                // PART B item 2 — the statutory note enclosing the annexures.
+                if (isSalaryForm)
+                {
+                    sb.Append(@"<div style=""font-size:8.5pt;margin:4px 0 8px;line-height:1.5"">
+  2. Details of salary paid and tax deducted thereon—<br/>
+  &nbsp;&nbsp;(i) enclose <b>Annexure-I</b> along with each statement having details of relevant quarter in the case of employee and specified senior citizen.<br/>
+  &nbsp;&nbsp;(ii) enclose <b>Annexure-II</b> along with the last statement i.e. for the quarter ending 31st March having details for the whole tax year in the case of employee.<br/>
+  &nbsp;&nbsp;(iii) enclose <b>Annexure-III</b> along with the last statement i.e. for the quarter ending 31st March having details for the whole tax year in the case of specified senior citizen.
+</div>");
+                }
+                else
+                {
+                    sb.Append(@"<div style=""font-size:8.5pt;margin:4px 0 8px;line-height:1.5"">
+  2. Details of amount paid and tax deducted thereon from the deductees and amount paid without deduction (see Annexure).
+</div>");
+                }
             }
             else
             {
