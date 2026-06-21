@@ -154,13 +154,22 @@
         {
             using var conn = Database.GetConnection();
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = "SELECT role FROM users WHERE username=@u AND password=@p AND status='Active'";
+            // Fetch the stored hash and verify in code (PBKDF2 hashes are salted, so
+            // they can't be matched with a SQL equality comparison).
+            cmd.CommandText = "SELECT role, password FROM users WHERE username=@u AND status='Active'";
             cmd.Parameters.AddWithValue("@u", _username.Trim());
-            cmd.Parameters.AddWithValue("@p", HashPassword(_password));
-            var role = cmd.ExecuteScalar() as string;
-
-            if (role != null)
+            string? role = null, storedHash = null;
+            using (var r = cmd.ExecuteReader())
             {
+                if (r.Read()) { role = r.GetString(0); storedHash = r.IsDBNull(1) ? null : r.GetString(1); }
+            }
+
+            if (role != null && Database.VerifyPassword(_password, storedHash))
+            {
+                // Transparently upgrade legacy unsalted-SHA256 hashes to PBKDF2.
+                if (Database.IsLegacyHash(storedHash))
+                    Database.UpgradePasswordHash(_username.Trim(), _password);
+
                 AppState.Login(_username.Trim(), role);
                 Database.LogAction(_username.Trim(), "LOGIN", "Auth", "Login successful");
 

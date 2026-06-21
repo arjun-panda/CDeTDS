@@ -1506,10 +1506,66 @@ namespace CDeTDS.DAL
             ins.ExecuteNonQuery();
         }
 
-        public static string HashPassword(string pw) =>
-            Convert.ToHexString(
-                System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(pw)));
+        // Password hashing: salted PBKDF2-SHA256 (210k iterations). Stored format:
+        //   pbkdf2$<iterations>$<saltBase64>$<hashBase64>
+        // Legacy hashes were unsalted SHA-256 hex; VerifyPassword still accepts them
+        // and callers transparently re-hash to PBKDF2 on the next successful login.
+        private const int Pbkdf2Iterations = 210_000;
+
+        public static string HashPassword(string pw)
+        {
+            var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+            using var kdf = new System.Security.Cryptography.Rfc2898DeriveBytes(
+                pw, salt, Pbkdf2Iterations, System.Security.Cryptography.HashAlgorithmName.SHA256);
+            var hash = kdf.GetBytes(32);
+            return $"pbkdf2${Pbkdf2Iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+        }
+
+        /// <summary>True if <paramref name="pw"/> matches <paramref name="storedHash"/>,
+        /// handling both the new PBKDF2 format and the legacy unsalted SHA-256 hex.</summary>
+        public static bool VerifyPassword(string pw, string? storedHash)
+        {
+            if (string.IsNullOrEmpty(storedHash)) return false;
+            if (storedHash.StartsWith("pbkdf2$", StringComparison.Ordinal))
+            {
+                var parts = storedHash.Split('$');
+                if (parts.Length != 4) return false;
+                if (!int.TryParse(parts[1], out var iter)) return false;
+                byte[] salt, expected;
+                try { salt = Convert.FromBase64String(parts[2]); expected = Convert.FromBase64String(parts[3]); }
+                catch { return false; }
+                using var kdf = new System.Security.Cryptography.Rfc2898DeriveBytes(
+                    pw, salt, iter, System.Security.Cryptography.HashAlgorithmName.SHA256);
+                var actual = kdf.GetBytes(expected.Length);
+                return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(actual, expected);
+            }
+            // Legacy: unsalted SHA-256 hex (constant-time compare).
+            var legacy = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(pw)));
+            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.ASCII.GetBytes(legacy),
+                System.Text.Encoding.ASCII.GetBytes(storedHash));
+        }
+
+        /// <summary>True if the stored hash is the old unsalted SHA-256 format and
+        /// should be upgraded (caller re-hashes via HashPassword after a successful login).</summary>
+        public static bool IsLegacyHash(string? storedHash) =>
+            !string.IsNullOrEmpty(storedHash) && !storedHash.StartsWith("pbkdf2$", StringComparison.Ordinal);
+
+        /// <summary>Re-store a user's password as PBKDF2 (called after a legacy-hash login).</summary>
+        public static void UpgradePasswordHash(string username, string plainPassword)
+        {
+            try
+            {
+                using var conn = GetConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "UPDATE users SET password=@p WHERE username=@u";
+                cmd.Parameters.AddWithValue("@p", HashPassword(plainPassword));
+                cmd.Parameters.AddWithValue("@u", username);
+                cmd.ExecuteNonQuery();
+            }
+            catch { /* upgrade is best-effort; login already succeeded */ }
+        }
 
         public static void LogAction(string username, string action, string module, string details = "")
         {

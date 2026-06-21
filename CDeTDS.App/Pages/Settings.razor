@@ -846,10 +846,22 @@
         try
         {
             using var conn = Database.GetConnection();
+            // Verify the current password in code (PBKDF2 hashes can't be SQL-compared).
+            string? storedHash = null;
+            using (var sel = conn.CreateCommand())
+            {
+                sel.CommandText = "SELECT password FROM users WHERE username=@u";
+                sel.Parameters.AddWithValue("@u", AppState.CurrentUser);
+                storedHash = sel.ExecuteScalar() as string;
+            }
+            if (!Database.VerifyPassword(_oldPassword, storedHash))
+            {
+                Snackbar.Add("Current password is incorrect.", Severity.Error);
+                return;
+            }
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = "UPDATE users SET password=@np WHERE username=@u AND password=@op";
+            cmd.CommandText = "UPDATE users SET password=@np WHERE username=@u";
             cmd.Parameters.AddWithValue("@u",  AppState.CurrentUser);
-            cmd.Parameters.AddWithValue("@op", Database.HashPassword(_oldPassword));
             cmd.Parameters.AddWithValue("@np", Database.HashPassword(_newPassword));
             var rows = cmd.ExecuteNonQuery();
             if (rows > 0)
@@ -859,7 +871,7 @@
             }
             else
             {
-                Snackbar.Add("Current password is incorrect.", Severity.Error);
+                Snackbar.Add("Could not update password.", Severity.Error);
             }
         }
         catch (Exception ex) { Snackbar.Add("Error: " + ErrorTranslator.UserFriendly(ex), Severity.Error); }
