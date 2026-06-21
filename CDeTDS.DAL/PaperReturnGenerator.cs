@@ -236,8 +236,8 @@ namespace CDeTDS.DAL
     // is populated so the summary is never 0 on a salary return.
     ? $@"<div class=""summary-box"">
   <div class=""kpi""><div class=""kpi-label"">Total Challans</div><div class=""kpi-value"">{d.Challans.Count}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Total Employees</div><div class=""kpi-value"">{(d.Deductees.Count > 0 ? d.Deductees.Count : d.SalaryDetails.Count)}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Amount Paid</div><div class=""kpi-value"">₹{(d.Deductees.Count > 0 ? d.TotalAmountPaid : d.SalaryDetails.Sum(s => s.Salary17_1 + s.Perquisites17_2 + s.ProfitSalary17_3)):N0}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Employees (distinct PAN)</div><div class=""kpi-value"">{(d.Deductees.Count > 0 ? d.Deductees.Select(e => (e.Pan ?? "").Trim().ToUpper()).Where(p => p.Length > 0).Distinct().Count() : d.SalaryDetails.Select(s => (s.Pan ?? "").Trim().ToUpper()).Where(p => p.Length > 0).Distinct().Count())}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Deductee Records</div><div class=""kpi-value"">{(d.Deductees.Count > 0 ? d.Deductees.Count : d.SalaryDetails.Count)}</div></div>
   <div class=""kpi""><div class=""kpi-label"">Total TDS Deducted</div><div class=""kpi-value"">₹{(d.Deductees.Count > 0 ? d.TotalTdsDeducted : d.SalaryDetails.Sum(s => s.TdsDeducted)):N0}</div></div>
 </div>"
     : $@"<div class=""summary-box"">
