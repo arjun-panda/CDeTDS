@@ -50,6 +50,7 @@ FVU_NEWACT_1.0/rpu/
 FVU_NEWACT_1.0/rpu_jar/
 FVU_NEWACT_1.0/rpu_codes_ordered.txt
 FVU_NEWACT_1.0/rpu_o_strings.txt
+FVU_NEWACT_1.0/cfr.jar
 
 # KeyGen build output + generated key log (contains issued license keys)
 keygen_out/
