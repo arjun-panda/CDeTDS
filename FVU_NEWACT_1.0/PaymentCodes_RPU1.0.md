@@ -12,8 +12,20 @@
 >   winnings/194N/194T file under **393(3)**). The old Sl. numbers were a guess.
 > - Confirmed: salary 1001/1002/1003 (Govt/non-Govt/Union, s.392), 1027=professional
 >   fees, 1025 does not exist, 1037/1038=194S, 1062/1063, 1064/1065.
-> Still NOT covered (no spec yet): TCS Form 143 (1068-1092) and non-resident
-> Form 144 (1039-1057). Switch stays OFF until those + a validated Form 140.
+> **2026-06-21 (update) — ALL FOUR specs now obtained**: Form 143 (TCS/27EQ) and
+> Form 144 (non-resident/27Q) added to `assets/`. Their Annexure 2 confirms:
+> - **TCS 1068-1092** all under **section 394(1)** (liquor Sl.1, tendu Sl.2,
+>   timber/forest Sl.3, scrap Sl.4, coal/iron Sl.5, motor vehicle & luxury goods
+>   Sl.6, LRS Sl.7, tour package Sl.8, parking/toll/mine Sl.9).
+> - **Non-resident 1039-1057** all under **section 393(2)** (s.211 income 1039,
+>   foreign-currency interest 1040-1043, IDF 1044, business-trust 1045-1047,
+>   investment fund 1048, securitisation 1049, MF/units 1050-1052, GDR/bond
+>   LTCG 1053-1054, FII securities 1055-1056, other interest 1057).
+> NOTE: these are recorded for reference only — CDeTDS does not yet model
+> individual TCS (206C-family) or non-resident (195/196) rule rows, so there are
+> no rule sections to attach these codes to in PaymentCodeFor. They will be wired
+> when/if the app adds those rule sets. Resident 138/140 codes ARE wired.
+> Switch stays OFF pending a Form 140 validated against the new FVU.
 
 
 ⚠ **RELEASED UTILITY, but CODES STILL UNVERIFIED.** As of 2026-06-18 Protean's
