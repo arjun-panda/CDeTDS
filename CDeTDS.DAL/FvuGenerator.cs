@@ -831,7 +831,7 @@ namespace CDeTDS.DAL
                         $"Use {CDeTDS.Common.TaxRules.FormTypeForFy(formU, h.FinancialYear)} (Income-tax Act 2025) instead.", true));
                 else if (!newFy && newForm)
                     errors.Add(new("FORM", "E031",
-                        $"Form {formU} belongs to the Income-tax Act 2025 and cannot be used for FY {h.FinancialYear}. " +
+                        $"Form {formU} belongs to the Income-tax Act 2025 and cannot be used for {CDeTDS.Common.TaxRules.YearLabel(h.FinancialYear)}. " +
                         $"Use {CDeTDS.Common.TaxRules.FormTypeForFy(formU, h.FinancialYear)} (Income-tax Act 1961) instead.", true));
             }
 

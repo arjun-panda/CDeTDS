@@ -19,14 +19,14 @@ public class PdfReportsTests
     {
         var entry = new MonthlySalaryEntry
         {
-            EmployeeName = "Ajay Sharma", Pan = "ABCDE1234F",
+            EmployeeName = "Ajay Sharma", Pan = "ABCPE1234F",
             Month = 5, Year = 2026, FinancialYear = "2026-27",
             Basic = 30000, HRA = 15000, SpecialAllowance = 5000,
             PfEmployee = 1800, ProfessionalTax = 200,
             TdsDeducted = 0,
         };
         entry.RecalcGross();
-        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCDE1234F", Designation = "Engineer", BankAccount = "1234567890" };
+        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCPE1234F", Designation = "Engineer", BankAccount = "1234567890" };
         var ded = new Deductor { CompanyName = "Acme Corp" };
         var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
         var path = SalarySlipExport.GeneratePdf(entry, new AnnualComputation(), emp, ded, tmp);
@@ -55,7 +55,7 @@ public class PdfReportsTests
         {
             EmployerName = "Acme Corp",
             EmployeeName = "Ajay Sharma",
-            EmployeePan  = "ABCDE1234F",
+            EmployeePan  = "ABCPE1234F",
             EmployeeDob  = "15-Jan-1985",
             FinancialYear = "2026-27",
             Regime = "New",
@@ -83,9 +83,9 @@ public class PdfReportsTests
             FinancialYear = "2026-27",
             DeductorName  = "Acme Corp",
             DeductorTan   = "DELA12345A",
-            DeductorPan   = "ABCDE9876Z",
+            DeductorPan   = "ABCPE9876Z",
             EmployeeName  = "Ajay Sharma",
-            EmployeePan   = "ABCDE1234F",
+            EmployeePan   = "ABCPE1234F",
             EmployeeCode  = "EMP-001",
             Designation   = "Engineer",
             TaxRegime     = "New",
@@ -150,7 +150,7 @@ public class PdfReportsTests
     [Fact]
     public void AnnualComputation_Pdf_Produces_Valid_File()
     {
-        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCDE1234F", Designation = "Engineer" };
+        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCPE1234F", Designation = "Engineer" };
         var ded = new Deductor { CompanyName = "Acme Corp", Tan = "DELA12345A" };
 
         var tmp = Path.Combine(Path.GetTempPath(), "cdetds_test_" + Guid.NewGuid().ToString("N"));
@@ -165,7 +165,7 @@ public class PdfReportsTests
     [Fact]
     public void MonthlySalaryStatement_Pdf_Produces_Valid_File()
     {
-        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCDE1234F" };
+        var emp = new Employee { EmployeeCode = "EMP-001", Name = "Ajay Sharma", Pan = "ABCPE1234F" };
         var ded = new Deductor { CompanyName = "Acme Corp" };
         string[] mn = { "Apr","May","Jun","Jul","Aug","Sep" };
         var rows = mn.Select(m => new MonthlySalaryStatRow(

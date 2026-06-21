@@ -120,12 +120,12 @@ Audited all 5 parts of AUDIT_PLAN.md against commit `b2a02e6` (~35.6K LOC).
 (342 tests). The session's spec-alignment work (payment codes from the official
 Form 138/140 file-format) closed the biggest prior risk.
 
-| Sev | ID | Area | Finding |
-|-----|----|------|---------|
-| MEDIUM | M-1 | Security | Login password = unsalted SHA-256; upgrade to PBKDF2 (already in codebase) with re-hash-on-login migration. |
-| LOW | L-1 | Transition | FvuGenerator.cs:834 "FY {x}" vs sibling YearLabel() — cosmetic. |
-| LOW | L-2 | Validation | PAN regex doesn't enforce 4th-char holder type. |
-| LOW | L-3 | Quality | Blanket `catch { }` in migrations — add logging. |
+| Sev | ID | Area | Finding | Status |
+|-----|----|------|---------|--------|
+| MEDIUM | M-1 | Security | Login password = unsalted SHA-256; upgrade to PBKDF2 with re-hash-on-login migration. | ✅ FIXED (d83d70c) |
+| LOW | L-1 | Transition | FvuGenerator.cs:834 "FY {x}" vs sibling YearLabel(). | ✅ FIXED — now uses YearLabel(). |
+| LOW | L-2 | Validation | PAN regex doesn't enforce 4th-char holder type. | ✅ FIXED — regex `[ABCFGHJLPT]` 4th char + specific error msg; tests updated. |
+| LOW | L-3 | Quality | Blanket `catch { }` swallows errors. | ✅ PARTIAL — the safety-relevant one (filing-snapshot serialization) now logs to audit; idempotent-migration catches left as-is (correct by design). |
 
 Open notes (not defects): D-1 (no per-entry payment_code — by design), 3.5
 (s.395 lower-deduction cert capture not deeply traced — targeted review),

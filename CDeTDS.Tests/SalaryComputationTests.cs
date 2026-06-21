@@ -28,7 +28,7 @@ public class SalaryComputationTests
 
     static Employee Emp(string regime = "New") => new()
     {
-        Id = 1, Name = "Test", Pan = "ABCDE1234F",
+        Id = 1, Name = "Test", Pan = "ABCPE1234F",
         TaxRegime = regime,
         DateOfBirth = "01-Jan-1985",   // age ~40, Below60
     };

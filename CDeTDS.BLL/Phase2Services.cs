@@ -184,7 +184,14 @@ namespace CDeTDS.BLL
                 if (deductorId > 0)
                 {
                     string snapshotJson = "";
-                    try { snapshotJson = System.Text.Json.JsonSerializer.Serialize(data); } catch { }
+                    try { snapshotJson = System.Text.Json.JsonSerializer.Serialize(data); }
+                    catch (Exception snapEx)
+                    {
+                        // A missing snapshot breaks future correction-statement generation —
+                        // record it in the audit log rather than failing silently.
+                        Database.LogAction("system", "WARN", "Filing",
+                            $"Filing snapshot serialization failed for {data.Header.FormType} {data.Header.FinancialYear} {data.Header.Quarter}: {snapEx.Message}");
+                    }
                     Database.SaveFilingHistory(
                         deductorId, data.Header.FormType, data.Header.FinancialYear, data.Header.Quarter,
                         data.Header.IsCorrection, data.Header.IsCorrection ? data.Header.CorrectionType : "",

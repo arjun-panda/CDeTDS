@@ -8,11 +8,14 @@ public class ValidatorPrimitiveTests
 {
     // ── PAN ───────────────────────────────────────────────────────────────────
     [Theory]
-    [InlineData("ABCDE1234F", true)]
-    [InlineData("abcde1234f", true)]   // lowercase normalised
-    [InlineData("ABCD1234F",  false)]  // only 4 letters
-    [InlineData("ABCDE12345", false)]  // missing trailing letter
-    [InlineData("ABCDEF234F", false)]  // letter in digit position
+    [InlineData("ABCPE1234F", true)]   // 4th char P = individual (valid holder type)
+    [InlineData("abcpe1234f", true)]   // lowercase normalised
+    [InlineData("ABCCE1234F", true)]   // 4th char C = company
+    [InlineData("ABCDE1234F", false)]  // 4th char D is NOT a valid holder type
+    [InlineData("ABCXE1234F", false)]  // 4th char X is NOT a valid holder type
+    [InlineData("ABCP1234F",  false)]  // only 4 letters
+    [InlineData("ABCPE12345", false)]  // missing trailing letter
+    [InlineData("ABCPEF234F", false)]  // letter in digit position
     [InlineData("",           false)]
     [InlineData(null,         false)]
     public void IsValidPan_Cases(string? pan, bool expected)
@@ -109,7 +112,7 @@ public class EmployeeValidatorTests
     {
         EmployeeCode = "EMP-001",
         Name         = "Ajay Sharma",
-        Pan          = "ABCDE1234F",
+        Pan          = "ABCPE1234F",
         DateOfBirth  = "15-Jan-1985",
         JoinDate     = "01-Apr-2020",
         TaxRegime    = "New",

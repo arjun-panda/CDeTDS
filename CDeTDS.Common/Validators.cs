@@ -4,7 +4,9 @@ namespace CDeTDS.Common
 {
     public static class Validators
     {
-        private static readonly Regex PanRegex = new(@"^[A-Z]{5}[0-9]{4}[A-Z]$");
+        // 4th char = holder type: P(individual) C(company) H(HUF) F(firm) A(AOP)
+        // T(trust) B(BOI) L(local authority) J(artificial juridical person) G(govt).
+        private static readonly Regex PanRegex = new(@"^[A-Z]{3}[ABCFGHJLPT][A-Z][0-9]{4}[A-Z]$");
         private static readonly Regex TanRegex = new(@"^[A-Z]{4}[0-9]{5}[A-Z]$");
         private static readonly Regex AadhaarRegex = new(@"^[2-9]\d{11}$");
         private static readonly Regex IfscRegex    = new(@"^[A-Z]{4}0[A-Z0-9]{6}$");
@@ -55,7 +57,11 @@ namespace CDeTDS.Common
             if (string.IsNullOrWhiteSpace(pan)) return "PAN is required.";
             pan = pan.Trim().ToUpper();
             if (pan.Length != 10)    return $"PAN must be 10 characters (entered {pan.Length}).";
-            if (!PanRegex.IsMatch(pan)) return "Invalid PAN format. Example: ABCDE1234F";
+            // Specific message when only the 4th (holder-type) char is invalid.
+            if (Regex.IsMatch(pan, @"^[A-Z]{3}[A-Z][A-Z][0-9]{4}[A-Z]$") && !PanRegex.IsMatch(pan))
+                return $"Invalid PAN: 4th character '{pan[3]}' is not a valid holder type " +
+                       "(must be one of P C H F A T B L J G). Example: ABCPE1234F";
+            if (!PanRegex.IsMatch(pan)) return "Invalid PAN format. Example: ABCPE1234F";
             return string.Empty;
         }
 
