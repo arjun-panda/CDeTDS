@@ -1,4 +1,5 @@
 using CDeTDS.DAL;
+using CDeTDS.Common;
 
 namespace CDeTDS.Tests;
 
@@ -80,5 +81,23 @@ public class PaymentCodeTests
         // .xls — they must stay blank, never a guessed value.
         Assert.Equal("", BuiltInTdsRules.PaymentCodeFor("195", "Other", "All"));
         Assert.Equal("", BuiltInTdsRules.PaymentCodeFor("206C", "Scrap", "All"));
+    }
+
+    [Theory]
+    // The two reference sources — TaxRules.NewActSectionRef (UI captions) and
+    // BuiltInRule.ReferenceAct (rules grid / paper return) — MUST agree on the
+    // section + Sl. number, or the app shows conflicting refs for the same code.
+    [InlineData("194J")]  [InlineData("194K")]  [InlineData("193")]
+    [InlineData("194")]   [InlineData("194C")]  [InlineData("194D")]
+    [InlineData("194H")]  [InlineData("194I")]  [InlineData("192A")]
+    [InlineData("194B")]  [InlineData("194N")]  [InlineData("194Q")]
+    [InlineData("194R")]  [InlineData("194S")]  [InlineData("194O")]
+    public void SectionRef_MapsAgreeOnSlNumber(string section)
+    {
+        // Extract the "Section ... Sl.x" prefix (before the " — description") from each.
+        var taxRulesRef = TaxRules.NewActSectionRef(section).Split('—')[0].Trim();
+        var rule = new BuiltInRule(section, "x", "All", true, 0, 0, 0, 0, "2026-04-01", "", "v");
+        var builtInRef = rule.ReferenceAct.Replace(" — IT Act 2025", "").Trim();
+        Assert.Equal(builtInRef, taxRulesRef);
     }
 }

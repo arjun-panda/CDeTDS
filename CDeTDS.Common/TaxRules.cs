@@ -530,36 +530,38 @@ namespace CDeTDS.Common
         public static string FvuVersionShort(string fy)
             => IsNewAct(fy) ? "FVU/RPU 1.0" : "FVU 9.4";
 
-        // Section code → IT Act 2025 reference mapping
-        // Source: IT Act 2025, Section 393(1) Table as notified by CBDT
+        // Section code → IT Act 2025 reference mapping.
+        // AUTHORITATIVE: Section / Table Sl. numbers from the official Protean
+        // Form 138/140 file-format spec, Annexure 2 (2026-06-16). Must stay in
+        // sync with BuiltInTdsRules.ReferenceAct.
         private static readonly Dictionary<string, string> NewActSectionMap = new(StringComparer.OrdinalIgnoreCase)
         {
             ["192"]    = "Section 392(1) — Salary",
-            ["192A"]   = "Section 393(1) Sl.4(i) — PF Withdrawal",
-            ["193"]    = "Section 393(1) Sl.1 — Interest on Securities",
-            ["194"]    = "Section 393(1) Sl.2 — Dividends",
-            ["194A"]   = "Section 393(1) Sl.3 — Interest (other than securities)",
-            ["194B"]   = "Section 393(1) Sl.5(i) — Lottery / Crossword",
-            ["194BA"]  = "Section 393(1) Sl.5(iv) — Online Games",
-            ["194BB"]  = "Section 393(1) Sl.5(ii) — Horse Race Winnings",
-            ["194C"]   = "Section 393(1) Sl.6 — Payment to Contractor",
-            ["194D"]   = "Section 393(1) Sl.7 — Insurance Commission",
+            ["192A"]   = "Section 392(7) — PF Withdrawal",
+            ["193"]    = "Section 393(1) Sl.5(i) — Interest on Securities",
+            ["194"]    = "Section 393(1) Sl.7 — Dividends",
+            ["194A"]   = "Section 393(1) Sl.5(ii)/(iii) — Interest (other than securities)",
+            ["194B"]   = "Section 393(3) Sl.1 — Lottery / Crossword",
+            ["194BA"]  = "Section 393(3) Sl.2 — Online Games",
+            ["194BB"]  = "Section 393(3) Sl.3 — Horse Race Winnings",
+            ["194C"]   = "Section 393(1) Sl.6(i) — Payment to Contractor",
+            ["194D"]   = "Section 393(1) Sl.1(i) — Insurance Commission",
             ["194DA"]  = "Section 393(1) Sl.8(i) — Life Insurance Maturity",
-            ["194G"]   = "Section 393(1) Sl.9 — Lottery Agent Commission",
-            ["194H"]   = "Section 393(1) Sl.10(i) — Commission / Brokerage",
-            ["194I"]   = "Section 393(1) Sl.11 — Rent",
-            ["194IA"]  = "Section 393(1) Sl.12(i) — Transfer of Immovable Property",
-            ["194IB"]  = "Section 393(1) Sl.12(ii) — Rent by Individual/HUF",
-            ["194IC"]  = "Section 393(1) Sl.12(iii) — Joint Dev Agreement",
-            ["194J"]   = "Section 393(1) Sl.13 — Professional / Technical Fees",
-            ["194K"]   = "Section 393(1) Sl.8(ii) — Income from Mutual Fund Units",
-            ["194LA"]  = "Section 393(1) Sl.14 — Compensation on Compulsory Acquisition",
-            ["194M"]   = "Section 393(1) Sl.6(ii) — Contractor (Individual/HUF)",
-            ["194N"]   = "Section 393(1) Sl.15 — Cash Withdrawal",
-            ["194O"]   = "Section 393(1) Sl.16 — E-commerce Payments",
-            ["194Q"]   = "Section 393(1) Sl.17 — Purchase of Goods",
-            ["194R"]   = "Section 393(1) Sl.18 — Benefit/Perquisite to Business",
+            ["194G"]   = "Section 393(3) Sl.4 — Lottery Agent Commission",
+            ["194H"]   = "Section 393(1) Sl.1(ii) — Commission / Brokerage",
+            ["194I"]   = "Section 393(1) Sl.2(ii) — Rent",
+            ["194IC"]  = "Section 393(1) Sl.3(ii) — Joint Dev Agreement",
+            ["194J"]   = "Section 393(1) Sl.6(iii) — Professional / Technical Fees",
+            ["194K"]   = "Section 393(1) Sl.4(i) — Income from Mutual Fund Units",
+            ["194LA"]  = "Section 393(1) Sl.3(iii) — Compensation on Compulsory Acquisition",
+            ["194N"]   = "Section 393(3) Sl.5 — Cash Withdrawal",
+            ["194O"]   = "Section 393(1) Sl.8(v) — E-commerce Payments",
+            ["194P"]   = "Section 393(1) Sl.8(iii) — Specified Senior Citizen",
+            ["194Q"]   = "Section 393(1) Sl.8(ii) — Purchase of Goods",
+            ["194R"]   = "Section 393(1) Sl.8(iv) — Benefit/Perquisite to Business",
             ["194S"]   = "Section 393(1) Sl.8(vi) — Virtual Digital Assets",
+            ["194EE"]  = "Section 393(3) Sl.6 — NSS Payments",
+            ["194T"]   = "Section 393(3) Sl.7 — Partner Remuneration",
             ["195"]    = "Section 393(2) — Payments to Non-Residents",
             ["196A"]   = "Section 393(2) — Income of Foreign Cos from Units",
             ["206AB"]  = "Section 397(3) — Higher Rate (ITR not filed)",

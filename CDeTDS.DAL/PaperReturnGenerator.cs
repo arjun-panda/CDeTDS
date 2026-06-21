@@ -151,10 +151,11 @@ namespace CDeTDS.DAL
   <h2>FORM NO. {formNo}{(newAct ? $@" <span style=""font-size:9pt;font-weight:normal;color:#555"">(erstwhile Form {oldEquiv})</span>" : "")}</h2>
   <h3>{(newAct
         ? isSalaryForm
-            ? "(See section 392 of the Income-tax Act 2025)"
+            // Official Form 138 subtitle (Gazette of India).
+            ? "[See rule 219(1) [Table: Sl. No. 1]] — Income-tax Act 2025, section 392"
             : isTcsForm
-                ? "(See section 394 of the Income-tax Act 2025)"
-                : "(See section 393 of the Income-tax Act 2025)"
+                ? "(See rule 219 — Income-tax Act 2025, section 394)"
+                : "(See rule 219 — Income-tax Act 2025, section 393)"
         : formNo=="24Q"
             ? "(See section 192 and rule 31A)"
             : formNo=="26Q"
@@ -318,12 +319,20 @@ namespace CDeTDS.DAL
                         chSur += e.Surcharge;  chCess += e.Cess; chTot += tot;
                         gAmt += e.AmountPaid; gDed += e.TdsDeducted;
                         gSur += e.Surcharge;  gCess += e.Cess; gTotal += tot;
+                        // Annexure I "Section Code" (col F). Old-Act salary = 92B; new-Act
+                        // Form 138 = the 4-digit payment code (1002 default for non-Govt salary).
+                        string secCode = "92B";
+                        if (newAct)
+                        {
+                            var pc = BuiltInTdsRules.PaymentCodeFor(string.IsNullOrEmpty(e.Section) ? "192" : e.Section, "", "");
+                            secCode = string.IsNullOrEmpty(pc) ? "1002" : pc;
+                        }
                         sb.Append($@"<tr>
   <td class=""num"">{cSlNo++}</td>
   <td class=""num""></td>
   <td style=""font-family:monospace;font-size:7pt"">{Esc(e.Pan)}</td>
   <td>{Esc(e.Name)}</td>
-  <td style=""text-align:center"">92B</td>
+  <td style=""text-align:center"">{secCode}</td>
   <td>{e.PaymentDate:dd/MM/yyyy}</td>
   <td>{e.PaymentDate:dd/MM/yyyy}</td>
   <td class=""num"">{e.AmountPaid:N0}</td>

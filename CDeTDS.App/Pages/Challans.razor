@@ -118,6 +118,12 @@ else
                         <div style="display:flex;align-items:center;gap:8px">
                             <span style="font-size:13px;color:#94a3b8;transition:transform .15s;display:inline-block;transform:rotate(@(expanded?"90deg":"0deg"))">▶</span>
                             <span class="ch-sec-badge">@(string.IsNullOrEmpty(sec) ? "No Section" : sec)</span>
+                            @if (TaxRules.IsNewAct(AppState.CurrentFY) && !string.IsNullOrEmpty(sec))
+                            {
+                                var pc = BuiltInTdsRules.PaymentCodeFor(sec, "", "");
+                                if (!string.IsNullOrEmpty(pc))
+                                { <span style="font-family:monospace;font-size:11px;font-weight:600;color:#065f46;background:#ecfdf5;border-radius:3px;padding:1px 5px">Code @pc</span> }
+                            }
                             <span style="font-size:11px;color:#64748b">@rows.Count challan@(rows.Count==1?"":"s")</span>
                             <div style="flex:1"></div>
                             <span style="font-size:12px;color:#374151;font-weight:600">TDS ₹@grpTds.ToString("N0")</span>
@@ -207,8 +213,9 @@ else
                     @if (TaxRules.IsNewAct(_editing.FinancialYear) && !string.IsNullOrEmpty(_editing.Section))
                     {
                         var nref = TaxRules.NewActSectionRef(_editing.Section);
+                        var pcode = BuiltInTdsRules.PaymentCodeFor(_editing.Section, "", "");
                         <MudText Typo="Typo.caption" Style="color:#065f46;line-height:1.2;display:block;margin-top:2px">
-                            Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref) — IT Act 2025
+                            Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref)@(string.IsNullOrEmpty(pcode) ? "" : $" · Code {pcode}") — IT Act 2025
                         </MudText>
                     }
                 </div>

@@ -151,6 +151,12 @@
                                     <td class="te-td" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@e.DeducteeName</td>
                                     <td class="te-td" style="text-align:center">
                                         <span class="te-sec-badge">@(string.IsNullOrEmpty(e.Section) ? "—" : e.Section)</span>
+                                        @if (TaxRules.IsNewAct(e.FinancialYear) && !string.IsNullOrEmpty(e.Section))
+                                        {
+                                            var pc = BuiltInTdsRules.PaymentCodeFor(e.Section, e.PaymentNature ?? "", "");
+                                            if (!string.IsNullOrEmpty(pc))
+                                            { <span style="display:block;font-family:monospace;font-size:10px;font-weight:600;color:#065f46;margin-top:1px">@pc</span> }
+                                        }
                                     </td>
                                     <td class="te-td" style="text-align:center;color:#94a3b8;font-size:11px">@e.Quarter</td>
                                     <td class="te-td" style="text-align:right;color:#475569">₹@e.Amount.ToString("N0")</td>
@@ -244,8 +250,9 @@
                     @if (TaxRules.IsNewAct(_editing.FinancialYear) && !string.IsNullOrEmpty(_editing.Section))
                     {
                         var nref = TaxRules.NewActSectionRef(_editing.Section);
+                        var pcode = BuiltInTdsRules.PaymentCodeFor(_editing.Section, _editing.PaymentNature ?? "", "");
                         <MudText Typo="Typo.caption" Style="color:#065f46;line-height:1.2;display:block;margin-top:2px">
-                            Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref) — IT Act 2025
+                            Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref)@(string.IsNullOrEmpty(pcode) ? "" : $" · Code {pcode}") — IT Act 2025
                         </MudText>
                     }
                 </MudItem>

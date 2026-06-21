@@ -62,6 +62,16 @@ else
             </CellTemplate>
         </TemplateColumn>
         <PropertyColumn Property="x => x.Section"      Title="Section" />
+        @if (TaxRules.IsNewAct(AppState.CurrentFY))
+        {
+            <TemplateColumn Title="Pay Code">
+                <CellTemplate>
+                    @{ var pc = BuiltInTdsRules.PaymentCodeFor(context.Item.Section, "", context.Item.DeducteeType ?? ""); }
+                    @if (string.IsNullOrEmpty(pc)) { <span style="color:#999">—</span> }
+                    else { <span style="font-family:monospace;font-weight:600;color:#065f46">@pc</span> }
+                </CellTemplate>
+            </TemplateColumn>
+        }
         <PropertyColumn Property="x => x.DeducteeType" Title="Type" />
         <PropertyColumn Property="x => x.Rate"         Title="Rate %" Format="N2" />
         <TemplateColumn Title="PAN Status" Sortable="false">
@@ -148,8 +158,9 @@ else
                             @if (TaxRules.IsNewAct(AppState.CurrentFY) && !string.IsNullOrEmpty(_editing.Section))
                             {
                                 var nref = TaxRules.NewActSectionRef(_editing.Section);
+                                var pcode = BuiltInTdsRules.PaymentCodeFor(_editing.Section, "", _editing.DeducteeType ?? "");
                                 <MudText Typo="Typo.caption" Style="color:#065f46;line-height:1.2;display:block;margin-top:2px">
-                                    Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref) — IT Act 2025
+                                    Files as @(string.IsNullOrEmpty(nref) ? $"IT Act 2025 (legacy s.{_editing.Section})" : nref)@(string.IsNullOrEmpty(pcode) ? "" : $" · Code {pcode}") — IT Act 2025
                                 </MudText>
                             }
                         </MudItem>
