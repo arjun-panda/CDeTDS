@@ -58,6 +58,11 @@ keygen_out/
 # NSDL spec/reference files (large, not source)
 *.xls
 *.pdf
+# Exception: keep the official IT Act 2025 form layouts + file-format specs as
+# tracked reference (small, authoritative source for the paper-return generator
+# and payment codes).
+!assets/FN *.pdf
+!assets/Form Number *.xlsx
 nsdl_*.tsv
 24QRQ*.txt
 26QRQ*.txt
