@@ -196,6 +196,41 @@ engine runs; we just have to feed it the state the GUI normally feeds it.
 
 RunFVU1.java (the working shim skeleton) is kept in this folder.
 
+### UPDATE 2026-06-27c — NPE FIXED; now blocks inside FormValidator (network)
+Root cause of the earlier NPE: `FVU.j` calls `com.tin.tds.c.a.g().length()`
+UNCONDITIONALLY, and `g()` (CSI path getter) returns null until `pc(...)` is called.
+FIX (now in RunFVU1.java): always call `com.tin.tds.c.a.pc(csiOrEmpty)` +
+`com.tin.tds.c.a.b(0)` before `fvu.j(...)`. NPE gone.
+
+With the NPE fixed, validation proceeds to `a11.j(a2, a3, 0)` (FVU.java line 862)
+— the real FormValidator validation — and then HANGS (no output, no error, no
+dialog text). Traced: the only modal JOptionPanes before line 862 are
+correction-file checks that don't fire for a regular file, so the block is INSIDE
+FormValidator.j(). Earlier logs showed FormValidator hitting
+`onlineservices.tin.egov.proteantech.in` (the online version validator). The hang
+is almost certainly that NETWORK CALL blocking (offline / firewalled / slow / or it
+expects a response this sandbox can't give).
+
+So the remaining obstacle is ENVIRONMENTAL, not code structure:
+- FormValidator phones home to verify the FVU version online before validating.
+- Headless, on a machine with no/blocked internet to that host, it stalls.
+
+### NEXT (precise):
+1. Run RunFVU1 on a machine WITH internet access to onlineservices.tin.egov.
+   proteantech.in — the network version check should then return and validation
+   should complete, emitting <name>err.html (errors) or <name>.fvu (success).
+   NOTE: pass arg[1] (errOut) as a DIRECTORY path, not a filename — FVU treats it
+   as the output folder (help.txt confirms: "only provide the path").
+2. If it must run offline: decompile VersionValidator.jar / the FormValidator
+   version-check, and stub/short-circuit it (reflection or a tiny patched class on
+   the classpath ahead of the jar), mirroring how the 9.4 RunFVU.class patches.
+3. Once it emits .fvu/err.html headless, base64-embed RunFVU1.class in
+   FvuUtilityRunner and wire dual-FVU (9.4 for old, 1.0 for TY 2026-27).
+
+STATUS: NPE solved; mechanism works up to the real validation call. The block is
+the online version check — likely just needs internet (try #1 first), else a
+one-class stub of the version check. Genuinely close.
+
 ## How to finish (next session)
 
 1. Use a real Java decompiler (CFR / Procyon / Fernflower) on `FVU.class` for
