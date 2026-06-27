@@ -25,8 +25,12 @@ namespace CDeTDS.DAL
             bool   isSalaryForm = formNo is "24Q" or "138";
             bool   isTcsForm    = formNo is "27EQ" or "143";
             // Official Gazette statutory layout (PART A 16-row, PART B A–K, DECLARATION,
-            // official Notes) applies to new-Act Form 138 (salary) AND Form 140 (non-salary).
-            bool   officialForm = newAct && !isTcsForm;
+            // official Notes) applies to all new-Act forms: 138 (salary), 140 (non-salary),
+            // 143 (TCS). TCS uses Collector/collection wording in place of Deductor/deduction.
+            bool   officialForm = newAct;
+            string partyLabel  = isTcsForm ? "Collector" : "Deductor";   // PART A party noun
+            string actionLabel = isTcsForm ? "collection" : "deduction"; // noun: "...of tax"
+            string actionVerb  = isTcsForm ? "collecting" : "deducting"; // verb: "...tax at source"
             string actName = CDeTDS.Common.TaxRules.ActName(h.FinancialYear);
             string yearLbl = CDeTDS.Common.TaxRules.YearLabel(h.FinancialYear);
 
@@ -163,7 +167,8 @@ namespace CDeTDS.DAL
             // Official Form 138 subtitle (Gazette of India).
             ? "[See rule 219(1) [Table: Sl. No. 1]] — Income-tax Act 2025, section 392"
             : isTcsForm
-                ? "(See rule 219 — Income-tax Act 2025, section 394)"
+                // Official Form 143 subtitle (Gazette of India).
+                ? "[See rule 219(1) [Table: Sl. No. 4]] — Income-tax Act 2025, section 394"
                 // Official Form 140 subtitle (Gazette of India).
                 : "[See rule 219(1) [Table: Sl. No. 3]] — Income-tax Act 2025, section 393"
         : formNo=="24Q"
@@ -199,8 +204,8 @@ namespace CDeTDS.DAL
     // ── Official Form 138/140 PART A: 16-row numbered table (Gazette layout) ──
     ? $@"<table class=""partA"">
   <tr><td colspan=""3"" class=""partA-head"">PART A</td></tr>
-  <tr><td class=""partA-no"">Row No.</td><td colspan=""2"" class=""partA-head"" style=""text-align:left"">Particulars of the deductor</td></tr>
-  <tr><td class=""partA-no"">1.</td><td>Type of deductor</td><td>{(IsGovtDeductor(h.DeductorType) ? "☑ Government&nbsp;&nbsp; ☐ Non-Government" : "☐ Government&nbsp;&nbsp; ☑ Non-Government")}</td></tr>
+  <tr><td class=""partA-no"">Row No.</td><td colspan=""2"" class=""partA-head"" style=""text-align:left"">Particulars of the {partyLabel}</td></tr>
+  <tr><td class=""partA-no"">1.</td><td>Type of {partyLabel}</td><td>{(IsGovtDeductor(h.DeductorType) ? "☑ Government&nbsp;&nbsp; ☐ Non-Government" : "☐ Government&nbsp;&nbsp; ☑ Non-Government")}</td></tr>
   <tr><td class=""partA-no"">2.</td><td>Name</td><td>{Esc(h.DeductorName)}</td></tr>
   <tr><td class=""partA-no"">3.</td><td>Address</td><td>{Esc(h.DeductorAddress)}, {Esc(h.DeductorCity)}, {Esc(h.DeductorState)} — {Esc(h.DeductorPin)}</td></tr>
   <tr><td class=""partA-no"">4.</td><td>Permanent Account Number</td><td style=""font-family:monospace"">{Esc(h.PanOfDeductor)}</td></tr>
@@ -210,8 +215,8 @@ namespace CDeTDS.DAL
   <tr><td class=""partA-no"">8.</td><td>Tax year</td><td>{Esc(h.FinancialYear)}</td></tr>
   <tr><td class=""partA-no"">9.</td><td>Has the statement been filed earlier for this quarter</td><td>{(h.IsCorrection ? "Yes" : "No")}</td></tr>
   <tr><td class=""partA-no"">10.</td><td>If answer to (9) is yes, then Return Receipt Number of original statement</td><td style=""font-family:monospace"">{Esc(h.IsCorrection ? (string.IsNullOrEmpty(h.OriginalPrn) ? h.PreviousPrn : h.OriginalPrn) : "")}</td></tr>
-  <tr><td class=""partA-no"">11.</td><td>If Government deductor/payer, please mention AIN of PAO/DTO/CDDO</td><td></td></tr>
-  <tr><td colspan=""3"" class=""partA-head"" style=""text-align:left;font-weight:bold"">Particulars of the person responsible for deduction of tax</td></tr>
+  <tr><td class=""partA-no"">11.</td><td>If Government {partyLabel}, please mention AIN of PAO/DTO/CDDO</td><td></td></tr>
+  <tr><td colspan=""3"" class=""partA-head"" style=""text-align:left;font-weight:bold"">Particulars of the person responsible for {actionLabel} of tax</td></tr>
   <tr><td class=""partA-no"">12.</td><td>Name</td><td>{Esc(h.ResponsibleName)}</td></tr>
   <tr><td class=""partA-no"">13.</td><td>Permanent Account Number</td><td style=""font-family:monospace"">{Esc(h.ResponsiblePan)}</td></tr>
   <tr><td class=""partA-no"">14.</td><td>Address</td><td>{Esc(h.DeductorAddress)}, {Esc(h.DeductorCity)} — {Esc(h.DeductorPin)}</td></tr>
@@ -246,9 +251,9 @@ namespace CDeTDS.DAL
 </div>"
     : $@"<div class=""summary-box"">
   <div class=""kpi""><div class=""kpi-label"">Total Challans</div><div class=""kpi-value"">{d.Challans.Count}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Total Deductees</div><div class=""kpi-value"">{d.Deductees.Count}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Gross Amount Paid</div><div class=""kpi-value"">₹{d.TotalAmountPaid:N0}</div></div>
-  <div class=""kpi""><div class=""kpi-label"">Total TDS Deducted</div><div class=""kpi-value"">₹{d.TotalTdsDeducted:N0}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Total {(isTcsForm ? "Collectees" : "Deductees")}</div><div class=""kpi-value"">{d.Deductees.Count}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">{(isTcsForm ? "Gross Amount Received" : "Gross Amount Paid")}</div><div class=""kpi-value"">₹{d.TotalAmountPaid:N0}</div></div>
+  <div class=""kpi""><div class=""kpi-label"">Total {(isTcsForm ? "TCS Collected" : "TDS Deducted")}</div><div class=""kpi-value"">₹{d.TotalTdsDeducted:N0}</div></div>
 </div>")}
 ");
 
@@ -301,6 +306,12 @@ namespace CDeTDS.DAL
   &nbsp;&nbsp;(i) enclose <b>Annexure-I</b> along with each statement having details of relevant quarter in the case of employee and specified senior citizen.<br/>
   &nbsp;&nbsp;(ii) enclose <b>Annexure-II</b> along with the last statement i.e. for the quarter ending 31st March having details for the whole tax year in the case of employee.<br/>
   &nbsp;&nbsp;(iii) enclose <b>Annexure-III</b> along with the last statement i.e. for the quarter ending 31st March having details for the whole tax year in the case of specified senior citizen.
+</div>");
+                }
+                else if (isTcsForm)
+                {
+                    sb.Append(@"<div style=""font-size:8.5pt;margin:4px 0 8px;line-height:1.5"">
+  2. Details of amount received and tax collected thereon from the collectees (see Annexure).
 </div>");
                 }
                 else
@@ -463,8 +474,10 @@ namespace CDeTDS.DAL
             }
             else
             {
-                // 26Q / 140 / 27EQ — per-challan sections
-                sb.Append($@"<div class=""section-title"">ANNEXURE{(officialForm ? " — Deductee-wise Break-up of TDS" : " I — DEDUCTEE DETAILS (per Challan)")}</div>");
+                // 26Q / 140 / 27EQ / 143 — per-challan sections
+                sb.Append($@"<div class=""section-title"">{(officialForm
+                    ? (isTcsForm ? "ANNEXURE — Collectee-wise Break-up of TCS" : "ANNEXURE — Deductee-wise Break-up of TDS")
+                    : " I — DEDUCTEE DETAILS (per Challan)")}</div>");
 
                 int challSeq = 0;
                 foreach (var ch in d.Challans)
@@ -491,18 +504,18 @@ namespace CDeTDS.DAL
 <table style=""margin-bottom:2px"">
 <thead><tr>
   <th>Sl.No<br/>(A)</th><th>Challan Ref<br/>(Sl.No A, Part B)<br/>(B)</th><th>PAN<br/>(C)</th>
-  <th style=""min-width:120px"">Name of the<br/>deductee (D)</th>
-  <th>Section<br/>code (E)</th>
-  <th>Date of payment/<br/>credit (F)</th>
-  <th style=""text-align:right"">Amount paid/<br/>credited (G)</th>
-  <th style=""text-align:right"">Total Tax<br/>Deducted (J)</th>
+  <th style=""min-width:120px"">Name of the<br/>{(isTcsForm ? "collectee" : "deductee")} (D)</th>
+  <th>{(isTcsForm ? "Collection" : "Section")}<br/>code (E)</th>
+  <th>Date of {(isTcsForm ? "receipt/<br/>debit" : "payment/<br/>credit")} (F)</th>
+  <th style=""text-align:right"">Amount {(isTcsForm ? "received/<br/>debited" : "paid/<br/>credited")} (G)</th>
+  <th style=""text-align:right"">Total Tax<br/>{(isTcsForm ? "Collected" : "Deducted")} (J)</th>
   <th>Deposited?<br/>(K)</th>
   <th style=""text-align:right"">Total Tax<br/>Deposited (L)</th>
-  <th>Rate of<br/>deduction (M)</th>
-  <th>Date of<br/>deduction (N)</th>
+  <th>Rate of<br/>{(isTcsForm ? "collection" : "deduction")} (M)</th>
+  <th>Date of<br/>{(isTcsForm ? "collection" : "deduction")} (N)</th>
   <th>Reason non/<br/>lower/higher (O)</th>
-  <th>Cert No.<br/>u/s 395 (P)</th>
-  <th>UIN of<br/>Form 121 (Q)</th>
+  <th>Cert No.<br/>u/s 395({(isTcsForm ? "3" : "1")}) (P)</th>
+  <th>{(isTcsForm ? "Collectee<br/>code (Q)" : "UIN of<br/>Form 121 (Q)")}</th>
 </tr></thead><tbody>");
 
                     int q6SlNo = 1;
@@ -553,9 +566,9 @@ namespace CDeTDS.DAL
                 sb.Append($@"<div style=""background:#e8f5e9;border:2px solid #2e7d32;border-radius:4px;padding:6px 14px;
                      font-size:8pt;font-weight:700;display:flex;gap:30px;margin-bottom:8px"">
   <span>GRAND TOTAL</span>
-  <span>Amount Paid: ₹{gAmt:N2}</span>
-  <span>TDS Deducted: ₹{gDed:N2}</span>
-  <span>TDS Deposited: ₹{gDep:N2}</span>
+  <span>{(isTcsForm ? "Amount Received" : "Amount Paid")}: ₹{gAmt:N2}</span>
+  <span>{(isTcsForm ? "TCS Collected" : "TDS Deducted")}: ₹{gDed:N2}</span>
+  <span>{(isTcsForm ? "TCS Deposited" : "TDS Deposited")}: ₹{gDep:N2}</span>
 </div>");
             }
 
@@ -734,14 +747,14 @@ namespace CDeTDS.DAL
             // ── Verification / signature block ─────────────────────────────────
             string annexureSigLabel = isSalaryForm
                 ? "Name and signature of employer / person responsible for paying salary"
-                : "Signature of person responsible for deducting tax at source";
+                : $"Signature of person responsible for {actionVerb} tax at source";
             sb.Append($@"
 <div class=""sign-block"">
   <div style=""flex:2;padding-right:24px"">
     <div style=""font-weight:700;font-size:10pt;margin-bottom:6px"">{((officialForm) ? "DECLARATION" : "VERIFICATION")}</div>
     <div style=""font-size:9.5pt;line-height:1.7"">
       {((officialForm)
-        ? $@"I, <span style=""border-bottom:1px solid #000;min-width:160px;display:inline-block"">{Esc(h.ResponsibleName)}</span> (name of the person responsible for deducting tax at source), having Permanent Account Number <span style=""border-bottom:1px solid #000;min-width:110px;display:inline-block;font-family:monospace"">{Esc(h.ResponsiblePan)}</span>, am the person responsible for deducting tax at source in the case of <span style=""border-bottom:1px solid #000;min-width:160px;display:inline-block"">{Esc(h.DeductorName)}</span> (name of the deductor). I certify that all the particulars furnished above are correct and complete."
+        ? $@"I, <span style=""border-bottom:1px solid #000;min-width:160px;display:inline-block"">{Esc(h.ResponsibleName)}</span> (name of the person responsible for {actionVerb} tax at source), having Permanent Account Number <span style=""border-bottom:1px solid #000;min-width:110px;display:inline-block;font-family:monospace"">{Esc(h.ResponsiblePan)}</span>, am the person responsible for {actionVerb} tax at source in the case of <span style=""border-bottom:1px solid #000;min-width:160px;display:inline-block"">{Esc(h.DeductorName)}</span> (name of the {partyLabel.ToLower()}). I certify that all the particulars furnished above are correct and complete."
         : $@"I, <span style=""border-bottom:1px solid #000;min-width:220px;display:inline-block;padding-bottom:1px"">{Esc(h.ResponsibleName)}</span>, hereby certify that all the particulars furnished above are correct and complete.")}
     </div>
     <div style=""margin-top:28px;display:flex;gap:40px"">
@@ -763,7 +776,7 @@ namespace CDeTDS.DAL
     </div>
     <div style=""margin-top:20px"">
       <div style=""border-top:1px solid #000;width:320px;padding-top:3px;font-size:8.5pt"">
-        Name and designation of person responsible for deducting tax at source
+        Name and designation of person responsible for {actionVerb} tax at source
       </div>
       <div style=""font-size:9pt;margin-top:3px"">{Esc(h.ResponsibleName)} &nbsp;·&nbsp; {Esc(h.Designation)}</div>
     </div>
@@ -779,8 +792,21 @@ namespace CDeTDS.DAL
 </div>
 
 <div class=""footer"">
-  {((officialForm)
-    // Official Form 138 Notes (Gazette of India).
+  {((officialForm && isTcsForm)
+    // Official Form 143 (TCS) Notes (Gazette of India).
+    ? @"<b>Notes:</b>&nbsp;
+  (1)(a) In case of individual, the first, middle and last name shall be provided in full without abbreviations. In any other case, name shall be provided in full. (b) In case of Central Government, mention name of Ministry/Department; State Government, name of the State.&nbsp;
+  (2) The address shall contain: Country/Region, Flat/Door/Block No., Road/Street/Block/Sector, PIN/ZIP Code, Post Office, Area/locality, District, State.&nbsp;
+  (3) It is mandatory for non-Government collectors to quote PAN. Government collectors mention 'PANNOTREQD'.&nbsp;
+  (4) In column (B), total tax shall be sum of amount of tax collected, Surcharge and Health &amp; Education Cess.&nbsp;
+  (5) Fee paid under section 427 for late filing of TCS statement in 'Total Fee' (column D).&nbsp;
+  (6) In column (F), Government DDOs to mention amount remitted by PAO/CDDO/DTO; other collectors write exact amount deposited.&nbsp;
+  (7) In column (G), Government collectors write 'B' (book adjustment); other collectors write 'C'.&nbsp;
+  (8) CIN/BIN particulars (H, I, J) must match TIN 2.0/TRACES portal.&nbsp;
+  (9) In column (K), mention minor head as marked on the challan. (10) Amounts in &#8377; unless otherwise provided.&nbsp;
+  Annexure reason codes: A = lower collection on a certificate u/s 395(3); B = non-collection on a declaration u/s 394(2); C = higher rate u/s 397(2) (no PAN); F = no collection u/s 394(5)/402(6); K = no collection u/s 394(4); Y = receipt at/below threshold u/s 394(1); Z = no/lower collection per notification u/s 400(1)."
+    : (officialForm)
+    // Official Form 138/140 Notes (Gazette of India).
     ? @"<b>Notes:</b>&nbsp;
   (1)(a) In case of individual, the first, middle and last name shall be provided in full without abbreviations. In any other case, name shall be provided in full.
   (b) In case of Central Government, mention name of Ministry/Department. In case of State Government, mention name of the State.&nbsp;
