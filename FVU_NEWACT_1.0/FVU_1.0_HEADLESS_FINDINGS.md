@@ -130,6 +130,72 @@ passes, exit solved via headless flag. The only remaining work is a ~1-class Jav
 shim to dodge the JFrame — the same technique already proven for 9.4. This is
 integration, not research.
 
+## 2026-06-27 — SHIM RUNS HEADLESS; one init-order NPE left
+
+Wrote `RunFVU1.java` (in this folder), compiled with `javac --release 8` against
+the 9 FVU jars (compiles clean — signatures confirmed). It does:
+```
+new com.tin.FVU.FVU("headless");        // string ctor (NOT GUI ctor)
+fvu.j(input, errHtml, fvuOut, "1.0", samVerInt, "");
+System.exit(0);                          // kills lingering AWT thread
+```
+Ran it against a REAL CDeTDS-generated Form 140 .txt (no CSI):
+- ✅ **EXITS cleanly** (prints RUNFVU1_DONE) — the JFrame-hang is SOLVED by the
+  string ctor + System.exit(0). No `-Djava.awt.headless` needed.
+- ✅ **Validation code EXECUTES** — logs "Inside RPU func" / "Inside RPU func 1"
+  (it constructs FormValidator and enters the real validation method).
+- ⚠️ **NullPointerException at FVU.j (nb:193)** then aborts before writing output.
+
+Root cause (from CFR decompile of FVU.j, line ~710):
+```
+FormValidator a11 = new FormValidator();      // ok
+...
+int a23 = a9.j(a22, "I");   // a9 = this(FVU); calls FVU.j(String,String) 2-arg
+```
+The 2-arg `FVU.j(name,"I")` — or a `com.tin.tds.c.a.g()` static used just before —
+returns/uses a field that the LIGHTWEIGHT string ctor leaves null. The normal GUI
+flow initializes it; bypassing the GUI leaves it unset.
+
+### TO FINISH (precise, ~1 focused session):
+1. Decompile FVU's 2-arg `j(String,String)` + the string ctor `FVU(String)` and the
+   `com.tin.tds.c.a` class. Find the field that's null at FVU.j line 193.
+2. Either (a) pre-set that field/static via reflection in RunFVU1 before calling
+   fvu.j(), or (b) use the no-arg ctor `new FVU()` (full init) but immediately
+   `setVisible(false)` + dispose, then call j() — full init may avoid the NPE.
+   Option (b) is the quickest thing to try next.
+3. Provide a real .csi (download via CDeTDS CSI flow) — some validation paths need it.
+4. On success it writes <out>.fvu (valid) or <err>.html (errors); parse like 9.4.
+5. Wire dual-FVU in FvuUtilityRunner: 9.4 for FY<=2025-26, base64-embed RunFVU1.class
+   and drive FVU 1.0 for TY 2026-27 (138/140/143).
+
+STATUS: ~90% done. Headless execution PROVEN end-to-end; one init dependency to
+satisfy before it emits the .fvu. This is no longer research — it's debugging one NPE.
+
+### UPDATE 2026-06-27b — full ctor does NOT fix the NPE (deeper cause found)
+Tried `new FVU()` (full GUI init) + setVisible(false): still NPEs at FVU.j(nb:193).
+stdout confirms full init ran (logs "btnbrowseErrorFilePath is JButton..."). So the
+null is NOT an unconstructed field — it's a field the validate method reads that is
+only populated by USER INTERACTION (selecting files via the GUI Browse buttons),
+not by construction or by the j() arguments. FVU.j line 193 = `int a23 = this.j(name,"I")`
+calling the 2-arg FVU.j(String,String), which reads a UI-state field.
+
+THE REAL OBSTACLE (honest): FVU 1.0's validation is coupled to interactive Swing
+state — there is no clean headless "validate(file)" path; the validate method pulls
+input/output paths and options from window fields the user fills by clicking. Driving
+it headlessly means reflectively pre-populating those fields to mimic the click flow.
+
+### NEXT (precise):
+1. Decompile the 2-arg `FVU.j(String,String)` (the one at the NPE) — identify the
+   exact `this.<field>` or `com.tin.tds.*` static it dereferences that is null.
+2. In RunFVU1, reflectively set that field/static on the FVU instance (and any the
+   validate path reads: input path, error-output dir, csi path, version) BEFORE
+   calling fvu.j(). Effectively replay the GUI's "fields populated" state.
+3. Re-test; iterate on any further null until it writes .fvu/err.html.
+This is bounded but fiddly (could be a few fields). Feasibility still holds — the
+engine runs; we just have to feed it the state the GUI normally feeds it.
+
+RunFVU1.java (the working shim skeleton) is kept in this folder.
+
 ## How to finish (next session)
 
 1. Use a real Java decompiler (CFR / Procyon / Fernflower) on `FVU.class` for
